@@ -76,7 +76,7 @@ plant-sensor-can-sim/
 
 ```mermaid
 flowchart TD
-  CANRX[CAN RX vcan0] -->CMD[ActuatorCmd]
+  CANRX[CAN RX vcan0] -->|decode| CMD[ActuatorCmd]
   CMD --> PLANT[Plant +  Actuator Models]
   PLANT --> STATE[PlantState]
   STATE --> SENS[Sensor Simulation]
@@ -100,6 +100,8 @@ BRIDGE --> DDS[DDS Topics]
 DDS --> EKF[EKF Sensor Fusion]
 DDS --> MQTT[MQTT–DDS Bridge]
 MQTT --> EMS[EMS / Controllers]
+EMS --> logging[logging]
+logging --> Database[Databse + dashboard]
 ```
 
 This repo intentionally stops **before DDS/EMS**.
