@@ -5,7 +5,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "utils/csv.hpp"
 #include "utils/bitpack.hpp"
 
 namespace can {
@@ -45,23 +44,20 @@ class CanMap {
 public:
     bool load(const std::string& csv_path);
 
-    // RX: frame_id → signals to decode
-    const std::unordered_map<uint32_t, FrameDef>& rx_frames() const {
-        return rx_frames_;
-    }
+    // RX: frame_id → frame definition (signals to decode)
+    const std::unordered_map<uint32_t, FrameDef>& rx_frames() const { return rx_frames_; }
 
     // TX: ordered list of frames to transmit
-    const std::vector<FrameDef>& tx_frames() const {
-        return tx_frames_;
-    }
+    const std::vector<FrameDef>& tx_frames() const { return tx_frames_; }
 
+    // Lookup helpers
     const FrameDef* find_rx_frame(uint32_t frame_id) const;
+    const FrameDef* find_tx_frame(uint32_t frame_id) const;
 
 private:
     std::unordered_map<uint32_t, FrameDef> rx_frames_;
     std::vector<FrameDef> tx_frames_;
 
-private:
     static utils::Endianness parse_endianness(const std::string& s);
 };
 
