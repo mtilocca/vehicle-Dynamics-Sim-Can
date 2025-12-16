@@ -18,26 +18,30 @@ static volatile std::sig_atomic_t g_stop = 0;
 
 static void on_sigint(int) { g_stop = 1; }
 
-static int open_can_socket(const char* ifname) {
+static int open_can_socket(const char *ifname)
+{
     int s = ::socket(PF_CAN, SOCK_RAW, CAN_RAW);
-    if (s < 0) {
+    if (s < 0)
+    {
         perror("socket(PF_CAN)");
         return -1;
     }
 
-    struct ifreq ifr {};
+    struct ifreq ifr{};
     std::snprintf(ifr.ifr_name, IFNAMSIZ, "%s", ifname);
-    if (::ioctl(s, SIOCGIFINDEX, &ifr) < 0) {
+    if (::ioctl(s, SIOCGIFINDEX, &ifr) < 0)
+    {
         perror("ioctl(SIOCGIFINDEX)");
         ::close(s);
         return -1;
     }
 
-    struct sockaddr_can addr {};
-    addr.can_family  = AF_CAN;
+    struct sockaddr_can addr{};
+    addr.can_family = AF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;
 
-    if (::bind(s, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
+    if (::bind(s, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr)) < 0)
+    {
         perror("bind(AF_CAN)");
         ::close(s);
         return -1;
@@ -46,37 +50,44 @@ static int open_can_socket(const char* ifname) {
     return s;
 }
 
-static bool parse_u32_hex(const char* s, uint32_t& out) {
+static bool parse_u32_hex(const char *s, uint32_t &out)
+{
     // Accept "123" or "0x123"
-    char* end = nullptr;
+    char *end = nullptr;
     errno = 0;
     unsigned long v = std::strtoul(s, &end, 0);
-    if (errno != 0 || end == s || *end != '\0') return false;
+    if (errno != 0 || end == s || *end != '\0')
+        return false;
     out = static_cast<uint32_t>(v);
     return true;
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
     std::signal(SIGINT, on_sigint);
 
-    const char* ifname = (argc > 1) ? argv[1] : "vcan0";
+    const char *ifname = (argc > 1) ? argv[1] : "vcan0";
     int period_ms = (argc > 2) ? std::atoi(argv[2]) : 200;
 
     bool use_fixed_id = false;
     uint32_t fixed_id = 0;
 
-    if (argc > 3) {
-        if (!parse_u32_hex(argv[3], fixed_id) || fixed_id > 0x7FF) {
+    if (argc > 3)
+    {
+        if (!parse_u32_hex(argv[3], fixed_id) || fixed_id > 0x7FF)
+        {
             std::cerr << "Invalid CAN ID. Use 11-bit ID (0..0x7FF), e.g. 123 or 0x123\n";
             return 1;
         }
         use_fixed_id = true;
     }
 
-    if (period_ms < 0) period_ms = 0;
+    if (period_ms < 0)
+        period_ms = 0;
 
     int sock = open_can_socket(ifname);
-    if (sock < 0) return 1;
+    if (sock < 0)
+        return 1;
 
     std::random_device rd;
     std::mt19937 rng(rd());
@@ -87,19 +98,23 @@ int main(int argc, char** argv) {
     std::cout << "Sending random CAN frames on " << ifname
               << " (Ctrl+C to stop)\n";
     std::cout << "Period: " << period_ms << " ms\n";
-    if (use_fixed_id) std::cout << "Fixed ID: 0x" << std::hex << fixed_id << std::dec << "\n";
+    if (use_fixed_id)
+        std::cout << "Fixed ID: 0x" << std::hex << fixed_id << std::dec << "\n";
 
-    while (!g_stop) {
-        struct can_frame frame {};
-        frame.can_id  = use_fixed_id ? fixed_id : id_dist(rng);
+    while (!g_stop)
+    {
+        struct can_frame frame{};
+        frame.can_id = use_fixed_id ? fixed_id : id_dist(rng);
         frame.can_dlc = static_cast<__u8>(dlc_dist(rng));
 
-        for (int i = 0; i < frame.can_dlc; ++i) {
+        for (int i = 0; i < frame.can_dlc; ++i)
+        {
             frame.data[i] = static_cast<__u8>(byte_dist(rng));
         }
 
         ssize_t n = ::write(sock, &frame, sizeof(frame));
-        if (n != (ssize_t)sizeof(frame)) {
+        if (n != (ssize_t)sizeof(frame))
+        {
             perror("write(can_frame)");
             break;
         }
@@ -112,13 +127,15 @@ int main(int argc, char** argv) {
                   << " dlc=" << static_cast<int>(frame.can_dlc)
                   << " data=";
 
-        for (int i = 0; i < frame.can_dlc; ++i) {
+        for (int i = 0; i < frame.can_dlc; ++i)
+        {
             std::cout << std::hex << std::setw(2) << std::setfill('0')
                       << static_cast<int>(frame.data[i]) << " ";
         }
         std::cout << std::dec << "\n";
 
-        if (period_ms > 0) {
+        if (period_ms > 0)
+        {
             std::this_thread::sleep_for(std::chrono::milliseconds(period_ms));
         }
     }
