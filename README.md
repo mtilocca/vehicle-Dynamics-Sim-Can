@@ -101,6 +101,7 @@ DDS --> EKF[EKF Sensor Fusion]
 DDS --> MQTT[MQTT–DDS Bridge]
 MQTT --> EMS[EMS / Controllers]
 EMS --> logging[logging]
+DDS --> logging
 logging --> Database[Databse + dashboard]
 ```
 
