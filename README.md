@@ -174,6 +174,16 @@ The loop is fully deterministic and suitable for SIL/HIL.
 sudo ./config/set-upvcan0.sh
 ```
 
+### Run Can Simulator 
+
+```bash
+./build/src/can/vcan_random_sender vcan0 config/configs/can_map.csv
+
+# new terminal 
+./build/src/can/vcan_listener vcan0 config/configs/can_map.csv  --decode-tx=1  # --decode-tx
+
+```
+
 ### Run simulator
 ```bash
 ./build/sim_can --iface vcan0
