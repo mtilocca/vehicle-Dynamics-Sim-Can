@@ -1,0 +1,15 @@
+[Unit]
+Description=Setup vcan0 (SocketCAN virtual interface)
+After=network.target
+Wants=network.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStartPre=/bin/sleep 5
+ExecStart=/bin/bash /mnt/c/source/personal/programming/plant-sensor-can-sim/config/set-upvcan0.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
