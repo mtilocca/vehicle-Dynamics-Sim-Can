@@ -76,12 +76,12 @@ plant-sensor-can-sim/
 
 ```mermaid
 flowchart TD
-CANRX[CAN RX vcan0] -->|decode| CMD[ActuatorCmd]
-CMD --> PLANT[Plant / Actuator Models]
-PLANT --> STATE[PlantState (truth)]
-STATE --> SENS[Sensor Simulation]
-SENS --> MEAS[SensorOut]
-MEAS -->|encode| CANTX[CAN TX vcan0]
+  CANRX[CAN RX vcan0] -->CMD[ActuatorCmd]
+  CMD --> PLANT[Plant +  Actuator Models]
+  PLANT --> STATE[PlantState]
+  STATE --> SENS[Sensor Simulation]
+  SENS --> MEAS[SensorOut]
+  MEAS -->|encode| CANTX[CAN TX vcan0]
 ```
 
 Key rules:
@@ -96,7 +96,7 @@ Key rules:
 ```mermaid
 flowchart LR
 SIM[Plant + Sensor CAN Sim] -->|CAN frames| BRIDGE[CAN ↔ DDS Bridge]
-BRIDGE --> DDS[(DDS Topics)]
+BRIDGE --> DDS[DDS Topics]
 DDS --> EKF[EKF Sensor Fusion]
 DDS --> MQTT[MQTT–DDS Bridge]
 MQTT --> EMS[EMS / Controllers]
