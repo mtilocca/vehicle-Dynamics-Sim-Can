@@ -1,6 +1,0 @@
-/mnt/c/source/personal/programming/plant-sensor-can-sim/build/CMakeFiles/edit_cache.dir
-/mnt/c/source/personal/programming/plant-sensor-can-sim/build/CMakeFiles/rebuild_cache.dir
-/mnt/c/source/personal/programming/plant-sensor-can-sim/build/src/can/CMakeFiles/vcan_random_sender.dir
-/mnt/c/source/personal/programming/plant-sensor-can-sim/build/src/can/CMakeFiles/vcan_listener.dir
-/mnt/c/source/personal/programming/plant-sensor-can-sim/build/src/can/CMakeFiles/edit_cache.dir
-/mnt/c/source/personal/programming/plant-sensor-can-sim/build/src/can/CMakeFiles/rebuild_cache.dir
