@@ -90,7 +90,7 @@ namespace utils
             if (s.empty())
                 return default_val;
             std::string v = to_lower(s);
-            return (v == "true" v == "1" v == "yes");
+            return (v == "true" || v == "1" || v == "yes");
         }
 
         static int to_int(const std::string &s, int default_val = 0)

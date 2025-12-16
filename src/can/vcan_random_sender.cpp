@@ -1,9 +1,6 @@
 #include <chrono>
 #include <csignal>
-#include <cstdint>
 #include <cstring>
-#include <iomanip>
-#include <iostream>
 #include <random>
 #include <thread>
 
@@ -14,133 +11,100 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-static volatile std::sig_atomic_t g_stop = 0;
+#include "can/can_map.hpp"
+#include "utils/bitpack.hpp"
+#include "utils/logging.hpp"
 
+using namespace std::chrono;
+
+static volatile std::sig_atomic_t g_stop = 0;
 static void on_sigint(int) { g_stop = 1; }
 
 static int open_can_socket(const char *ifname)
 {
     int s = ::socket(PF_CAN, SOCK_RAW, CAN_RAW);
-    if (s < 0)
-    {
-        perror("socket(PF_CAN)");
-        return -1;
-    }
+    if (s < 0) return -1;
 
     struct ifreq ifr{};
     std::snprintf(ifr.ifr_name, IFNAMSIZ, "%s", ifname);
-    if (::ioctl(s, SIOCGIFINDEX, &ifr) < 0)
-    {
-        perror("ioctl(SIOCGIFINDEX)");
-        ::close(s);
-        return -1;
-    }
+    if (::ioctl(s, SIOCGIFINDEX, &ifr) < 0) return -1;
 
     struct sockaddr_can addr{};
     addr.can_family = AF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;
 
-    if (::bind(s, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr)) < 0)
-    {
-        perror("bind(AF_CAN)");
-        ::close(s);
-        return -1;
-    }
-
+    if (::bind(s, (struct sockaddr*)&addr, sizeof(addr)) < 0) return -1;
     return s;
-}
-
-static bool parse_u32_hex(const char *s, uint32_t &out)
-{
-    // Accept "123" or "0x123"
-    char *end = nullptr;
-    errno = 0;
-    unsigned long v = std::strtoul(s, &end, 0);
-    if (errno != 0 || end == s || *end != '\0')
-        return false;
-    out = static_cast<uint32_t>(v);
-    return true;
 }
 
 int main(int argc, char **argv)
 {
     std::signal(SIGINT, on_sigint);
+    utils::set_level(utils::LogLevel::Info);
 
-    const char *ifname = (argc > 1) ? argv[1] : "vcan0";
-    int period_ms = (argc > 2) ? std::atoi(argv[2]) : 200;
+    const char* ifname = (argc > 1) ? argv[1] : "vcan0";
+    const char* csv_path = (argc > 2) ? argv[2] : "configs/can_map.csv";
 
-    bool use_fixed_id = false;
-    uint32_t fixed_id = 0;
-
-    if (argc > 3)
-    {
-        if (!parse_u32_hex(argv[3], fixed_id) || fixed_id > 0x7FF)
-        {
-            std::cerr << "Invalid CAN ID. Use 11-bit ID (0..0x7FF), e.g. 123 or 0x123\n";
-            return 1;
-        }
-        use_fixed_id = true;
+    can::CanMap map;
+    if (!map.load(csv_path)) {
+        LOG_ERROR("Failed to load CAN map: %s", csv_path);
+        return 1;
     }
 
-    if (period_ms < 0)
-        period_ms = 0;
-
     int sock = open_can_socket(ifname);
-    if (sock < 0)
+    if (sock < 0) {
+        LOG_ERROR("Failed to open CAN socket");
         return 1;
+    }
 
-    std::random_device rd;
-    std::mt19937 rng(rd());
-    std::uniform_int_distribution<uint32_t> id_dist(0x100, 0x7FF);
-    std::uniform_int_distribution<int> dlc_dist(0, 8);
-    std::uniform_int_distribution<int> byte_dist(0, 255);
+    std::mt19937 rng{std::random_device{}()};
+    LOG_INFO("CSV-driven CAN TX on %s", ifname);
 
-    std::cout << "Sending random CAN frames on " << ifname
-              << " (Ctrl+C to stop)\n";
-    std::cout << "Period: " << period_ms << " ms\n";
-    if (use_fixed_id)
-        std::cout << "Fixed ID: 0x" << std::hex << fixed_id << std::dec << "\n";
+    // Per-frame next send time
+    std::vector<steady_clock::time_point> next_tx;
+    next_tx.resize(map.tx_frames().size(), steady_clock::now());
 
     while (!g_stop)
     {
-        struct can_frame frame{};
-        frame.can_id = use_fixed_id ? fixed_id : id_dist(rng);
-        frame.can_dlc = static_cast<__u8>(dlc_dist(rng));
+        auto now = steady_clock::now();
 
-        for (int i = 0; i < frame.can_dlc; ++i)
-        {
-            frame.data[i] = static_cast<__u8>(byte_dist(rng));
+        for (size_t i = 0; i < map.tx_frames().size(); ++i) {
+            const auto& frame_def = map.tx_frames()[i];
+            if (now < next_tx[i]) continue;
+
+            struct can_frame frame{};
+            frame.can_id = frame_def.frame_id;
+            frame.can_dlc = frame_def.dlc;
+            std::memset(frame.data, 0, sizeof(frame.data));
+
+            for (const auto& sig : frame_def.signals) {
+                std::uniform_real_distribution<double> dist(sig.min, sig.max);
+                double eng = dist(rng);
+                double raw_f = (eng - sig.offset) / sig.factor;
+                int64_t raw = sig.is_signed ?
+                    static_cast<int64_t>(raw_f) :
+                    static_cast<uint64_t>(raw_f);
+
+                utils::set_bits_lsb0(
+                    frame.data, frame.can_dlc,
+                    sig.start_bit, sig.bit_length,
+                    sig.endianness,
+                    static_cast<uint64_t>(raw)
+                );
+            }
+
+            ::write(sock, &frame, sizeof(frame));
+
+            LOG_INFO("TX 0x%03X (%s)", frame_def.frame_id,
+                     frame_def.frame_name.c_str());
+
+            next_tx[i] = now + milliseconds(frame_def.cycle_ms);
         }
 
-        ssize_t n = ::write(sock, &frame, sizeof(frame));
-        if (n != (ssize_t)sizeof(frame))
-        {
-            perror("write(can_frame)");
-            break;
-        }
-
-        // Pretty print: ID 3-hex, bytes 2-hex
-        std::cout << "TX id=0x"
-                  << std::hex << std::setw(3) << std::setfill('0')
-                  << (frame.can_id & CAN_SFF_MASK)
-                  << std::dec
-                  << " dlc=" << static_cast<int>(frame.can_dlc)
-                  << " data=";
-
-        for (int i = 0; i < frame.can_dlc; ++i)
-        {
-            std::cout << std::hex << std::setw(2) << std::setfill('0')
-                      << static_cast<int>(frame.data[i]) << " ";
-        }
-        std::cout << std::dec << "\n";
-
-        if (period_ms > 0)
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(period_ms));
-        }
+        std::this_thread::sleep_for(milliseconds(1));
     }
 
-    std::cout << "Stopping.\n";
+    LOG_INFO("Stopping TX");
     ::close(sock);
     return 0;
 }
