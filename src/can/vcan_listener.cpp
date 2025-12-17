@@ -1,70 +1,72 @@
-#include <cstring>
+#include <cctype>
 #include <string>
+#include <vector>
 
 #include <linux/can.h>
-#include <linux/can/raw.h>
-#include <net/if.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <unistd.h>
 
+#include "can/can_codec.hpp"
 #include "can/can_map.hpp"
-#include "utils/bitpack.hpp"
+#include "can/socketcan_iface.hpp"
 #include "utils/logging.hpp"
 
-static int open_can_socket(const char *ifname)
-{
-    int s = ::socket(PF_CAN, SOCK_RAW, CAN_RAW);
-    if (s < 0) {
-        perror("socket(PF_CAN)");
-        return -1;
-    }
-
-    struct ifreq ifr{};
-    std::snprintf(ifr.ifr_name, IFNAMSIZ, "%s", ifname);
-    if (::ioctl(s, SIOCGIFINDEX, &ifr) < 0) {
-        perror("ioctl(SIOCGIFINDEX)");
-        ::close(s);
-        return -1;
-    }
-
-    struct sockaddr_can addr{};
-    addr.can_family = AF_CAN;
-    addr.can_ifindex = ifr.ifr_ifindex;
-
-    if (::bind(s, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
-        perror("bind(AF_CAN)");
-        ::close(s);
-        return -1;
-    }
-
-    return s;
+static bool arg_is_true(std::string s) {
+    for (auto& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return (s == "1" ||  s == "true" || s == "yes" || s == "on");
 }
 
-static bool arg_is_true(const std::string& s) {
-    // Accept: 1/0, true/false, yes/no, on/off
-    auto lower = s;
-    for (auto& c : lower) c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
-    return (lower == "1" || lower == "true" || lower == "yes" || lower == "on");
+static bool parse_u32(const std::string& s, uint32_t& out) {
+    char* end = nullptr;
+    errno = 0;
+    unsigned long v = std::strtoul(s.c_str(), &end, 0);
+    if (errno != 0 || end == s.c_str() || *end != '\0') return false;
+    out = static_cast<uint32_t>(v);
+    return true;
 }
 
-int main(int argc, char **argv)
-{
+static std::vector<uint32_t> parse_id_list(const std::string& s) {
+    // e.g. "0x200,0x201,0x220"
+    std::vector<uint32_t> ids;
+    std::string cur;
+    for (char ch : s) {
+        if (ch == ',') {
+            if (!cur.empty()) {
+                uint32_t v = 0;
+                if (parse_u32(cur, v) && v <= 0x7FF) ids.push_back(v);
+                cur.clear();
+            }
+        } else if (!std::isspace(static_cast<unsigned char>(ch))) {
+            cur.push_back(ch);
+        }
+    }
+    if (!cur.empty()) {
+        uint32_t v = 0;
+        if (parse_u32(cur, v) && v <= 0x7FF) ids.push_back(v);
+    }
+    return ids;
+}
+
+int main(int argc, char** argv) {
     utils::set_level(utils::LogLevel::Info);
 
     const char* ifname   = (argc > 1) ? argv[1] : "vcan0";
     const char* csv_path = (argc > 2) ? argv[2] : "configs/can_map.csv";
 
-    // Optional: decode TX frames too (default: OFF)
-    // Usage:
-    //   ./vcan_listener vcan0 configs/can_map.csv
-    //   ./vcan_listener vcan0 configs/can_map.csv --decode-tx
-    //   ./vcan_listener vcan0 configs/can_map.csv --decode-tx=1
+    // Flags:
+    //   --decode-tx           (enable)
+    //   --decode-tx=1|0       (explicit)
+    //   --filter=0x200,0x201  (optional SocketCAN filter)
     bool decode_tx = false;
+    std::vector<uint32_t> filter_ids;
+
     for (int i = 3; i < argc; ++i) {
         std::string a = argv[i];
-        if (a == "--decode-tx") decode_tx = true;
-        else if (a.rfind("--decode-tx=", 0) == 0) decode_tx = arg_is_true(a.substr(std::string("--decode-tx=").size()));
+        if (a == "--decode-tx") {
+            decode_tx = true;
+        } else if (a.rfind("--decode-tx=", 0) == 0) {
+            decode_tx = arg_is_true(a.substr(std::string("--decode-tx=").size()));
+        } else if (a.rfind("--filter=", 0) == 0) {
+            filter_ids = parse_id_list(a.substr(std::string("--filter=").size()));
+        }
     }
 
     can::CanMap map;
@@ -73,21 +75,27 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    int sock = open_can_socket(ifname);
-    if (sock < 0) return 1;
+    can::SocketCanIface iface;
+    if (!iface.open(ifname)) {
+        LOG_ERROR("Failed to open SocketCAN iface: %s", ifname);
+        return 1;
+    }
+
+    if (!filter_ids.empty()) {
+        if (!iface.set_filters(filter_ids)) {
+            LOG_ERROR("Failed to set CAN filters");
+            return 1;
+        }
+        LOG_INFO("Filter enabled (%zu IDs)", filter_ids.size());
+    }
 
     LOG_INFO("Listening on %s", ifname);
+    LOG_INFO("Map: %s", csv_path);
     LOG_INFO("Decode TX frames: %s", decode_tx ? "ON" : "OFF");
 
-    while (true)
-    {
+    while (true) {
         struct can_frame frame{};
-        ssize_t n = ::read(sock, &frame, sizeof(frame));
-        if (n < 0) {
-            perror("read(can_frame)");
-            break;
-        }
-        if (n != (ssize_t)sizeof(frame)) continue;
+        if (!iface.read_frame(frame)) continue;
 
         uint32_t id = frame.can_id & CAN_SFF_MASK;
 
@@ -97,25 +105,18 @@ int main(int argc, char **argv)
 
         LOG_INFO("RX 0x%03X (%s) dlc=%d", id, def->frame_name.c_str(), (int)frame.can_dlc);
 
+        auto decoded = can::CanCodec::decode_to_map(*def, frame);
+
         for (const auto& sig : def->signals) {
-            uint64_t raw_u = utils::get_bits_lsb0(
-                frame.data, frame.can_dlc,
-                sig.start_bit, sig.bit_length,
-                sig.endianness
-            );
+            auto it = decoded.find(sig.signal_name);
+            if (it == decoded.end()) continue;
 
-            double eng = 0.0;
-            if (sig.is_signed) {
-                int64_t raw_s = utils::sign_extend(raw_u, sig.bit_length);
-                eng = (double)raw_s * sig.factor + sig.offset;
-            } else {
-                eng = (double)raw_u * sig.factor + sig.offset;
-            }
-
-            LOG_INFO("  %-24s = %.6f %s", sig.signal_name.c_str(), eng, sig.unit.c_str());
+            LOG_INFO("  %-24s = %.6f %s",
+                     sig.signal_name.c_str(),
+                     it->second,
+                     sig.unit.c_str());
         }
     }
 
-    ::close(sock);
     return 0;
 }

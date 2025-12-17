@@ -4,11 +4,18 @@ project(can_tools LANGUAGES CXX)
 add_executable(vcan_random_sender
     vcan_random_sender.cpp
     can_map.cpp
+    can_codec.cpp
+    tx_scheduler.cpp
+    socketcan_iface.cpp
+
 )
 
 add_executable(vcan_listener
     vcan_listener.cpp
     can_map.cpp
+    can_codec.cpp
+    tx_scheduler.cpp
+    socketcan_iface.cpp
 )
 
 # Make "utils/xxx.hpp" resolvable (and also lets you include from "src/..." if you want)

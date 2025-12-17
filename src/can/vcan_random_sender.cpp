@@ -1,49 +1,45 @@
-#include <chrono>
 #include <csignal>
-#include <cstring>
 #include <random>
-#include <thread>
+#include <string>
 
-#include <linux/can.h>
-#include <linux/can/raw.h>
-#include <net/if.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <unistd.h>
-
+#include "can/can_codec.hpp"
 #include "can/can_map.hpp"
-#include "utils/bitpack.hpp"
+#include "can/socketcan_iface.hpp"
+#include "can/tx_scheduler.hpp"
 #include "utils/logging.hpp"
-
-using namespace std::chrono;
 
 static volatile std::sig_atomic_t g_stop = 0;
 static void on_sigint(int) { g_stop = 1; }
 
-static int open_can_socket(const char *ifname)
-{
-    int s = ::socket(PF_CAN, SOCK_RAW, CAN_RAW);
-    if (s < 0) return -1;
-
-    struct ifreq ifr{};
-    std::snprintf(ifr.ifr_name, IFNAMSIZ, "%s", ifname);
-    if (::ioctl(s, SIOCGIFINDEX, &ifr) < 0) return -1;
-
-    struct sockaddr_can addr{};
-    addr.can_family = AF_CAN;
-    addr.can_ifindex = ifr.ifr_ifindex;
-
-    if (::bind(s, (struct sockaddr*)&addr, sizeof(addr)) < 0) return -1;
-    return s;
+static bool parse_u32(const char* s, uint32_t& out) {
+    char* end = nullptr;
+    errno = 0;
+    unsigned long v = std::strtoul(s, &end, 0);
+    if (errno != 0 || end == s || *end != '\0') return false;
+    out = static_cast<uint32_t>(v);
+    return true;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char** argv) {
     std::signal(SIGINT, on_sigint);
     utils::set_level(utils::LogLevel::Info);
 
-    const char* ifname = (argc > 1) ? argv[1] : "vcan0";
+    const char* ifname   = (argc > 1) ? argv[1] : "vcan0";
     const char* csv_path = (argc > 2) ? argv[2] : "configs/can_map.csv";
+
+    // Optional: restrict to a single TX frame id (11-bit), for debugging
+    // Usage:
+    //   ./vcan_random_sender vcan0 configs/can_map.csv
+    //   ./vcan_random_sender vcan0 configs/can_map.csv 0x200
+    bool use_fixed_id = false;
+    uint32_t fixed_id = 0;
+    if (argc > 3) {
+        if (!parse_u32(argv[3], fixed_id) || fixed_id > 0x7FF) {
+            LOG_ERROR("Invalid fixed_id. Use 11-bit: e.g. 0x200");
+            return 1;
+        }
+        use_fixed_id = true;
+    }
 
     can::CanMap map;
     if (!map.load(csv_path)) {
@@ -51,60 +47,76 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    int sock = open_can_socket(ifname);
-    if (sock < 0) {
-        LOG_ERROR("Failed to open CAN socket");
+    can::SocketCanIface iface;
+    if (!iface.open(ifname)) {
+        LOG_ERROR("Failed to open SocketCAN iface: %s", ifname);
         return 1;
     }
 
+    // Prepare list of TX frames we will send
+    std::vector<can::FrameDef> tx_frames;
+    tx_frames.reserve(map.tx_frames().size());
+
+    for (const auto& f : map.tx_frames()) {
+        if (!use_fixed_id || f.frame_id == fixed_id)
+            tx_frames.push_back(f);
+    }
+
+    if (tx_frames.empty()) {
+        LOG_ERROR("No TX frames selected. Check CSV or fixed_id filter.");
+        return 1;
+    }
+
+    can::TxScheduler sched;
+    sched.init(tx_frames);
+    sched.force_all_due();
+
     std::mt19937 rng{std::random_device{}()};
-    LOG_INFO("CSV-driven CAN TX on %s", ifname);
 
-    // Per-frame next send time
-    std::vector<steady_clock::time_point> next_tx;
-    next_tx.resize(map.tx_frames().size(), steady_clock::now());
+    LOG_INFO("CSV-driven CAN random sender on %s", ifname);
+    LOG_INFO("Map: %s", csv_path);
+    if (use_fixed_id) LOG_INFO("Fixed TX frame: 0x%03X", fixed_id);
 
-    while (!g_stop)
-    {
-        auto now = steady_clock::now();
+    while (!g_stop) {
+        auto now = can::TxScheduler::Clock::now();
+        auto due = sched.due(now);
 
-        for (size_t i = 0; i < map.tx_frames().size(); ++i) {
-            const auto& frame_def = map.tx_frames()[i];
-            if (now < next_tx[i]) continue;
+        for (size_t idx : due) {
+            const auto& def = tx_frames[idx];
 
-            struct can_frame frame{};
-            frame.can_id = frame_def.frame_id;
-            frame.can_dlc = frame_def.dlc;
-            std::memset(frame.data, 0, sizeof(frame.data));
+            // Build engineering values for this frame
+            can::SignalMap vals;
+            vals.reserve(def.signals.size());
 
-            for (const auto& sig : frame_def.signals) {
-                std::uniform_real_distribution<double> dist(sig.min, sig.max);
-                double eng = dist(rng);
-                double raw_f = (eng - sig.offset) / sig.factor;
-                int64_t raw = sig.is_signed ?
-                    static_cast<int64_t>(raw_f) :
-                    static_cast<uint64_t>(raw_f);
+            for (const auto& sig : def.signals) {
+                // If min/max are equal or reversed, just use default
+                double lo = sig.min;
+                double hi = sig.max;
 
-                utils::set_bits_lsb0(
-                    frame.data, frame.can_dlc,
-                    sig.start_bit, sig.bit_length,
-                    sig.endianness,
-                    static_cast<uint64_t>(raw)
-                );
+                double eng = sig.default_value;
+                if (hi > lo) {
+                    std::uniform_real_distribution<double> dist(lo, hi);
+                    eng = dist(rng);
+                }
+
+                vals[sig.signal_name] = eng;
             }
 
-            ::write(sock, &frame, sizeof(frame));
+            // Encode -> CAN frame
+            struct can_frame frame{};
+            can::CanCodec::encode_from_map(def, vals, frame);
 
-            LOG_INFO("TX 0x%03X (%s)", frame_def.frame_id,
-                     frame_def.frame_name.c_str());
+            // Send
+            if (!iface.write_frame(frame)) {
+                LOG_ERROR("Failed to write frame 0x%03X", def.frame_id);
+                g_stop = 1;
+                break;
+            }
 
-            next_tx[i] = now + milliseconds(frame_def.cycle_ms);
+            LOG_INFO("TX 0x%03X (%s)", def.frame_id, def.frame_name.c_str());
         }
-
-        std::this_thread::sleep_for(milliseconds(1));
     }
 
     LOG_INFO("Stopping TX");
-    ::close(sock);
     return 0;
 }
