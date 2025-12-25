@@ -18,8 +18,9 @@ void PlantModel::set_params(const PlantModelParams& p) {
     p_ = p;
     p_.steer.wheelbase_m = p_.wheelbase_m;
     p_.steer.track_width_m = p_.track_width_m;
-    steer_.set_params(p_.steer);
-    drive_.set_params(p_.drive);
+    steer_.params() = p_.steer;
+    drive_.params() = p_.drive;
+
 }
 
 void PlantModel::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {

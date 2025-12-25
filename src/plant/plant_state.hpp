@@ -19,9 +19,12 @@ struct PlantState {
 
     // --- Kinematics
     double v_mps = 0.0;        // longitudinal speed at rear axle reference
+    double a_long_mps2 = 0.0;
+
 
     // --- Steering (virtual bicycle steer + physical wheel angles)
     double steer_virtual_rad = 0.0;  // bicycle steer angle δ
+    double steer_rate_radps = 0.0;
     double delta_fl_rad = 0.0;       // front-left wheel angle (Ackermann)
     double delta_fr_rad = 0.0;       // front-right wheel angle (Ackermann)
 

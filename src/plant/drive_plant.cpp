@@ -1,50 +1,80 @@
+// src/plant/drive_plant.cpp
 #include "drive_plant.hpp"
 #include "sim/actuator_cmd.hpp"
 
-
-#include <algorithm>
 #include <cmath>
-
-#include "sim/actuator_cmd.hpp"
 
 namespace plant {
 
-static inline double clamp(double v, double lo, double hi) { return std::min(std::max(v, lo), hi); }
-
 void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {
-    // Interpret commands
-    const double motor_tq = clamp(cmd.drive_torque_cmd_nm, -p_.motor_torque_max_nm, +p_.motor_torque_max_nm);
+    if (dt_s <= 0.0) return;
 
-    // brake_cmd_pct is 0..100 (per CAN map). Convert to brake torque.
-    const double brake_pct = clamp(cmd.brake_cmd_pct, 0.0, 100.0);
-    const double brake_tq  = (brake_pct / 100.0) * p_.brake_torque_max_nm; // always resistive
+    // If disabled, coast down with resistances only (V1 policy)
+    const bool enabled = cmd.system_enable;
 
-    // Net wheel torque
-    const double wheel_tq = motor_tq - brake_tq;
-
-    // Drive/brake force at contact patch (simple)
-    double Fx = wheel_tq / p_.wheel_radius_m; // N
-
-    // Resistive forces (simple)
     const double v = s.v_mps;
-    const double F_drag = p_.drag_c * v * v;
-    const double F_roll = p_.roll_c;
 
-    // Oppose motion (V1 assumes v>=0)
-    const double F_resist = (v >= 0.0) ? (F_drag + F_roll) : -(F_drag + F_roll);
+    // --- Resistive forces (always applied)
+    // Drag opposes motion naturally with v*|v|
+    const double F_drag = p_.drag_c * v * std::abs(v);
 
-    // Acceleration
-    const double a = (Fx - F_resist) / p_.mass_kg;
+    // Rolling resistance opposes motion (use sign)
+    const double F_roll = p_.roll_c * static_cast<double>(sgn(v));
 
-    // Integrate speed (do not allow negative speed in V1)
-    s.v_mps = std::max(0.0, s.v_mps + a * dt_s);
+    const double F_res = F_drag + F_roll;
 
-    // Optional: derive wheel speeds (very simple, no slip)
-    const double wheel_rps = (p_.wheel_radius_m > 1e-9) ? (s.v_mps / p_.wheel_radius_m) / (2.0 * M_PI) : 0.0;
-    s.wheel_fl_rps = wheel_rps;
-    s.wheel_fr_rps = wheel_rps;
-    s.wheel_rl_rps = wheel_rps;
-    s.wheel_rr_rps = wheel_rps;
+    // --- Wheel force from motor + brake
+    double Fx = 0.0;
+
+    // Brake torque always opposes motion (wheel angular speed)
+    const double brake_pct = clamp(cmd.brake_cmd_pct, 0.0, 100.0);
+    const double brake_tq_mag = (brake_pct / 100.0) * p_.brake_torque_max_nm;
+    const double brake_tq = brake_tq_mag * static_cast<double>(sgn(v));
+
+    if (enabled) {
+        // Motor command torque at motor shaft
+        double motor_tq_cmd = clamp(cmd.drive_torque_cmd_nm,
+                                    -p_.motor_torque_max_nm,
+                                    +p_.motor_torque_max_nm);
+
+        // Convert to wheel torque via gear ratio + efficiency
+        double wheel_tq_from_motor = motor_tq_cmd * p_.gear_ratio * p_.drivetrain_eff;
+
+        // Power limiting: T_wheel_max = P_max * r / max(|v|, eps)
+        const double denom_v = std::max(std::abs(v), p_.v_stop_eps);
+        const double wheel_tq_power_max = (p_.motor_power_max_w * p_.wheel_radius_m) / denom_v;
+
+        wheel_tq_from_motor = clamp(wheel_tq_from_motor,
+                                    -wheel_tq_power_max,
+                                    +wheel_tq_power_max);
+
+        // Net wheel torque at tire (brake opposes motion)
+        const double wheel_tq = wheel_tq_from_motor - brake_tq;
+
+        Fx = wheel_tq / p_.wheel_radius_m;
+    } else {
+        // Disabled: no motor; allow braking to still apply if you want.
+        // V1: treat brake as still active when disabled.
+        Fx = (-brake_tq) / p_.wheel_radius_m;
+    }
+
+    // --- Net force and acceleration
+    const double F_net = Fx - F_res;
+    const double a = F_net / p_.mass_kg;
+
+    // Integrate speed
+    double v_next = v + a * dt_s;
+
+    // Hard speed clamp
+    v_next = clamp(v_next, -p_.v_max_mps, +p_.v_max_mps);
+
+    // If we cross through zero, snap to zero to avoid tiny oscillations
+    if ((v > 0.0 && v_next < 0.0) || (v < 0.0 && v_next > 0.0)) {
+        if (std::abs(v_next) < 0.05) v_next = 0.0;
+    }
+
+    s.a_long_mps2 = a;
+    s.v_mps = v_next;
 }
 
 } // namespace plant
