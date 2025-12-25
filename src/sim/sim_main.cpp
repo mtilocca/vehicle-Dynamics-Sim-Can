@@ -1,6 +1,11 @@
 #include "sim/sim_app.hpp"
+#include "utils/logging.hpp"
 
 int main() {
+    // Enable debug logging for troubleshooting
+    // Set to LogLevel::Info for less verbose output
+    utils::set_level(utils::LogLevel::Debug);
+    
     sim::SimAppConfig cfg{};
     cfg.dt_s = 0.01;
     cfg.duration_s = 20.0;
@@ -8,7 +13,6 @@ int main() {
 
     cfg.use_lua_scenario = true;
     cfg.lua_script_path = "config/lua/scenario.lua";
-    // cfg.scenario_json_path intentionally unused (Lua chooses JSON path internally)
 
     cfg.csv_log_path = "sim_out.csv";
 

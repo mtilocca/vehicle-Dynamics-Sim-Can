@@ -9,6 +9,7 @@
 #include "plant/plant_model.hpp"
 #include "plant/plant_state.hpp"
 #include "sim/actuator_cmd.hpp"
+#include "utils/logging.hpp"
 
 namespace sim {
 
@@ -30,32 +31,31 @@ int SimApp::run_plant_only() {
     if (cfg_.use_lua_scenario) {
         lua_ready_ = lua_.init(cfg_.lua_script_path, cfg_.scenario_json_path);
         if (!lua_ready_) {
-            std::printf("[WARN] Lua scenario requested but failed to init. Falling back to defaults.\n");
+            LOG_WARN("Lua scenario requested but failed to init. Falling back to defaults.");
         }
     }
 
-    // ---- CSV log init (Option A)
+    // ---- CSV log init
     std::ofstream csv;
     const bool csv_enabled = !cfg_.csv_log_path.empty();
     if (csv_enabled) {
         csv.open(cfg_.csv_log_path, std::ios::out | std::ios::trunc);
         if (!csv.is_open()) {
-            std::printf("[WARN] Failed to open CSV log file: %s (disabling CSV logging)\n",
-                        cfg_.csv_log_path.c_str());
+            LOG_WARN("Failed to open CSV log file: %s (disabling CSV logging)", cfg_.csv_log_path.c_str());
         } else {
-            // Added battery columns that already exist in PlantState:
-            // batt_soc_pct, batt_v, batt_i
             csv << "t_s,x_m,y_m,yaw_deg,v_mps,steer_deg,delta_fl_deg,delta_fr_deg,motor_nm,brake_pct,"
-                   "batt_soc_pct,batt_v,batt_i\n";
+                   "batt_soc_pct,batt_v,batt_i,motor_power_kW,regen_power_kW,brake_force_kN\n";
             csv << std::fixed << std::setprecision(6);
-            std::printf("[INFO] CSV logging to %s\n", cfg_.csv_log_path.c_str());
+            LOG_INFO("CSV logging to %s", cfg_.csv_log_path.c_str());
         }
     }
 
-    std::printf("Plant-only validator\n");
-    std::printf("dt=%.4f s, duration=%.2f s, steps=%d\n", dt, cfg_.duration_s, steps);
-    std::printf("Scenario: %s\n", (lua_ready_ ? "Lua" : "C++ defaults"));
-    std::printf("Columns: t  x  y  yaw_deg  v_mps  steer_deg  fl_deg  fr_deg  motor_nm  brake_pct  soc_pct  batt_v  batt_i regen_power_kW brake_force_kN\n");
+    LOG_INFO("Plant-only validator");
+    LOG_INFO("dt=%.4f s, duration=%.2f s, steps=%d", dt, cfg_.duration_s, steps);
+    LOG_INFO("Scenario: %s", (lua_ready_ ? "Lua" : "C++ defaults"));
+    
+    std::printf("Columns: t  x  y  yaw_deg  v_mps  steer_deg  fl_deg  fr_deg  motor_nm  brake_pct  ");
+    std::printf("soc_pct  batt_v  batt_i  motor_pwr_kW  regen_pwr_kW  brake_f_kN\n");
 
     for (int k = 0; k < steps; ++k) {
         const double t = s.t_s;
@@ -87,11 +87,13 @@ int SimApp::run_plant_only() {
             const double fr_deg = s.delta_fr_rad * 180.0 / M_PI;
 
             // console log
-            std::printf("%.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.0f  %.1f  %.1f  %.1f  %.2f %.2f %.2f\n",
+            std::printf("%.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.0f  %.1f  ",
                         s.t_s, s.x_m, s.y_m, yaw_deg, s.v_mps,
                         steer_deg, fl_deg, fr_deg,
-                        cmd.drive_torque_cmd_nm, cmd.brake_cmd_pct,
-                        s.batt_soc_pct, s.batt_v, s.batt_i, s.regen_power_kW, s.brake_force_kN);
+                        cmd.drive_torque_cmd_nm, cmd.brake_cmd_pct);
+            std::printf("%.1f  %.1f  %.2f  %.2f  %.2f  %.2f\n",
+                        s.batt_soc_pct, s.batt_v, s.batt_i, 
+                        s.motor_power_kW, s.regen_power_kW, s.brake_force_kN);
 
             // CSV log
             if (csv.is_open()) {
@@ -108,6 +110,7 @@ int SimApp::run_plant_only() {
                     << s.batt_soc_pct << ","
                     << s.batt_v << ","
                     << s.batt_i << ","
+                    << s.motor_power_kW << ","
                     << s.regen_power_kW << ","
                     << s.brake_force_kN << "\n"; 
             }
@@ -120,7 +123,7 @@ int SimApp::run_plant_only() {
         csv.close();
     }
 
-    std::printf("Done.\n");
+    LOG_INFO("Done.");
     return 0;
 }
 

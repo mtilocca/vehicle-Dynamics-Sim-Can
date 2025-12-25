@@ -1,8 +1,7 @@
 #include "drive_plant.hpp"
 #include "sim/actuator_cmd.hpp"
-#include <iostream>
+#include "utils/logging.hpp"
 #include <cmath>
-#include <cstdio>
 
 namespace plant {
 
@@ -25,10 +24,10 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {
     const double brake_tq = brake_tq_mag * static_cast<double>(sgn(v));
 
     // Calculate brake force (in kN)
-    const double brake_force_kN = brake_tq / p_.wheel_radius_m / 1000.0;  // Convert to kN
+    const double brake_force_kN = brake_tq / p_.wheel_radius_m / 1000.0;
 
-    std::cout << "Drive Torque Command (Nm): " << cmd.drive_torque_cmd_nm << std::endl;
-
+    LOG_DEBUG("[DrivePlant] v=%.2f m/s, motor_cmd=%.0f Nm, brake=%.1f%%", 
+              v, cmd.drive_torque_cmd_nm, brake_pct);
 
     // Calculate motor torque command
     double motor_tq_cmd = clamp(cmd.drive_torque_cmd_nm, -p_.motor_torque_max_nm, +p_.motor_torque_max_nm);
@@ -45,33 +44,53 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {
     const double wheel_tq = wheel_tq_from_motor - brake_tq;
     Fx = wheel_tq / p_.wheel_radius_m;
 
-    std::cout << "wheel_tq_from_motor: " << wheel_tq_from_motor << std::endl;
-
-
     // --- Power demand calculation (Torque * Angular Velocity)
     double angular_velocity = v / p_.wheel_radius_m;  // radians per second
-    std::cout << "angular_velocity: " << angular_velocity << std::endl;
-
     double power_demand_kW = wheel_tq_from_motor * angular_velocity / 1000.0; // kW
 
-    // Log the power demand for debugging
-    std::cout << "Power Demand (kW): " << power_demand_kW << std::endl;
+    LOG_DEBUG("[DrivePlant] wheel_tq=%.2f Nm, omega=%.2f rad/s, P_demand=%.2f kW", 
+              wheel_tq_from_motor, angular_velocity, power_demand_kW);
 
+    // --- Update battery and apply forces
     if (enabled) {
-        // Pass the power demand to the battery
-        battery_plant_->step(power_demand_kW, brake_force_kN, dt_s);  // Update BatteryPlant with power demand
+        // Update battery with power demand
+        if (battery_plant_) {
+            battery_plant_->step(power_demand_kW, brake_force_kN, dt_s);
+            
+            // Read back battery state into PlantState
+            s.batt_soc_pct = battery_plant_->get_soc() * 100.0;  // Convert 0-1 to 0-100
+            s.batt_v = battery_plant_->get_voltage();
+            s.batt_i = battery_plant_->get_current();
+            s.motor_power_kW = power_demand_kW;
+            s.regen_power_kW = 0.0;  // Will be updated below if braking
+            
+            LOG_DEBUG("[DrivePlant] Battery: SOC=%.1f%%, V=%.1f V, I=%.2f A", 
+                      s.batt_soc_pct, s.batt_v, s.batt_i);
+        }
     } else {
-        // No motor power, apply only brake force
+        // System disabled - no motor power, apply only brake force
         Fx = (-brake_tq) / p_.wheel_radius_m;
+        s.motor_power_kW = 0.0;
     }
 
-    // --- Regenerative braking logic
-    if (cmd.brake_cmd_pct > 0.0) {
-        // Calculate regen power based on the braking percentage
-        double regen_power_kW = (cmd.brake_cmd_pct / 100.0) * power_demand_kW;
-        battery_plant_->store_energy(regen_power_kW * dt_s);  // Store energy in the battery during braking
-        Fx = -regen_power_kW_;  // Apply regen braking force to decelerate the vehicle
+    // --- Regenerative braking logic (when braking)
+    if (brake_pct > 0.0 && std::abs(v) > p_.v_stop_eps) {
+        // Regen braking recovers some energy
+        // Simple model: regen power proportional to brake force and speed
+        const double regen_eff = 0.7;  // 70% efficiency for regen
+        double regen_power_kW = brake_force_kN * std::abs(v) * regen_eff;  // kW
+        
+        if (battery_plant_) {
+            // Store recovered energy
+            battery_plant_->store_energy(regen_power_kW * dt_s * 1000.0);  // Convert kW*s to W*s (J)
+            s.regen_power_kW = regen_power_kW;
+            
+            LOG_DEBUG("[DrivePlant] Regen: P_regen=%.2f kW, brake_force=%.2f kN", 
+                      regen_power_kW, brake_force_kN);
+        }
     }
+
+    s.brake_force_kN = brake_force_kN;
 
     // --- Net force and acceleration
     const double F_net = Fx - F_res;
@@ -87,6 +106,7 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {
 
     s.a_long_mps2 = a;
     s.v_mps = v_next;
+    s.motor_torque_nm = motor_tq_cmd;
 }
 
 } // namespace plant
