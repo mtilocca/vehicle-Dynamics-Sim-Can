@@ -1,4 +1,6 @@
 #include "steer_plant.hpp"
+#include "sim/actuator_cmd.hpp"
+
 
 #include <algorithm>
 #include <cmath>
