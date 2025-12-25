@@ -1,20 +1,41 @@
 #include "sim/sim_app.hpp"
 #include "utils/logging.hpp"
 
-int main() {
-    // Enable debug logging for troubleshooting
-    // Set to LogLevel::Info for less verbose output
-    utils::set_level(utils::LogLevel::Debug);
+int main(int argc, char** argv) {
+    // Parse command line arguments for scenario selection
+    std::string scenario_path = "config/scenarios/brake_test.json";
     
-    sim::SimAppConfig cfg{};
-    cfg.dt_s = 0.01;
-    cfg.duration_s = 20.0;
-    cfg.log_hz = 10.0;
+    if (argc > 1) {
+        scenario_path = argv[1];
+    }
 
+    // Configure logging
+    // For debugging: utils::LogLevel::Debug
+    // For production: utils::LogLevel::Info
+    utils::set_level(utils::LogLevel::Info);
+    
+    // Simulation configuration
+    sim::SimAppConfig cfg{};
+    
+    // Timing
+    cfg.dt_s = 0.01;          // 10ms timestep
+    cfg.duration_s = 20.0;    // 20 second simulation
+    cfg.log_hz = 10.0;        // Log at 10 Hz
+    
+    // Scenario
     cfg.use_lua_scenario = true;
     cfg.lua_script_path = "config/lua/scenario.lua";
-
+    cfg.scenario_json_path = scenario_path;
+    
+    // Output files
     cfg.csv_log_path = "sim_out.csv";
+    cfg.debug_log_path = "sim_debug.log";
+    cfg.enable_debug_log_file = true;  // Set to false to disable file logging
+
+    LOG_INFO("========================================");
+    LOG_INFO("Plant-Sensor-CAN Simulation");
+    LOG_INFO("Scenario: %s", scenario_path.c_str());
+    LOG_INFO("========================================");
 
     sim::SimApp app(cfg);
     return app.run_plant_only();

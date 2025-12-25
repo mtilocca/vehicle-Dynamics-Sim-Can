@@ -51,6 +51,11 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {
     LOG_DEBUG("[DrivePlant] wheel_tq=%.2f Nm, omega=%.2f rad/s, P_demand=%.2f kW", 
               wheel_tq_from_motor, angular_velocity, power_demand_kW);
 
+    // Initialize battery state fields
+    s.motor_power_kW = 0.0;
+    s.regen_power_kW = 0.0;
+    s.brake_force_kN = brake_force_kN;
+
     // --- Update battery and apply forces
     if (enabled) {
         // Update battery with power demand
@@ -62,7 +67,6 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {
             s.batt_v = battery_plant_->get_voltage();
             s.batt_i = battery_plant_->get_current();
             s.motor_power_kW = power_demand_kW;
-            s.regen_power_kW = 0.0;  // Will be updated below if braking
             
             LOG_DEBUG("[DrivePlant] Battery: SOC=%.1f%%, V=%.1f V, I=%.2f A", 
                       s.batt_soc_pct, s.batt_v, s.batt_i);
@@ -70,27 +74,28 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {
     } else {
         // System disabled - no motor power, apply only brake force
         Fx = (-brake_tq) / p_.wheel_radius_m;
-        s.motor_power_kW = 0.0;
     }
 
-    // --- Regenerative braking logic (when braking)
-    if (brake_pct > 0.0 && std::abs(v) > p_.v_stop_eps) {
+    // --- Regenerative braking logic (ONLY when actually braking)
+    // Regen only happens when:
+    // 1. Brake is applied (brake_pct > 0)
+    // 2. Vehicle is moving (not stopped)
+    // 3. Motor is not applying torque (motor off during braking)
+    if (brake_pct > 0.0 && std::abs(v) > p_.v_stop_eps && motor_tq_cmd == 0.0) {
         // Regen braking recovers some energy
         // Simple model: regen power proportional to brake force and speed
         const double regen_eff = 0.7;  // 70% efficiency for regen
         double regen_power_kW = brake_force_kN * std::abs(v) * regen_eff;  // kW
         
         if (battery_plant_) {
-            // Store recovered energy
-            battery_plant_->store_energy(regen_power_kW * dt_s * 1000.0);  // Convert kW*s to W*s (J)
-            s.regen_power_kW = regen_power_kW;
+            // Store recovered energy (convert kW*s to J)
+            battery_plant_->store_energy(regen_power_kW * dt_s * 1000.0);
+            s.regen_power_kW = regen_power_kW;  // Positive value = energy recovered
             
             LOG_DEBUG("[DrivePlant] Regen: P_regen=%.2f kW, brake_force=%.2f kN", 
                       regen_power_kW, brake_force_kN);
         }
     }
-
-    s.brake_force_kN = brake_force_kN;
 
     // --- Net force and acceleration
     const double F_net = Fx - F_res;

@@ -1,0 +1,35 @@
+{
+    "meta": {
+      "name": "full_power_test",
+      "version": 1,
+      "description": "Full power acceleration to test maximum battery discharge rate"
+    },
+    "defaults": {
+      "system_enable": true,
+      "mode": 0,
+      "drive_torque_cmd_nm": 0.0,
+      "brake_cmd_pct": 0.0,
+      "steer_cmd_deg": 0.0
+    },
+    "segments": [
+      {
+        "t0": 0.0,
+        "t1": 10.0,
+        "drive_torque_cmd_nm": 4000.0,
+        "comment": "Maximum motor torque - full power"
+      },
+      {
+        "t0": 10.0,
+        "t1": 15.0,
+        "drive_torque_cmd_nm": 2000.0,
+        "comment": "Reduced power cruising"
+      },
+      {
+        "t0": 15.0,
+        "t1": -1.0,
+        "drive_torque_cmd_nm": 0.0,
+        "brake_cmd_pct": 0.0,
+        "comment": "Coast"
+      }
+    ]
+  }
