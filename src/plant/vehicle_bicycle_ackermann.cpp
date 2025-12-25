@@ -1,94 +1,82 @@
-// src/plant/vehicle_bicycle_ackermann.cpp
 #include "vehicle_bicycle_ackermann.hpp"
 
-#include <cmath>
-#include <limits>
+#include <algorithm>
 
 namespace plant {
 
-double VehicleBicycleAckermann::clamp(double v, double lo, double hi) {
-    return (v < lo) ? lo : (v > hi) ? hi : v;
-}
-
-int VehicleBicycleAckermann::sign(double v) {
-    return (v > 0) - (v < 0);
+static inline double clamp(double v, double lo, double hi) {
+    return std::max(lo, std::min(hi, v));
 }
 
 void VehicleBicycleAckermann::ackermann_map(
-    double delta_virtual_rad,
+    double steer_virtual_rad,
     const BicycleAckermannParams& p,
-    double& delta_fl_rad_out,
-    double& delta_fr_rad_out,
-    double* R_m_out
-) {
-    // Clamp steering for safety/physical plausibility
-    double delta = clamp(delta_virtual_rad, -p.delta_max_rad, p.delta_max_rad);
+    double& delta_fl_rad,
+    double& delta_fr_rad,
+    double* curvature_out)
+{
+    const double delta =
+        clamp(steer_virtual_rad, -p.delta_max_rad, p.delta_max_rad);
 
-    if (std::abs(delta) < p.eps_rad) {
-        delta_fl_rad_out = 0.0;
-        delta_fr_rad_out = 0.0;
-        if (R_m_out) *R_m_out = std::numeric_limits<double>::infinity();
+    if (std::abs(delta) < 1e-6) {
+        delta_fl_rad = 0.0;
+        delta_fr_rad = 0.0;
+        if (curvature_out) *curvature_out = 0.0;
         return;
     }
 
-    // Signed bicycle turning radius
-    double R = p.L_m / std::tan(delta); // signed
-    double R_abs = std::abs(R);
+    const double R = p.L_m / std::tan(delta);
+    const double Rl = R - p.W_m * 0.5;
+    const double Rr = R + p.W_m * 0.5;
 
-    // Avoid singularity: need |R| > W/2
-    double min_R = (p.W_m * 0.5) + p.tiny_m;
-    if (R_abs < min_R) R_abs = min_R;
+    delta_fl_rad = std::atan(p.L_m / Rl);
+    delta_fr_rad = std::atan(p.L_m / Rr);
 
-    int sgn = sign(delta);
-
-    // Inner/outer wheel angles magnitudes
-    double delta_inner = std::atan(p.L_m / (R_abs - p.W_m * 0.5)) * static_cast<double>(sgn);
-    double delta_outer = std::atan(p.L_m / (R_abs + p.W_m * 0.5)) * static_cast<double>(sgn);
-
-    // Convention: delta > 0 => left turn => left wheel is inner
-    if (delta > 0.0) {
-        delta_fl_rad_out = delta_inner;
-        delta_fr_rad_out = delta_outer;
-    } else {
-        // right turn => right wheel is inner
-        delta_fl_rad_out = delta_outer;
-        delta_fr_rad_out = delta_inner;
-    }
-
-    if (R_m_out) *R_m_out = R; // keep signed R here (before abs clamp)
+    if (curvature_out) *curvature_out = 1.0 / R;
 }
 
 BicycleStepResult VehicleBicycleAckermann::step(
     const BicycleState2D& s,
-    double v_mps,
-    double delta_virtual_rad,
+    double v,
+    double steer_virtual,
     const BicycleAckermannParams& p,
-    double dt_s
-) {
-    BicycleStepResult r{};
-    r.next = s;
+    double dt)
+{
+    BicycleStepResult out{};
+    out.next = s;
 
-    // Clamp steer
-    double delta = clamp(delta_virtual_rad, -p.delta_max_rad, p.delta_max_rad);
+    if (dt <= 0.0 || std::abs(v) < 1e-3)
+        return out;
 
-    // Bicycle yaw rate
-    if (std::abs(delta) < p.eps_rad) {
-        r.yaw_rate_rps = 0.0;
-        r.R_m = std::numeric_limits<double>::infinity();
-    } else {
-        r.yaw_rate_rps = (v_mps / p.L_m) * std::tan(delta);
-        r.R_m = p.L_m / std::tan(delta); // signed
+    // Nominal yaw rate
+    double yaw_rate =
+        v * std::tan(steer_virtual) / p.L_m;
+
+    // --- NEW: lateral acceleration clamp
+    const double a_lat = v * yaw_rate;
+    const double a_lat_max = p.mu_lat * p.g;
+
+    if (std::abs(a_lat) > a_lat_max) {
+        yaw_rate *= (a_lat_max / std::abs(a_lat));
     }
 
-    // Integrate kinematics (Euler), rear axle reference
-    r.next.x_m += dt_s * v_mps * std::cos(s.yaw_rad);
-    r.next.y_m += dt_s * v_mps * std::sin(s.yaw_rad);
-    r.next.yaw_rad += dt_s * r.yaw_rate_rps;
+    // Integrate pose
+    out.next.x_m += v * std::cos(s.yaw_rad) * dt;
+    out.next.y_m += v * std::sin(s.yaw_rad) * dt;
+    out.next.yaw_rad += yaw_rate * dt;
 
-    // Ackermann mapping to physical wheel angles
-    ackermann_map(delta, p, r.delta_fl_rad, r.delta_fr_rad, nullptr);
+    out.yaw_rate_rps = yaw_rate;
 
-    return r;
+    // Wheel angles
+    ackermann_map(
+        steer_virtual,
+        p,
+        out.delta_fl_rad,
+        out.delta_fr_rad,
+        nullptr
+    );
+
+    return out;
 }
 
 } // namespace plant
