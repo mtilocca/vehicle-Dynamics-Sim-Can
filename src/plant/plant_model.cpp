@@ -1,5 +1,4 @@
 #include "plant_model.hpp"
-
 #include "vehicle_bicycle_ackermann.hpp"
 #include "sim/actuator_cmd.hpp"
 
@@ -8,7 +7,9 @@ namespace plant {
 PlantModel::PlantModel(PlantModelParams p)
 : p_(p),
   steer_(p_.steer),
-  drive_(p_.drive) {
+  drive_(p_.drive, &battery_),
+  battery_(p_.battery_params, p_.motor_params)  // Initialize BatteryPlant with parameters
+{
     // keep geometry consistent
     p_.steer.wheelbase_m = p_.wheelbase_m;
     p_.steer.track_width_m = p_.track_width_m;
@@ -20,7 +21,7 @@ void PlantModel::set_params(const PlantModelParams& p) {
     p_.steer.track_width_m = p_.track_width_m;
     steer_.params() = p_.steer;
     drive_.params() = p_.drive;
-
+    battery_.set_params(p_.battery_params, p_.motor_params);  // Update BatteryPlant parameters
 }
 
 void PlantModel::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {
@@ -44,13 +45,14 @@ void PlantModel::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {
     pose.y_m = s.y_m;
     pose.yaw_rad = s.yaw_rad;
 
-    auto res = VehicleBicycleAckermann::step(pose, s.v_mps, s.steer_virtual_rad, ap, dt_s);
+    auto res = VehicleBicycleAckermann::step(pose, s.v_mps, s.steer_virtual_rad, ap, dt_s, battery_);
 
     s.x_m = res.next.x_m;
     s.y_m = res.next.y_m;
     s.yaw_rad = res.next.yaw_rad;
 
     // Note: wheel angles already updated by SteerPlant (we keep those as the source)
+
 }
 
 } // namespace plant

@@ -1,3 +1,4 @@
+// src/sim/sim_app.cpp
 #include "sim_app.hpp"
 
 #include <cmath>
@@ -42,7 +43,10 @@ int SimApp::run_plant_only() {
             std::printf("[WARN] Failed to open CSV log file: %s (disabling CSV logging)\n",
                         cfg_.csv_log_path.c_str());
         } else {
-            csv << "t_s,x_m,y_m,yaw_deg,v_mps,steer_deg,delta_fl_deg,delta_fr_deg,motor_nm,brake_pct\n";
+            // Added battery columns that already exist in PlantState:
+            // batt_soc_pct, batt_v, batt_i
+            csv << "t_s,x_m,y_m,yaw_deg,v_mps,steer_deg,delta_fl_deg,delta_fr_deg,motor_nm,brake_pct,"
+                   "batt_soc_pct,batt_v,batt_i\n";
             csv << std::fixed << std::setprecision(6);
             std::printf("[INFO] CSV logging to %s\n", cfg_.csv_log_path.c_str());
         }
@@ -51,7 +55,7 @@ int SimApp::run_plant_only() {
     std::printf("Plant-only validator\n");
     std::printf("dt=%.4f s, duration=%.2f s, steps=%d\n", dt, cfg_.duration_s, steps);
     std::printf("Scenario: %s\n", (lua_ready_ ? "Lua" : "C++ defaults"));
-    std::printf("Columns: t  x  y  yaw_deg  v_mps  steer_deg  fl_deg  fr_deg  motor_nm  brake_pct\n");
+    std::printf("Columns: t  x  y  yaw_deg  v_mps  steer_deg  fl_deg  fr_deg  motor_nm  brake_pct  soc_pct  batt_v  batt_i\n");
 
     for (int k = 0; k < steps; ++k) {
         const double t = s.t_s;
@@ -82,13 +86,14 @@ int SimApp::run_plant_only() {
             const double fl_deg = s.delta_fl_rad * 180.0 / M_PI;
             const double fr_deg = s.delta_fr_rad * 180.0 / M_PI;
 
-            // console log (kept)
-            std::printf("%.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.0f  %.1f\n",
+            // console log
+            std::printf("%.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.0f  %.1f  %.1f  %.1f  %.2f\n",
                         s.t_s, s.x_m, s.y_m, yaw_deg, s.v_mps,
                         steer_deg, fl_deg, fr_deg,
-                        cmd.drive_torque_cmd_nm, cmd.brake_cmd_pct);
+                        cmd.drive_torque_cmd_nm, cmd.brake_cmd_pct,
+                        s.batt_soc_pct, s.batt_v, s.batt_i);
 
-            // CSV log (new)
+            // CSV log
             if (csv.is_open()) {
                 csv << s.t_s << ","
                     << s.x_m << ","
@@ -99,7 +104,10 @@ int SimApp::run_plant_only() {
                     << fl_deg << ","
                     << fr_deg << ","
                     << cmd.drive_torque_cmd_nm << ","
-                    << cmd.brake_cmd_pct
+                    << cmd.brake_cmd_pct << ","
+                    << s.batt_soc_pct << ","
+                    << s.batt_v << ","
+                    << s.batt_i
                     << "\n";
             }
 

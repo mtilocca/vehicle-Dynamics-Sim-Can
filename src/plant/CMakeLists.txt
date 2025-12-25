@@ -5,7 +5,7 @@ add_library(plant STATIC
     steer_plant.cpp
     drive_plant.cpp
     vehicle_bicycle_ackermann.cpp
-    # battery_plant.cpp   # keep commented until you actually use it in PlantModel
+    battery_plant.cpp  
 )
 
 target_include_directories(plant PUBLIC

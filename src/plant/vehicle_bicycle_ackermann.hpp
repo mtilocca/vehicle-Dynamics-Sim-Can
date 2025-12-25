@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include "battery_plant.hpp"  // Include BatteryPlant class for energy management
 
 namespace plant {
 
@@ -18,6 +19,7 @@ struct BicycleState2D {
     double x_m = 0.0;
     double y_m = 0.0;
     double yaw_rad = 0.0;
+    double speed_mps = 0.0;  // Add speed for energy calculation
 };
 
 struct BicycleStepResult {
@@ -43,9 +45,9 @@ public:
         double v_mps,
         double steer_virtual_rad,
         const BicycleAckermannParams& p,
-        double dt_s
+        double dt_s,
+        BatteryPlant& battery_plant  // Add reference to BatteryPlant
     );
 };
 
 } // namespace plant
-

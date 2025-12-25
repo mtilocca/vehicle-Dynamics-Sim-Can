@@ -1,9 +1,8 @@
-// src/plant/drive_plant.hpp
 #pragma once
 
 #include <algorithm>
-
 #include "plant/plant_state.hpp"
+#include "battery_plant.hpp"  // Include BatteryPlant class for energy management
 
 namespace sim { struct ActuatorCmd; }
 
@@ -15,7 +14,6 @@ struct DriveParams {
     double wheel_radius_m = 0.33;
 
     // Simple resistances (V1)
-    // drag: use v*|v| so it naturally opposes motion
     double drag_c = 0.35;   // N per (m/s)^2
     double roll_c = 40.0;   // N (Coulomb-ish rolling resistance magnitude)
 
@@ -35,7 +33,8 @@ struct DriveParams {
 
 class DrivePlant {
 public:
-    explicit DrivePlant(DriveParams p = {}) : p_(p) {}
+    explicit DrivePlant(DriveParams p = {}, BatteryPlant* battery_plant = nullptr)
+        : p_(p), battery_plant_(battery_plant) {}
 
     // Updates PlantState longitudinal dynamics: v_mps, a_long_mps2
     void step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s);
@@ -45,12 +44,17 @@ public:
 
 private:
     DriveParams p_;
+    BatteryPlant* battery_plant_;  // Reference to battery plant
 
     static double clamp(double v, double lo, double hi) {
         return std::max(lo, std::min(hi, v));
     }
 
     static int sgn(double x) { return (x > 0.0) - (x < 0.0); }
+
+    // Power management during braking and acceleration
+    double power_demand_kW_ = 0.0;  // Track power demand
+    double regen_power_kW_ = 0.0;   // Regen braking power
 };
 
 } // namespace plant

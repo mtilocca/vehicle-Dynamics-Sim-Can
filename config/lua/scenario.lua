@@ -1,17 +1,18 @@
 -- config/lua/scenario.lua
 -- Choose scenario by changing ACTIVE (no rebuild required)
 
---local ACTIVE = "BRAKE_STEP"
+-- Active scenario definition
+local ACTIVE = "BRAKE_STEP"  -- You can toggle to any other scenario
 -- local ACTIVE = "SIN_STEER_ACCEL"
 -- local ACTIVE = "S_CURVE"
-local ACTIVE = "LANE_CHANGE"
+-- local ACTIVE = "LANE_CHANGE"
 -- local ACTIVE = "CONSTANT_RADIUS"
 -- local ACTIVE = "STOP_AND_STEER"
 
 -- Optional JSON scenario (not required)
--- local JSON_PATH = "config/scenarios/brake_step.json"
+local JSON_PATH = "config/scenarios/brake_test.json"
 -- local JSON_PATH = "config/scenarios/s_curve.json"
-local JSON_PATH = "config/scenarios/lane_change.json"
+-- local JSON_PATH = "config/scenarios/lane_change.json"
 -- local JSON_PATH = "config/scenarios/constant_radius.json"
 
 -- ----------------------------
@@ -34,7 +35,7 @@ end
 -- ----------------------------
 local scenarios = {}
 
--- 1) baseline: accelerating + sinusoidal steering
+-- 1) baseline: accelerating + sinusoidal steering (your current)
 scenarios.SIN_STEER_ACCEL = function(t, state)
   local steer = 10.0 * math.sin(2.0 * math.pi * 0.2 * t)
   return {
@@ -43,31 +44,36 @@ scenarios.SIN_STEER_ACCEL = function(t, state)
     drive_torque_cmd_nm = 1200.0,
     brake_cmd_pct = 0.0,
     steer_cmd_deg = steer,
+    battery_power_kW = 1.2,  -- Consuming 1.2 kW power from battery
   }
 end
 
--- 2) brake step test
+-- 2) brake step test: accelerate then brake hard then release
 scenarios.BRAKE_STEP = function(t, state)
   local motor, brake, steer = 0.0, 0.0, 0.0
+  local regen_power = 0.0
 
   if in_window(t, 0.0, 4.0) then
     motor = 1200.0
   elseif in_window(t, 4.0, 8.0) then
     brake = 60.0
+    regen_power = 1.0 -- Regen braking power when braking
   elseif in_window(t, 8.0, 12.0) then
     motor = 600.0
   end
 
+  -- Regenerative braking logic: Store energy back to the battery during braking
   return {
     system_enable = true,
     mode = 0,
     drive_torque_cmd_nm = motor,
     brake_cmd_pct = brake,
     steer_cmd_deg = steer,
+    regen_brake_kW = regen_power, -- Energy recovery during braking
   }
 end
 
--- 3) S-curve steering
+-- 3) S-curve steering: +step then -step then center
 scenarios.S_CURVE = function(t, state)
   local steer = 0.0
   if in_window(t, 2.0, 5.0) then
@@ -82,10 +88,11 @@ scenarios.S_CURVE = function(t, state)
     drive_torque_cmd_nm = 900.0,
     brake_cmd_pct = 0.0,
     steer_cmd_deg = steer,
+    battery_power_kW = 0.9,  -- Consuming 0.9 kW power from battery
   }
 end
 
--- 4) Lane change (smooth)
+-- 4) Lane change: smooth left then smooth right
 scenarios.LANE_CHANGE = function(t, state)
   local function bump(t, t0, t1, amp)
     if t < t0 or t > t1 then return 0.0 end
@@ -101,10 +108,11 @@ scenarios.LANE_CHANGE = function(t, state)
     drive_torque_cmd_nm = 800.0,
     brake_cmd_pct = 0.0,
     steer_cmd_deg = steer,
+    battery_power_kW = 0.8,  -- Consuming 0.8 kW power from battery
   }
 end
 
--- 5) Constant radius
+-- 5) Constant radius: constant steer, constant torque
 scenarios.CONSTANT_RADIUS = function(t, state)
   return {
     system_enable = true,
@@ -112,18 +120,21 @@ scenarios.CONSTANT_RADIUS = function(t, state)
     drive_torque_cmd_nm = 700.0,
     brake_cmd_pct = 0.0,
     steer_cmd_deg = 6.0,
+    battery_power_kW = 0.7,  -- Consuming 0.7 kW power from battery
   }
 end
 
--- 6) Stop & steer
+-- 6) Stop & steer: shows “turning while almost stopped”
 scenarios.STOP_AND_STEER = function(t, state)
   local motor, brake, steer = 0.0, 0.0, 0.0
+  local regen_power = 0.0
 
   if in_window(t, 0.0, 3.0) then
     motor = 800.0
   elseif in_window(t, 3.0, 6.0) then
     brake = 70.0
     steer = 10.0
+    regen_power = 0.5 -- Regen braking power
   elseif in_window(t, 6.0, 9.0) then
     motor = 300.0
     steer = 10.0
@@ -135,6 +146,7 @@ scenarios.STOP_AND_STEER = function(t, state)
     drive_torque_cmd_nm = motor,
     brake_cmd_pct = brake,
     steer_cmd_deg = steer,
+    regen_brake_kW = regen_power,  -- Regenerative braking
   }
 end
 
