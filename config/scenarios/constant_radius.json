@@ -1,0 +1,17 @@
+{
+    "meta": {
+      "name": "constant_radius",
+      "version": 1
+    },
+    "defaults": {
+      "system_enable": true,
+      "mode": 0,
+      "drive_torque_cmd_nm": 700.0,
+      "brake_cmd_pct": 0.0,
+      "steer_cmd_deg": 6.0
+    },
+    "segments": [
+      { "t0": 0.0, "t1": -1.0 }
+    ]
+  }
+  

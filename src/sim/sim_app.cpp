@@ -1,8 +1,9 @@
 #include "sim_app.hpp"
 
-#include<utility>
 #include <cmath>
 #include <cstdio>
+#include <fstream>
+#include <iomanip>
 
 #include "plant/plant_model.hpp"
 #include "plant/plant_state.hpp"
@@ -32,9 +33,24 @@ int SimApp::run_plant_only() {
         }
     }
 
+    // ---- CSV log init (Option A)
+    std::ofstream csv;
+    const bool csv_enabled = !cfg_.csv_log_path.empty();
+    if (csv_enabled) {
+        csv.open(cfg_.csv_log_path, std::ios::out | std::ios::trunc);
+        if (!csv.is_open()) {
+            std::printf("[WARN] Failed to open CSV log file: %s (disabling CSV logging)\n",
+                        cfg_.csv_log_path.c_str());
+        } else {
+            csv << "t_s,x_m,y_m,yaw_deg,v_mps,steer_deg,delta_fl_deg,delta_fr_deg,motor_nm,brake_pct\n";
+            csv << std::fixed << std::setprecision(6);
+            std::printf("[INFO] CSV logging to %s\n", cfg_.csv_log_path.c_str());
+        }
+    }
+
     std::printf("Plant-only validator\n");
     std::printf("dt=%.4f s, duration=%.2f s, steps=%d\n", dt, cfg_.duration_s, steps);
-    std::printf("Scenario: %s\n", (lua_ready_ ? "Lua+JSON" : "C++ defaults"));
+    std::printf("Scenario: %s\n", (lua_ready_ ? "Lua" : "C++ defaults"));
     std::printf("Columns: t  x  y  yaw_deg  v_mps  steer_deg  fl_deg  fr_deg  motor_nm  brake_pct\n");
 
     for (int k = 0; k < steps; ++k) {
@@ -45,16 +61,13 @@ int SimApp::run_plant_only() {
         cmd.mode = 0;
 
         if (lua_ready_) {
-            // Ask Lua for cmd at time t using current state
             if (!lua_.get_actuator_cmd(t, s, cmd)) {
-                // If Lua fails mid-run, fall back safely for this tick
                 cmd.drive_torque_cmd_nm = cfg_.motor_torque_nm;
                 cmd.brake_cmd_pct = cfg_.brake_pct;
                 cmd.steer_cmd_deg =
                     cfg_.steer_amp_deg * std::sin(2.0 * M_PI * cfg_.steer_freq_hz * t);
             }
         } else {
-            // ---- existing hardcoded open-loop profile (unchanged behaviour)
             cmd.drive_torque_cmd_nm = cfg_.motor_torque_nm;
             cmd.brake_cmd_pct = cfg_.brake_pct;
             cmd.steer_cmd_deg =
@@ -69,13 +82,33 @@ int SimApp::run_plant_only() {
             const double fl_deg = s.delta_fl_rad * 180.0 / M_PI;
             const double fr_deg = s.delta_fr_rad * 180.0 / M_PI;
 
+            // console log (kept)
             std::printf("%.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.0f  %.1f\n",
                         s.t_s, s.x_m, s.y_m, yaw_deg, s.v_mps,
                         steer_deg, fl_deg, fr_deg,
                         cmd.drive_torque_cmd_nm, cmd.brake_cmd_pct);
 
+            // CSV log (new)
+            if (csv.is_open()) {
+                csv << s.t_s << ","
+                    << s.x_m << ","
+                    << s.y_m << ","
+                    << yaw_deg << ","
+                    << s.v_mps << ","
+                    << steer_deg << ","
+                    << fl_deg << ","
+                    << fr_deg << ","
+                    << cmd.drive_torque_cmd_nm << ","
+                    << cmd.brake_cmd_pct
+                    << "\n";
+            }
+
             next_log_t += log_period_s;
         }
+    }
+
+    if (csv.is_open()) {
+        csv.close();
     }
 
     std::printf("Done.\n");

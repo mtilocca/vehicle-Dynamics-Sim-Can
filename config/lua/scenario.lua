@@ -1,138 +1,159 @@
 -- config/lua/scenario.lua
---
--- Expected by C++ LuaRuntime:
---   - scenario_cmd(t, state)  -> returns a table with fields matching ActuatorCmd
--- Optional:
---   - scenario_init(json_path) -> called once at init if your LuaRuntime does that
---
--- NOTE:
--- If you don't have a JSON decoder in Lua (cjson/dkjson), this still works
--- and simply runs with defaults.
+-- Choose scenario by changing ACTIVE (no rebuild required)
 
-local M = {}
+--local ACTIVE = "BRAKE_STEP"
+-- local ACTIVE = "SIN_STEER_ACCEL"
+-- local ACTIVE = "S_CURVE"
+local ACTIVE = "LANE_CHANGE"
+-- local ACTIVE = "CONSTANT_RADIUS"
+-- local ACTIVE = "STOP_AND_STEER"
+
+-- Optional JSON scenario (not required)
+-- local JSON_PATH = "config/scenarios/brake_step.json"
+-- local JSON_PATH = "config/scenarios/s_curve.json"
+local JSON_PATH = "config/scenarios/lane_change.json"
+-- local JSON_PATH = "config/scenarios/constant_radius.json"
 
 -- ----------------------------
--- Defaults (fallback behavior)
+-- helpers
 -- ----------------------------
-local scenario = {
-  motor_torque_nm = 1200.0,
-  brake_pct = 0.0,          -- 0..100
-  steer_amp_deg = 10.0,
-  steer_freq_hz = 0.2,
-
-  -- Optional simple “events” timeline (override defaults in time windows)
-  -- Example:
-  -- events = {
-  --   { t0 = 0.0, t1 = 3.0,  motor_torque_nm = 1200.0, brake_pct = 0.0 },
-  --   { t0 = 7.0, t1 = 12.9, motor_torque_nm = 0.0,    brake_pct = 40.0 },
-  -- }
-  events = nil
-}
-
-local function file_read_all(path)
-  local f = io.open(path, "r")
-  if not f then return nil end
-  local s = f:read("*a")
-  f:close()
-  return s
+local function clamp(x, lo, hi)
+  if x < lo then return lo end
+  if x > hi then return hi end
+  return x
 end
 
-local function try_decode_json(str)
-  -- Try common Lua JSON libs
-  local ok, cjson = pcall(require, "cjson")
-  if ok and cjson and cjson.decode then
-    return cjson.decode(str)
-  end
+local function deg(x) return x end
 
-  local ok2, dkjson = pcall(require, "dkjson")
-  if ok2 and dkjson and dkjson.decode then
-    local obj, _, err = dkjson.decode(str)
-    if err then return nil end
-    return obj
-  end
-
-  return nil
+local function in_window(t, t0, t1)
+  return t >= t0 and (t1 < 0 or t <= t1)
 end
 
-local function apply_overrides(dst, src)
-  if type(src) ~= "table" then return end
-  for k, v in pairs(src) do
-    dst[k] = v
-  end
-end
+-- ----------------------------
+-- scenario registry
+-- ----------------------------
+local scenarios = {}
 
--- Optional: called once at init (only if your C++ runtime calls it)
-function scenario_init(json_path)
-  if type(json_path) ~= "string" or json_path == "" then
-    return true
-  end
-
-  local txt = file_read_all(json_path)
-  if not txt then
-    print(string.format("[Lua] scenario_init: could not open JSON: %s (using defaults)", json_path))
-    return true
-  end
-
-  local obj = try_decode_json(txt)
-  if not obj then
-    print("[Lua] scenario_init: no JSON decoder available (install lua-cjson or dkjson). Using defaults.")
-    return true
-  end
-
-  -- Allow either a flat object or { params = {...}, events = [...] }
-  if obj.params then
-    apply_overrides(scenario, obj.params)
-  else
-    apply_overrides(scenario, obj)
-  end
-
-  if obj.events then
-    scenario.events = obj.events
-  end
-
-  print(string.format("[Lua] scenario_init: loaded JSON scenario: %s", json_path))
-  return true
-end
-
-local function find_active_event(t)
-  local evs = scenario.events
-  if type(evs) ~= "table" then return nil end
-  for _, ev in ipairs(evs) do
-    local t0 = ev.t0 or 0.0
-    local t1 = ev.t1 or -1.0
-    if t >= t0 and (t1 < 0.0 or t <= t1) then
-      return ev
-    end
-  end
-  return nil
-end
-
--- REQUIRED: called every tick by C++ runtime
-function scenario_cmd(t, state)
-  -- base values
-  local motor_torque_nm = scenario.motor_torque_nm
-  local brake_pct       = scenario.brake_pct
-  local steer_amp_deg   = scenario.steer_amp_deg
-  local steer_freq_hz   = scenario.steer_freq_hz
-
-  -- apply event overrides
-  local ev = find_active_event(t)
-  if ev then
-    if ev.motor_torque_nm ~= nil then motor_torque_nm = ev.motor_torque_nm end
-    if ev.brake_pct       ~= nil then brake_pct       = ev.brake_pct       end
-    if ev.steer_amp_deg   ~= nil then steer_amp_deg   = ev.steer_amp_deg   end
-    if ev.steer_freq_hz   ~= nil then steer_freq_hz   = ev.steer_freq_hz   end
-  end
-
-  -- steering profile: sinusoid by default
-  local steer_cmd_deg = steer_amp_deg * math.sin(2.0 * math.pi * steer_freq_hz * t)
-
-  -- Return table matching your C++ ActuatorCmd fields
+-- 1) baseline: accelerating + sinusoidal steering
+scenarios.SIN_STEER_ACCEL = function(t, state)
+  local steer = 10.0 * math.sin(2.0 * math.pi * 0.2 * t)
   return {
     system_enable = true,
     mode = 0,
-    drive_torque_cmd_nm = motor_torque_nm,
-    brake_cmd_pct = brake_pct,
-    steer_cmd_deg = steer_cmd_deg,
+    drive_torque_cmd_nm = 1200.0,
+    brake_cmd_pct = 0.0,
+    steer_cmd_deg = steer,
   }
+end
+
+-- 2) brake step test
+scenarios.BRAKE_STEP = function(t, state)
+  local motor, brake, steer = 0.0, 0.0, 0.0
+
+  if in_window(t, 0.0, 4.0) then
+    motor = 1200.0
+  elseif in_window(t, 4.0, 8.0) then
+    brake = 60.0
+  elseif in_window(t, 8.0, 12.0) then
+    motor = 600.0
+  end
+
+  return {
+    system_enable = true,
+    mode = 0,
+    drive_torque_cmd_nm = motor,
+    brake_cmd_pct = brake,
+    steer_cmd_deg = steer,
+  }
+end
+
+-- 3) S-curve steering
+scenarios.S_CURVE = function(t, state)
+  local steer = 0.0
+  if in_window(t, 2.0, 5.0) then
+    steer = 8.0
+  elseif in_window(t, 5.0, 8.0) then
+    steer = -8.0
+  end
+
+  return {
+    system_enable = true,
+    mode = 0,
+    drive_torque_cmd_nm = 900.0,
+    brake_cmd_pct = 0.0,
+    steer_cmd_deg = steer,
+  }
+end
+
+-- 4) Lane change (smooth)
+scenarios.LANE_CHANGE = function(t, state)
+  local function bump(t, t0, t1, amp)
+    if t < t0 or t > t1 then return 0.0 end
+    local u = (t - t0) / (t1 - t0)
+    return amp * math.sin(math.pi * u)
+  end
+
+  local steer = bump(t, 2.0, 5.0, 7.0) - bump(t, 6.0, 9.0, 7.0)
+
+  return {
+    system_enable = true,
+    mode = 0,
+    drive_torque_cmd_nm = 800.0,
+    brake_cmd_pct = 0.0,
+    steer_cmd_deg = steer,
+  }
+end
+
+-- 5) Constant radius
+scenarios.CONSTANT_RADIUS = function(t, state)
+  return {
+    system_enable = true,
+    mode = 0,
+    drive_torque_cmd_nm = 700.0,
+    brake_cmd_pct = 0.0,
+    steer_cmd_deg = 6.0,
+  }
+end
+
+-- 6) Stop & steer
+scenarios.STOP_AND_STEER = function(t, state)
+  local motor, brake, steer = 0.0, 0.0, 0.0
+
+  if in_window(t, 0.0, 3.0) then
+    motor = 800.0
+  elseif in_window(t, 3.0, 6.0) then
+    brake = 70.0
+    steer = 10.0
+  elseif in_window(t, 6.0, 9.0) then
+    motor = 300.0
+    steer = 10.0
+  end
+
+  return {
+    system_enable = true,
+    mode = 0,
+    drive_torque_cmd_nm = motor,
+    brake_cmd_pct = brake,
+    steer_cmd_deg = steer,
+  }
+end
+
+-- ----------------------------
+-- lifecycle hooks
+-- ----------------------------
+function scenario_init(_ignored_from_cpp)
+  -- prefer the Lua-selected path
+  local ok = false
+  if load_json_if_available then
+    ok = load_json_if_available(JSON_PATH)
+  end
+  print(string.format("[Lua] Active scenario = %s", ACTIVE))
+  print(string.format("[Lua] scenario_init using JSON_PATH=%s (ok=%s)", JSON_PATH, tostring(ok)))
+  return true
+end
+
+-- REQUIRED by LuaRuntime
+function scenario_cmd(t, state)
+  local fn = scenarios[ACTIVE] or scenarios.SIN_STEER_ACCEL
+  return fn(t, state)
 end

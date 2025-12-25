@@ -1,44 +1,55 @@
-import numpy as np
+#!/usr/bin/env python3
+import sys
+import pandas as pd
 import matplotlib.pyplot as plt
 
-# Load data, ignore non-numeric lines safely
-data = np.genfromtxt(
-    "sim_out.txt",
-    comments=None,
-    skip_header=3,
-    invalid_raise=False
-)
+def main():
+    csv_path = sys.argv[1] if len(sys.argv) > 1 else "sim_out.csv"
 
-# Remove rows with NaNs (e.g. "Done.")
-data = data[~np.isnan(data).any(axis=1)]
+    df = pd.read_csv(csv_path)
+    # basic sanity
+    required = ["t_s","x_m","y_m","yaw_deg","v_mps","steer_deg","motor_nm","brake_pct"]
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        raise RuntimeError(f"Missing columns in {csv_path}: {missing}. Got: {list(df.columns)}")
 
-t     = data[:,0]
-x     = data[:,1]
-y     = data[:,2]
-yaw   = data[:,3]
-v     = data[:,4]
-steer = data[:,5]
+    # 1) Trajectory
+    plt.figure()
+    plt.plot(df["x_m"], df["y_m"])
+    plt.xlabel("x (m)")
+    plt.ylabel("y (m)")
+    plt.title("Trajectory (x vs y)")
+    plt.axis("equal")
+    plt.grid(True)
 
-plt.figure(figsize=(14,4))
+    # 2) Speed vs time
+    plt.figure()
+    plt.plot(df["t_s"], df["v_mps"])
+    plt.xlabel("t (s)")
+    plt.ylabel("v (m/s)")
+    plt.title("Speed vs time")
+    plt.grid(True)
 
-plt.subplot(1,3,1)
-plt.plot(x, y)
-plt.axis("equal")
-plt.xlabel("x [m]")
-plt.ylabel("y [m]")
-plt.title("Vehicle trajectory")
+    # 3) Steering & Yaw vs time
+    plt.figure()
+    plt.plot(df["t_s"], df["steer_deg"], label="steer_deg")
+    plt.plot(df["t_s"], df["yaw_deg"], label="yaw_deg")
+    plt.xlabel("t (s)")
+    plt.ylabel("deg")
+    plt.title("Steering & Yaw vs time")
+    plt.legend()
+    plt.grid(True)
 
-plt.subplot(1,3,2)
-plt.plot(t, v)
-plt.xlabel("time [s]")
-plt.ylabel("v [m/s]")
-plt.title("Speed")
+    # 4) Inputs vs time
+    plt.figure()
+    plt.plot(df["t_s"], df["motor_nm"], label="motor_nm")
+    plt.plot(df["t_s"], df["brake_pct"], label="brake_pct")
+    plt.xlabel("t (s)")
+    plt.title("Inputs vs time")
+    plt.legend()
+    plt.grid(True)
 
-plt.subplot(1,3,3)
-plt.plot(t, steer)
-plt.xlabel("time [s]")
-plt.ylabel("steer [deg]")
-plt.title("Steering command")
+    plt.show()
 
-plt.tight_layout()
-plt.show()
+if __name__ == "__main__":
+    main()

@@ -3,8 +3,8 @@
 
 #include <string>
 
-#include "sim/lua_runtime.hpp"     // provides sim::LuaRuntime
-#include "plant/plant_state.hpp"   // plant::PlantState
+#include "sim/lua_runtime.hpp"
+#include "plant/plant_state.hpp"
 
 namespace sim {
 
@@ -20,23 +20,25 @@ struct SimAppConfig {
     double steer_amp_deg = 10.0;
     double steer_freq_hz = 0.2;
 
-    // Scenario via Lua (+ optional JSON loaded by LuaRuntime)
+    // Scenario via Lua
     bool use_lua_scenario = false;
     std::string lua_script_path;       // e.g. "config/lua/scenario.lua"
-    std::string scenario_json_path;    // e.g. "config/scenarios/brake_test.json"
+    std::string scenario_json_path;    // optional (you can keep unused)
+
+    // ---- NEW: CSV logging (Option A)
+    // If empty: no CSV file will be written
+    std::string csv_log_path = "sim_out.csv";
 };
 
 class SimApp {
 public:
     explicit SimApp(SimAppConfig cfg);
 
-    // current sim you are running
     int run_plant_only();
 
 private:
     SimAppConfig cfg_;
 
-    // Lua scenario runtime
     LuaRuntime lua_;
     bool lua_ready_ = false;
 };
