@@ -1,0 +1,15 @@
+{
+    "params": {
+      "motor_torque_nm": 1200.0,
+      "brake_pct": 0.0,
+      "steer_amp_deg": 10.0,
+      "steer_freq_hz": 0.2
+    },
+    "events": [
+      { "t0": 0.0, "t1": 3.0,  "motor_torque_nm": 1200.0, "brake_pct": 0.0 },
+      { "t0": 3.0, "t1": 7.0,  "motor_torque_nm": 0.0,    "brake_pct": 0.0 },
+      { "t0": 7.0, "t1": 12.9, "motor_torque_nm": 0.0,    "brake_pct": 40.0 },
+      { "t0": 12.9, "t1": -1.0,"motor_torque_nm": 0.0,    "brake_pct": 0.0 }
+    ]
+  }
+  
