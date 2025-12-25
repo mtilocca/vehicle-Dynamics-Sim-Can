@@ -1,0 +1,128 @@
+{
+    "meta": {
+      "name": "slalom_aggressive",
+      "version": 1,
+      "description": "Slalom course with repeated acceleration and braking while weaving"
+    },
+    "defaults": {
+      "system_enable": true,
+      "mode": 0,
+      "drive_torque_cmd_nm": 0.0,
+      "brake_cmd_pct": 0.0,
+      "steer_cmd_deg": 0.0
+    },
+    "segments": [
+      {
+        "t0": 0.0,
+        "t1": 2.0,
+        "drive_torque_cmd_nm": 2000.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Initial acceleration - straight"
+      },
+      {
+        "t0": 2.0,
+        "t1": 3.5,
+        "drive_torque_cmd_nm": 1500.0,
+        "steer_cmd_deg": 12.0,
+        "comment": "First cone - accelerate left"
+      },
+      {
+        "t0": 3.5,
+        "t1": 4.0,
+        "drive_torque_cmd_nm": 0.0,
+        "brake_cmd_pct": 40.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Brake before transition"
+      },
+      {
+        "t0": 4.0,
+        "t1": 5.5,
+        "drive_torque_cmd_nm": 1800.0,
+        "steer_cmd_deg": -12.0,
+        "comment": "Second cone - accelerate right"
+      },
+      {
+        "t0": 5.5,
+        "t1": 6.0,
+        "drive_torque_cmd_nm": 0.0,
+        "brake_cmd_pct": 45.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Brake before transition"
+      },
+      {
+        "t0": 6.0,
+        "t1": 7.5,
+        "drive_torque_cmd_nm": 2200.0,
+        "steer_cmd_deg": 15.0,
+        "comment": "Third cone - harder left"
+      },
+      {
+        "t0": 7.5,
+        "t1": 8.0,
+        "drive_torque_cmd_nm": 0.0,
+        "brake_cmd_pct": 50.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Brake before transition"
+      },
+      {
+        "t0": 8.0,
+        "t1": 9.5,
+        "drive_torque_cmd_nm": 2200.0,
+        "steer_cmd_deg": -15.0,
+        "comment": "Fourth cone - harder right"
+      },
+      {
+        "t0": 9.5,
+        "t1": 10.0,
+        "drive_torque_cmd_nm": 0.0,
+        "brake_cmd_pct": 55.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Brake before transition"
+      },
+      {
+        "t0": 10.0,
+        "t1": 11.5,
+        "drive_torque_cmd_nm": 2500.0,
+        "steer_cmd_deg": 10.0,
+        "comment": "Fifth cone - left"
+      },
+      {
+        "t0": 11.5,
+        "t1": 12.0,
+        "drive_torque_cmd_nm": 0.0,
+        "brake_cmd_pct": 50.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Brake before transition"
+      },
+      {
+        "t0": 12.0,
+        "t1": 13.5,
+        "drive_torque_cmd_nm": 2500.0,
+        "steer_cmd_deg": -10.0,
+        "comment": "Sixth cone - right"
+      },
+      {
+        "t0": 13.5,
+        "t1": 14.5,
+        "drive_torque_cmd_nm": 0.0,
+        "brake_cmd_pct": 60.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Final braking"
+      },
+      {
+        "t0": 14.5,
+        "t1": 16.0,
+        "drive_torque_cmd_nm": 1000.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Finish straight"
+      },
+      {
+        "t0": 16.0,
+        "t1": -1.0,
+        "drive_torque_cmd_nm": 0.0,
+        "brake_cmd_pct": 0.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Coast to stop"
+      }
+    ]
+  }
