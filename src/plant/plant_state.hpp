@@ -44,6 +44,9 @@ struct PlantState {
     double motor_power_kW = 0.0;     // Motor power (kW), positive for consumption, negative for regen
     double regen_power_kW = 0.0;     // Regenerative braking power (kW)
 
+    // --- Brake Force (new addition for logging and calculation)
+    double brake_force_kN = 0.0;     // Brake force in kN
+
     // --- Fault/status bits you may want to expose later
     uint32_t status_flags = 0;
 };

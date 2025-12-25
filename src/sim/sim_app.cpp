@@ -87,11 +87,11 @@ int SimApp::run_plant_only() {
             const double fr_deg = s.delta_fr_rad * 180.0 / M_PI;
 
             // console log
-            std::printf("%.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.0f  %.1f  %.1f  %.1f  %.2f\n",
+            std::printf("%.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.0f  %.1f  %.1f  %.1f  %.2f %.2f %.2f\n",
                         s.t_s, s.x_m, s.y_m, yaw_deg, s.v_mps,
                         steer_deg, fl_deg, fr_deg,
                         cmd.drive_torque_cmd_nm, cmd.brake_cmd_pct,
-                        s.batt_soc_pct, s.batt_v, s.batt_i);
+                        s.batt_soc_pct, s.batt_v, s.batt_i, s.regen_power_kW, s.brake_force_kN);
 
             // CSV log
             if (csv.is_open()) {
@@ -107,8 +107,9 @@ int SimApp::run_plant_only() {
                     << cmd.brake_cmd_pct << ","
                     << s.batt_soc_pct << ","
                     << s.batt_v << ","
-                    << s.batt_i
-                    << "\n";
+                    << s.batt_i << ","
+                    << s.regen_power_kW << ","
+                    << s.brake_tq / 1000.0 << "\n"; 
             }
 
             next_log_t += log_period_s;
