@@ -1,6 +1,8 @@
 #include "drive_plant.hpp"
 #include "sim/actuator_cmd.hpp"
+#include <iostream>
 #include <cmath>
+#include <cstdio>
 
 namespace plant {
 
@@ -25,6 +27,9 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {
     // Calculate brake force (in kN)
     const double brake_force_kN = brake_tq / p_.wheel_radius_m / 1000.0;  // Convert to kN
 
+    std::cout << "Drive Torque Command (Nm): " << cmd.drive_torque_cmd_nm << std::endl;
+
+
     // Calculate motor torque command
     double motor_tq_cmd = clamp(cmd.drive_torque_cmd_nm, -p_.motor_torque_max_nm, +p_.motor_torque_max_nm);
 
@@ -40,9 +45,17 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {
     const double wheel_tq = wheel_tq_from_motor - brake_tq;
     Fx = wheel_tq / p_.wheel_radius_m;
 
+    std::cout << "wheel_tq_from_motor: " << wheel_tq_from_motor << std::endl;
+
+
     // --- Power demand calculation (Torque * Angular Velocity)
     double angular_velocity = v / p_.wheel_radius_m;  // radians per second
+    std::cout << "angular_velocity: " << angular_velocity << std::endl;
+
     double power_demand_kW = wheel_tq_from_motor * angular_velocity / 1000.0; // kW
+
+    // Log the power demand for debugging
+    std::cout << "Power Demand (kW): " << power_demand_kW << std::endl;
 
     if (enabled) {
         // Pass the power demand to the battery

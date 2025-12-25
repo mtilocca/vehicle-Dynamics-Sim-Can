@@ -1,4 +1,5 @@
 #include "battery_plant.hpp"
+#include <iostream>
 #include <algorithm>
 #include <cmath>
 
@@ -48,6 +49,10 @@ void BatteryPlant::update_state(double power_demand_kW, double brake_force_kN, d
     soc_ = std::clamp(soc_ + delta_soc, params_.min_soc, params_.max_soc);
 
     power_ = power_demand_W - regen_power_W;
+    // Update current based on the power and voltage
+    current_ = power_ / voltage_;
+    // Debugging the values
+    std::cout << "Power Demand: " << power_demand_W << " W, Regen Power: " << regen_power_W << " W, Current: " << current_ << " A" << std::endl;
 }
 
 void BatteryPlant::consume_energy(double energy_consumed_J) {

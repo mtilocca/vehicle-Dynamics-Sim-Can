@@ -16,7 +16,7 @@ struct ActuatorCmd {
     double   steer_cmd_deg = 0.0;     // [-500..500] per your map, but you will clamp in SteerPlant
 
     // Drive torque command in Nm (matches CAN map)
-    double   drive_torque_cmd_nm = 0.0; // [-4000..4000] per your map
+    double   drive_torque_cmd_nm = 5.0; // [-4000..4000] per your map
 
     // Brake command in percent (0..100) (matches CAN map scaling)
     double   brake_cmd_pct = 0.0;

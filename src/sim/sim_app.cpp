@@ -55,7 +55,7 @@ int SimApp::run_plant_only() {
     std::printf("Plant-only validator\n");
     std::printf("dt=%.4f s, duration=%.2f s, steps=%d\n", dt, cfg_.duration_s, steps);
     std::printf("Scenario: %s\n", (lua_ready_ ? "Lua" : "C++ defaults"));
-    std::printf("Columns: t  x  y  yaw_deg  v_mps  steer_deg  fl_deg  fr_deg  motor_nm  brake_pct  soc_pct  batt_v  batt_i\n");
+    std::printf("Columns: t  x  y  yaw_deg  v_mps  steer_deg  fl_deg  fr_deg  motor_nm  brake_pct  soc_pct  batt_v  batt_i regen_power_kW brake_force_kN\n");
 
     for (int k = 0; k < steps; ++k) {
         const double t = s.t_s;
@@ -109,7 +109,7 @@ int SimApp::run_plant_only() {
                     << s.batt_v << ","
                     << s.batt_i << ","
                     << s.regen_power_kW << ","
-                    << s.brake_tq / 1000.0 << "\n"; 
+                    << s.brake_force_kN << "\n"; 
             }
 
             next_log_t += log_period_s;
