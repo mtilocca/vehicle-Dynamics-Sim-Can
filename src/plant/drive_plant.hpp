@@ -18,7 +18,7 @@ struct DriveParams {
     double brake_torque_max_nm = 4000.0; // wheel brake torque at tire (magnitude)
     double gear_ratio = 9.0;
     double drivetrain_eff = 0.92; 
-    double motor_power_max_w = 300000;  // 300 kW (was 90 kW) - Performance EV level
+    double motor_power_max_w = 300000;  // 300 kW
     double v_stop_eps = 0.3;          
     double v_max_mps = 60.0;          
 };
@@ -32,6 +32,12 @@ public:
 
     const DriveParams& params() const { return p_; }
     DriveParams& params() { return p_; }
+
+    /**
+     * set_battery_plant() - Update battery connection at runtime
+     * CRITICAL FIX: Needed for subsystem architecture dependency injection
+     */
+    void set_battery_plant(BatteryPlant* battery) { battery_plant_ = battery; }
 
 private:
     DriveParams p_;

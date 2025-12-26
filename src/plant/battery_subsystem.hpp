@@ -7,21 +7,20 @@
 namespace plant {
 
 /**
- * BatterySubsystem - Energy storage and power management
+ * BatterySubsystem - Energy storage and management
  * 
- * Wraps existing BatteryPlant as a PhysicsSubsystem.
+ * Responsibilities:
+ * - SOC tracking
+ * - Voltage/current monitoring
+ * - Power limiting (charge/discharge)
+ * - Energy integration
  * 
- * Dependencies:
- * - Called by DriveSubsystem to request/store power
- * 
- * Outputs:
- * - SOC, voltage, current (written to PlantState)
- * - Available power (queryable by other subsystems)
+ * Dependencies: None (lowest priority subsystem)
  */
 class BatterySubsystem : public PhysicsSubsystem {
 public:
     explicit BatterySubsystem(
-        const BatteryPlantParams& battery_params = {},
+        const BatteryPlantParams& params = {},
         const MotorParams& motor_params = {}
     );
 
@@ -31,31 +30,27 @@ public:
 
     void initialize(PlantState& s) override;
     void reset(PlantState& s) override;
+    void pre_step(PlantState& s, const sim::ActuatorCmd& cmd, double dt) override;
     void step(PlantState& s, const sim::ActuatorCmd& cmd, double dt) override;
+    void post_step(PlantState& s, const sim::ActuatorCmd& cmd, double dt) override;
     const char* name() const override { return "Battery"; }
-    int priority() const override { return 150; } // Energy subsystems: 150-199
+    int priority() const override { return 150; } // Energy: 150-199
 
     // ========================================================================
     // Battery-Specific Interface
     // ========================================================================
 
     /**
-     * request_power() - Request power from battery (called by DriveSubsystem)
-     * 
-     * @param power_kW - Requested power (positive = discharge, negative = charge)
-     * @param dt - Timestep duration
-     * 
-     * Returns actual power delivered (may be clamped by limits)
+     * Request power consumption from battery
+     * Returns actual power delivered (may be less than requested due to limits)
      */
     double request_power(double power_kW, double dt);
 
     /**
-     * store_energy() - Store regenerated energy (called by DriveSubsystem)
-     * 
-     * @param energy_J - Energy to store (Joules)
-     * @param regen_power_kW - Instantaneous regen power for current calculation
+     * Store regenerated energy in battery
+     * Returns actual power stored (may be less than offered due to limits)
      */
-    void store_energy(double energy_J, double regen_power_kW = 0.0);
+    double store_power(double power_kW, double dt);
 
     /**
      * get_available_power_kW() - Maximum power battery can deliver now
@@ -78,17 +73,17 @@ public:
     double get_current() const { return battery_.get_current(); }
 
     /**
-     * set_params() - Update battery parameters at runtime
+     * get_battery_plant() - Direct access to underlying BatteryPlant
+     * CRITICAL FIX: For backward compatibility with DrivePlant
      */
-    void set_params(const BatteryPlantParams& battery_params, const MotorParams& motor_params);
+    BatteryPlant& get_battery_plant() { return battery_; }
 
 private:
     BatteryPlant battery_;
-    BatteryPlantParams params_;
-    MotorParams motor_params_;
-
-    // Cached power request from this timestep
-    double power_request_kW_ = 0.0;
+    
+    // Track power requests for limiting
+    double power_requested_kW_;
+    double power_delivered_kW_;
 };
 
 } // namespace plant

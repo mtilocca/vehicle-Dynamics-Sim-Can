@@ -69,9 +69,16 @@ void DriveSubsystem::post_step(PlantState& s, const sim::ActuatorCmd& cmd, doubl
 void DriveSubsystem::set_battery_subsystem(BatterySubsystem* battery) {
     battery_subsystem_ = battery;
     
-    // IMPORTANT: DrivePlant still uses old BatteryPlant* interface
-    // For now, we just track the subsystem pointer for pre_step queries
-    // Full migration will update DrivePlant to use BatterySubsystem interface
+    // ========================================================================
+    // CRITICAL FIX: Connect the BatteryPlant to DrivePlant
+    // ========================================================================
+    // DrivePlant still uses BatteryPlant* interface for energy tracking.
+    // This is the missing link that was causing zero power/current!
+    // ========================================================================
+    if (battery) {
+        drive_.set_battery_plant(&battery->get_battery_plant());
+        LOG_INFO("[DriveSubsystem] ✓ Battery plant connected to DrivePlant");
+    }
     
     LOG_INFO("[DriveSubsystem] Battery subsystem connected");
 }
