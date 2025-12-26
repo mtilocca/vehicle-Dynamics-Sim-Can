@@ -19,7 +19,7 @@ namespace sim {
 
 SimApp::SimApp(SimAppConfig cfg) : cfg_(cfg), lua_() {
     if (cfg_.enable_debug_log_file) {
-        utils::open_log_file(cfg_.debug_log_path);  // FIXED: correct function name
+        utils::open_log_file(cfg_.debug_log_path);
     }
 }
 
@@ -42,7 +42,7 @@ int SimApp::run_plant_only() {
     pmp.battery_params.max_soc = 0.95;
     
     // Motor parameters
-    pmp.motor_params.max_power_kW = 300.0;  // 300 kW motor
+    pmp.motor_params.max_power_kW = 300.0;
     pmp.motor_params.max_torque_nm = 4000.0;
     pmp.motor_params.efficiency = 0.92;
     
@@ -55,7 +55,7 @@ int SimApp::run_plant_only() {
     pmp.drive.brake_torque_max_nm = 4000.0;
     pmp.drive.gear_ratio = 9.0;
     pmp.drive.drivetrain_eff = 0.92;
-    pmp.drive.motor_power_max_w = 300000.0;  // 300 kW
+    pmp.drive.motor_power_max_w = 300000.0;
     pmp.drive.v_stop_eps = 0.3;
     pmp.drive.v_max_mps = 60.0;
 
@@ -70,7 +70,6 @@ int SimApp::run_plant_only() {
         return 1;
     }
 
-    // FIXED: Write header directly
     csv << "t_s,x_m,y_m,yaw_deg,v_mps,steer_deg,"
         << "delta_fl_deg,delta_fr_deg,motor_nm,brake_pct,"
         << "batt_soc_pct,batt_v,batt_i,motor_power_kW,regen_power_kW,brake_force_kN\n";
@@ -88,7 +87,6 @@ int SimApp::run_plant_only() {
 
     // ---- Real-time pacing setup ----
     using Clock = std::chrono::steady_clock;
-    using Duration = std::chrono::duration<double>;
     using Nanoseconds = std::chrono::nanoseconds;
     
     auto sim_start_time = Clock::now();
@@ -100,6 +98,9 @@ int SimApp::run_plant_only() {
     can::CanMap can_map;
     bool can_enabled = false;
     uint64_t can_tx_count = 0;
+    
+    // CRITICAL: Store plant_frames persistently so indices match!
+    std::vector<can::FrameDef> plant_frames;
 
     if (cfg_.enable_can_tx && !cfg_.can_interface.empty()) {
         LOG_INFO("Attempting to open CAN interface: %s", cfg_.can_interface.c_str());
@@ -110,8 +111,7 @@ int SimApp::run_plant_only() {
             LOG_WARN("Failed to open CAN interface: %s (continuing without CAN)", 
                      cfg_.can_interface.c_str());
         } else {
-            // FIXED: Collect ALL plant_state frames (check all signals, not just signals[0])
-            std::vector<can::FrameDef> plant_frames;
+            // Collect ALL plant_state frames
             for (const auto& frame : can_map.tx_frames()) {
                 // Check if ANY signal has target "plant_state"
                 bool is_plant_frame = false;
@@ -162,15 +162,12 @@ int SimApp::run_plant_only() {
 
         // ========== Actuator commands ==========
         if (lua_ready_) {
-            // FIXED: correct function name
             if (!lua_.get_actuator_cmd(t, s, cmd)) {
-                // Fallback
                 cmd.drive_torque_cmd_nm = cfg_.motor_torque_nm;
                 cmd.brake_cmd_pct = cfg_.brake_pct;
                 cmd.steer_cmd_deg = cfg_.steer_amp_deg * std::sin(2.0 * M_PI * cfg_.steer_freq_hz * t);
             }
         } else {
-            // Fallback: simple open-loop
             cmd.drive_torque_cmd_nm = cfg_.motor_torque_nm;
             cmd.brake_cmd_pct = cfg_.brake_pct;
             cmd.steer_cmd_deg =
@@ -185,7 +182,8 @@ int SimApp::run_plant_only() {
             auto due_frames = tx_sched.due(now);
             
             for (size_t idx : due_frames) {
-                const auto& frame_def = can_map.tx_frames()[idx];
+                // CRITICAL FIX: Use plant_frames[idx] not can_map.tx_frames()[idx]!
+                const auto& frame_def = plant_frames[idx];
                 
                 // Pack PlantState → signals
                 auto signals = PlantStatePacker::pack(s, frame_def);
@@ -199,11 +197,17 @@ int SimApp::run_plant_only() {
                     if (can_tx.write_frame(frame)) {
                         ++can_tx_count;
                         
-                        // Debug log (only first few)
-                        if (can_tx_count <= 10) {
+                        // Debug log (only first 20)
+                        if (can_tx_count <= 20) {
                             LOG_DEBUG("TX 0x%03X (%s) with %zu signals", 
                                      frame_def.frame_id, frame_def.frame_name.c_str(), signals.size());
                         }
+                    }
+                } else {
+                    // Empty signal map - log warning
+                    if (can_tx_count < 10) {
+                        LOG_WARN("Empty signal map for frame 0x%03X (%s)", 
+                                frame_def.frame_id, frame_def.frame_name.c_str());
                     }
                 }
             }
@@ -249,7 +253,7 @@ int SimApp::run_plant_only() {
         
         // Progress logging every 1000 iterations
         if (iter % 1000 == 0) {
-            LOG_INFO("t=%.2f s, v=%.2f m/s, SOC=%.1f%%, CAN frames sent: %llu",
+            LOG_INFO("t=%.2f s, v=%.2f m/s, SOC=%.1f%%, CAN TX: %llu",
                      s.t_s, s.v_mps, s.batt_soc_pct, (unsigned long long)can_tx_count);
         }
     }
