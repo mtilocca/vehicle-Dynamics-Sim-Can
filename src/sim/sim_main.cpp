@@ -20,11 +20,11 @@ int main(int argc, char** argv) {
     
     // Timing
     cfg.dt_s = 0.01;          // 10ms timestep
-    cfg.duration_s = 20.0;    // 20 second simulation
+    cfg.duration_s = 60.0;    // 20 second simulation
     cfg.log_hz = 10.0;        // Log at 10 Hz
     
     // Real-time mode
-    cfg.real_time_mode = true;   // true = runs in wall-clock time (good for CAN monitoring)
+    cfg.real_time_mode = false;   // true = runs in wall-clock time (good for CAN monitoring)
                                   // false = runs as fast as possible (good for batch testing)
     
     // Scenario
