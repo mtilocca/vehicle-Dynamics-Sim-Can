@@ -23,7 +23,7 @@ void BatteryPlant::step(double power_demand_kW, double brake_force_kN, double dt
     LOG_DEBUG("[BatteryPlant::step] P_demand=%.2f kW, brake=%.2f kN, dt=%.4f s", 
               power_demand_kW, brake_force_kN, dt_s);
     
-    // Reset regen power at start of each step
+    // Reset regen power tracker at start of each step
     regen_power_kW_ = 0.0;
     
     update_state(power_demand_kW, brake_force_kN, dt_s);
@@ -58,7 +58,7 @@ void BatteryPlant::update_state(double power_demand_kW, double brake_force_kN, d
     soc_ = std::clamp(soc_ + delta_soc, params_.min_soc, params_.max_soc);
 
     // Update power and current
-    // Total power = motor demand - regen (negative = charging)
+    // If regen is active, subtract it from power demand
     power_ = power_demand_W - (regen_power_kW_ * 1000.0);
     
     // Current = Power / Voltage
@@ -87,12 +87,14 @@ void BatteryPlant::store_energy(double energy_stored_J, double regen_power_kW) {
     
     soc_ = std::clamp(soc_ + (energy_Wh / cap_Wh), params_.min_soc, params_.max_soc);
     
-    // Store regen power for current calculation
+    // CRITICAL FIX: Store regen power for current calculation in next step
     regen_power_kW_ = regen_power_kW;
     
-    // Update current immediately to reflect regen charging
-    power_ = -(regen_power_kW * 1000.0);  // Negative = charging
-    current_ = power_ / voltage_;  // Will be negative
+    // Update current immediately to reflect charging
+    if (regen_power_kW > 0.001) {
+        power_ = -(regen_power_kW * 1000.0);  // Negative = charging
+        current_ = power_ / voltage_;          // Will be negative
+    }
     
     LOG_DEBUG("[BatteryPlant::store_energy] Stored %.2f J (%.4f Wh), P_regen=%.2f kW, I=%.2f A, SOC=%.3f", 
               energy_stored_J, energy_Wh, regen_power_kW, current_, soc_);

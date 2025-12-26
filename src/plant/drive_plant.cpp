@@ -84,11 +84,15 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {
         double regen_power_kW = brake_force_kN * std::abs(v) * regen_eff;
         
         if (battery_plant_) {
-            battery_plant_->store_energy(regen_power_kW * dt_s * 1000.0, regen_power_kW);
+            battery_plant_->store_energy(regen_power_kW * dt_s * 1000.0);
             s.regen_power_kW = regen_power_kW;
             
-            LOG_DEBUG("[DrivePlant] Active Regen: P=%.2f kW, F=%.2f kN, eff=%.0f%%", 
-                      regen_power_kW, brake_force_kN, regen_eff*100);
+            // CRITICAL FIX: Calculate current from regen power
+            // Negative current = charging
+            s.batt_i = -(regen_power_kW * 1000.0) / s.batt_v;
+            
+            LOG_DEBUG("[DrivePlant] Active Regen: P=%.2f kW, I=%.2f A, F=%.2f kN", 
+                      regen_power_kW, s.batt_i, brake_force_kN);
         }
     } 
     else if (motor_tq_cmd == 0.0 && brake_pct == 0.0 && std::abs(v) > p_.v_stop_eps) {
@@ -103,11 +107,15 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {
         double regen_power_kW = resist_power_kW * coasting_regen_eff;
         
         if (battery_plant_ && regen_power_kW > 0.001) {
-            battery_plant_->store_energy(regen_power_kW * dt_s * 1000.0, regen_power_kW);
+            battery_plant_->store_energy(regen_power_kW * dt_s * 1000.0);
             s.regen_power_kW = regen_power_kW;
             
-            LOG_DEBUG("[DrivePlant] Coasting Regen: P=%.2f kW, F_res=%.2f kN, eff=%.0f%%", 
-                      regen_power_kW, F_res/1000.0, coasting_regen_eff*100);
+            // CRITICAL FIX: Calculate current from regen power
+            // Negative current = charging
+            s.batt_i = -(regen_power_kW * 1000.0) / s.batt_v;
+            
+            LOG_DEBUG("[DrivePlant] Coasting Regen: P=%.2f kW, I=%.2f A, F_res=%.2f kN", 
+                      regen_power_kW, s.batt_i, F_res/1000.0);
         }
     }
 

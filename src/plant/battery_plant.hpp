@@ -30,7 +30,7 @@ public:
     
     void consume_energy(double energy_consumed_J);
     
-    // Updated signature to accept regen_power_kW for current calculation
+    // UPDATED: Now accepts regen_power_kW to fix current display
     void store_energy(double energy_stored_J, double regen_power_kW = 0.0);
     
     double regen_braking(double speed_mps, double brake_force_kN);
