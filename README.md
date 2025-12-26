@@ -192,7 +192,8 @@ logging --> Database[Database + dashboard]
 python3 sim_plotter.py sim_out.csv
 ```
 ### Results Plot
-https://github.com/mtilocca/plant-sensor-can-sim/blob/main/figures/slalom.png
+https://github.com/mtilocca/plant-sensor-can-sim/blob/main/figures/slalom.png  SLALOM 
+https://github.com/mtilocca/plant-sensor-can-sim/blob/main/figures/brake_test.png  BRAKE TEST
 
 ### JSON Scenario Format
 
