@@ -1,9 +1,11 @@
+// src/plant/plant_model.hpp
 #pragma once
 
-#include "plant_state.hpp"
-#include "drive_plant.hpp"
-#include "steer_plant.hpp"
-#include "battery_plant.hpp"
+#include "plant/plant_state.hpp"
+#include "plant/subsystem_manager.hpp"
+#include "plant/steer_plant.hpp"
+#include "plant/drive_plant.hpp"
+#include "plant/battery_plant.hpp"
 
 namespace sim { struct ActuatorCmd; }
 
@@ -19,6 +21,12 @@ struct PlantModelParams {
     double track_width_m = 1.6;
 };
 
+/**
+ * PlantModel - Main vehicle physics orchestrator
+ * 
+ * Now uses SubsystemManager for scalable subsystem architecture.
+ * Subsystems are registered by priority and executed automatically.
+ */
 class PlantModel {
 public:
     explicit PlantModel(PlantModelParams p = {});
@@ -28,11 +36,13 @@ public:
 
     void step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s);
 
+    // Access to subsystem manager (for advanced control)
+    SubsystemManager& subsystem_manager() { return subsystem_mgr_; }
+    const SubsystemManager& subsystem_manager() const { return subsystem_mgr_; }
+
 private:
     PlantModelParams p_;
-    SteerPlant steer_;
-    DrivePlant drive_;
-    BatteryPlant battery_;  
+    SubsystemManager subsystem_mgr_;
 };
 
 } // namespace plant
