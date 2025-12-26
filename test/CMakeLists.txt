@@ -5,6 +5,7 @@ add_executable(test_plant_state_packer
     test_plant_state_packer.cpp
 )
 
+
 # Include directories
 target_include_directories(test_plant_state_packer PRIVATE
     ${CMAKE_SOURCE_DIR}
@@ -27,3 +28,11 @@ target_sources(test_plant_state_packer PRIVATE
 install(TARGETS test_plant_state_packer
     RUNTIME DESTINATION bin
 )
+
+
+add_executable(test_subsystem_manager test_subsystem_manager.cpp)
+target_include_directories(test_subsystem_manager PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src
+)
+target_link_libraries(test_subsystem_manager PRIVATE plant utils)

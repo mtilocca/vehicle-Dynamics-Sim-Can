@@ -6,6 +6,10 @@ add_library(plant STATIC
     drive_plant.cpp
     vehicle_bicycle_ackermann.cpp
     battery_plant.cpp  
+    subsystem_manager.cpp        # NEW
+    battery_subsystem.cpp         # NEW
+    drive_subsystem.cpp           # NEW
+    steer_subsystem.cpp           # NEW
 )
 
 target_include_directories(plant PUBLIC
