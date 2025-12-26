@@ -4,6 +4,7 @@ add_executable(sim_main
     sim_main.cpp
     sim_app.cpp
     lua_runtime.cpp
+    plant_state_packer.cpp
 )
 
 target_include_directories(sim_main PRIVATE
@@ -30,4 +31,16 @@ else()
     message(FATAL_ERROR "Lua not found via pkg-config (lua5.4 or lua5.3). Install liblua5.4-dev or liblua5.3-dev.")
 endif()
 
+# ---- Link libraries ----
+# NEW: Link CAN libraries (socketcan_iface, can_map, can_codec, tx_scheduler are in the can tools)
+# We need to create a CAN library that can be linked
 target_link_libraries(sim_main PRIVATE plant utils)
+
+# ---- CAN support ----
+# Add CAN source files directly since we don't have a can library yet
+target_sources(sim_main PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/can/socketcan_iface.cpp
+    ${CMAKE_SOURCE_DIR}/src/can/can_map.cpp
+    ${CMAKE_SOURCE_DIR}/src/can/can_codec.cpp
+    ${CMAKE_SOURCE_DIR}/src/can/tx_scheduler.cpp
+)

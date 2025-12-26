@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
     cfg.duration_s = 20.0;    // 20 second simulation
     cfg.log_hz = 10.0;        // Log at 10 Hz
     
-    // Real-time mode (NEW!)
+    // Real-time mode
     cfg.real_time_mode = true;   // true = runs in wall-clock time (good for CAN monitoring)
                                   // false = runs as fast as possible (good for batch testing)
     
@@ -36,6 +36,11 @@ int main(int argc, char** argv) {
     cfg.csv_log_path = "sim_out.csv";
     cfg.debug_log_path = "sim_debug.log";
     cfg.enable_debug_log_file = true;  // Set to false to disable file logging
+
+    // CAN configuration (NEW!)
+    cfg.enable_can_tx = true;                 // Enable CAN transmission
+    cfg.can_interface = "vcan0";              // CAN interface name
+    cfg.can_map_path = "config/can_map.csv";  // Path to CAN map file
 
     LOG_INFO("========================================");
     LOG_INFO("Plant-Sensor-CAN Simulation");

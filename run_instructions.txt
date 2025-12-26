@@ -1,0 +1,15 @@
+# Terminal 1: Start simulation (real-time mode)
+./build/src/sim/sim_main config/scenarios/slalom.json
+
+# Terminal 2: Live monitor
+./build/src/can/vcan_listener vcan0 config/can_map.csv --live --plant-only
+```
+
+
+
+./build/src/can/vcan_listener vcan0 config/can_map.csv --decode-tx
+
+
+
+# Only vehicle and motor state
+./build/src/can/vcan_listener vcan0 config/can_map.csv --decode-tx --filter=0x300,0x310

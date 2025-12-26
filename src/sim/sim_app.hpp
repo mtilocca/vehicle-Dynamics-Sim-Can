@@ -15,7 +15,7 @@ struct SimAppConfig {
     double log_hz = 10.0;
 
     // Real-time mode
-    bool real_time_mode = true;  // NEW: Enable real-time pacing (true = wall-clock time)
+    bool real_time_mode = true;  // Enable real-time pacing (true = wall-clock time)
 
     // Default open-loop (used when Lua scenario disabled or fails)
     double motor_torque_nm = 1200.0;
@@ -34,6 +34,11 @@ struct SimAppConfig {
     
     // Logging control
     bool enable_debug_log_file = true;
+
+    // CAN configuration (NEW!)
+    bool enable_can_tx = true;                      // Enable CAN transmission
+    std::string can_interface = "vcan0";            // CAN interface name
+    std::string can_map_path = "config/can_map.csv"; // Path to CAN map
 };
 
 class SimApp {

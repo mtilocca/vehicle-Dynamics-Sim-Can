@@ -11,6 +11,11 @@
 #include "plant/plant_model.hpp"
 #include "plant/plant_state.hpp"
 #include "sim/actuator_cmd.hpp"
+#include "sim/plant_state_packer.hpp"
+#include "can/socketcan_iface.hpp"
+#include "can/can_map.hpp"
+#include "can/can_codec.hpp"
+#include "can/tx_scheduler.hpp"
 #include "utils/logging.hpp"
 
 namespace sim {
@@ -42,6 +47,40 @@ int SimApp::run_plant_only() {
     
     auto sim_start_time = Clock::now();
     auto next_step_time = sim_start_time;
+
+    // ---- CAN TX setup ----
+    can::SocketCanIface can_tx;
+    can::TxScheduler tx_sched;
+    can::CanMap can_map;
+    bool can_enabled = false;
+
+    if (cfg_.enable_can_tx && !cfg_.can_interface.empty()) {
+        LOG_INFO("Attempting to open CAN interface: %s", cfg_.can_interface.c_str());
+        
+        if (!can_map.load(cfg_.can_map_path)) {
+            LOG_WARN("Failed to load CAN map: %s", cfg_.can_map_path.c_str());
+        } else if (!can_tx.open(cfg_.can_interface)) {
+            LOG_WARN("Failed to open CAN interface: %s (continuing without CAN)", 
+                     cfg_.can_interface.c_str());
+        } else {
+            // Filter only plant_state frames
+            std::vector<can::FrameDef> plant_frames;
+            for (const auto& frame : can_map.tx_frames()) {
+                if (!frame.signals.empty() && frame.signals[0].target == "plant_state") {
+                    plant_frames.push_back(frame);
+                }
+            }
+            
+            if (!plant_frames.empty()) {
+                tx_sched.init(plant_frames);
+                tx_sched.force_all_due();
+                can_enabled = true;
+                LOG_INFO("CAN TX enabled: %zu plant_state frames scheduled", plant_frames.size());
+            } else {
+                LOG_WARN("No plant_state frames found in CAN map");
+            }
+        }
+    }
 
     // ---- Scenario init
     lua_ready_ = false;
@@ -77,12 +116,17 @@ int SimApp::run_plant_only() {
     LOG_INFO("dt=%.4f s, duration=%.2f s, steps=%d", dt, cfg_.duration_s, steps);
     LOG_INFO("Scenario: %s", (lua_ready_ ? "Lua" : "C++ defaults"));
     LOG_INFO("Real-time mode: %s", cfg_.real_time_mode ? "ENABLED" : "DISABLED");
+    LOG_INFO("CAN TX: %s", can_enabled ? "ENABLED" : "DISABLED");
     LOG_INFO("========================================");
     
     if (cfg_.real_time_mode) {
         std::printf("\n⏱️  Running in REAL-TIME mode (%.1f seconds will take %.1f real seconds)\n", 
                     cfg_.duration_s, cfg_.duration_s);
-        std::printf("   You have time to start monitoring tools like: candump vcan0\n\n");
+        if (can_enabled) {
+            std::printf("   🚗 CAN frames broadcasting on %s\n", cfg_.can_interface.c_str());
+            std::printf("   📡 Monitor with: candump %s\n", cfg_.can_interface.c_str());
+        }
+        std::printf("\n");
     } else {
         std::printf("\n⚡ Running in FAST mode (simulation runs as fast as possible)\n\n");
     }
@@ -91,6 +135,9 @@ int SimApp::run_plant_only() {
     std::printf("soc_pct  batt_v  batt_i  motor_pwr_kW  regen_pwr_kW  brake_f_kN\n");
     std::printf("--------------------------------------------------------------------------------------------\n");
 
+    // ---- Simulation loop ----
+    uint64_t can_tx_count = 0;
+    
     for (int k = 0; k < steps; ++k) {
         const double t = s.t_s;
 
@@ -113,6 +160,31 @@ int SimApp::run_plant_only() {
         }
 
         plant_model.step(s, cmd, dt);
+
+        // ========== CAN TX ==========
+        if (can_enabled) {
+            auto now = Clock::now();
+            auto due_frames = tx_sched.due(now);
+            
+            for (size_t idx : due_frames) {
+                const auto& frame_def = can_map.tx_frames()[idx];
+                
+                // Pack PlantState → signals
+                auto signals = PlantStatePacker::pack(s, frame_def);
+                
+                if (!signals.empty()) {
+                    // Encode → CAN frame
+                    struct can_frame frame;
+                    can::CanCodec::encode_from_map(frame_def, signals, frame);
+                    
+                    // Transmit
+                    if (can_tx.write_frame(frame)) {
+                        ++can_tx_count;
+                    }
+                }
+            }
+        }
+        // ============================
 
         if (s.t_s >= next_log_t) {
             const double yaw_deg = s.yaw_rad * 180.0 / M_PI;
@@ -165,6 +237,9 @@ int SimApp::run_plant_only() {
              s.x_m, s.y_m, s.v_mps, s.batt_soc_pct);
     LOG_INFO("Sim time: %.2f s, Wall time: %.2f s (%.1fx realtime)", 
              cfg_.duration_s, elapsed.count(), cfg_.duration_s / elapsed.count());
+    if (can_enabled) {
+        LOG_INFO("CAN frames transmitted: %llu", (unsigned long long)can_tx_count);
+    }
     LOG_INFO("========================================");
 
     // Close debug log file
