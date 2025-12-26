@@ -1,8 +1,14 @@
 {
   "meta": {
     "name": "brake_test",
-    "version": 2,
-    "description": "Test motor acceleration followed by regenerative braking"
+    "version": 3,
+    "description": "Test motor acceleration, regenerative braking, and coasting regen"
+  },
+  "timing": {
+    "dt_s": 0.01,
+    "duration_s": 30.0,
+    "log_hz": 10.0,
+    "real_time_mode": false
   },
   "defaults": {
     "system_enable": true,
@@ -18,7 +24,7 @@
       "drive_torque_cmd_nm": 1200.0,
       "brake_cmd_pct": 0.0,
       "steer_cmd_deg": 0.0,
-      "comment": "Accelerate with full motor torque"
+      "comment": "Accelerate with motor torque"
     },
     {
       "t0": 4.0,
@@ -26,7 +32,7 @@
       "drive_torque_cmd_nm": 0.0,
       "brake_cmd_pct": 60.0,
       "steer_cmd_deg": 0.0,
-      "comment": "Apply regenerative braking"
+      "comment": "Active regenerative braking (70% efficiency)"
     },
     {
       "t0": 8.0,
@@ -42,7 +48,7 @@
       "drive_torque_cmd_nm": 0.0,
       "brake_cmd_pct": 0.0,
       "steer_cmd_deg": 0.0,
-      "comment": "Coast to end"
+      "comment": "Coast to end - coasting regen (10% efficiency, 18 seconds)"
     }
   ]
 }

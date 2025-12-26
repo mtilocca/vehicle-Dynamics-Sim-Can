@@ -1,8 +1,9 @@
+// src/plant/drive_plant.hpp
 #pragma once
 
 #include <algorithm>
 #include "plant/plant_state.hpp"
-#include "battery_plant.hpp"  // Include BatteryPlant class for energy management
+#include "battery_plant.hpp"
 
 namespace sim { struct ActuatorCmd; }
 
@@ -17,7 +18,7 @@ struct DriveParams {
     double brake_torque_max_nm = 4000.0; // wheel brake torque at tire (magnitude)
     double gear_ratio = 9.0;
     double drivetrain_eff = 0.92; 
-    double motor_power_max_w = 90000; 
+    double motor_power_max_w = 300000;  // 300 kW (was 90 kW) - Performance EV level
     double v_stop_eps = 0.3;          
     double v_max_mps = 60.0;          
 };
@@ -34,7 +35,7 @@ public:
 
 private:
     DriveParams p_;
-    BatteryPlant* battery_plant_;  // Reference to battery plant
+    BatteryPlant* battery_plant_;
 
     static double clamp(double v, double lo, double hi) {
         return std::max(lo, std::min(hi, v));
