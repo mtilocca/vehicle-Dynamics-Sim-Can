@@ -4,16 +4,24 @@
 #include "can/can_map.hpp"
 #include "can/can_codec.hpp"
 #include "plant/plant_state.hpp"
+#include "plant/plant_state_visitor.hpp"
 #include <string>
+#include <cmath>
 
 namespace sim {
 
 /**
  * PlantStatePacker - Converts PlantState into CAN signal maps
  * 
- * This class handles the mapping from the plant model's truth state
- * to CAN signal values for transmission. It supports all plant_state
- * target frames defined in the CAN map.
+ * NEW ARCHITECTURE:
+ * Uses visitor pattern to automatically extract fields from PlantState.
+ * No more manual field-by-field mapping!
+ * 
+ * Adding a new signal:
+ *   1. Add field to PlantState
+ *   2. Register in PlantState::accept_fields()
+ *   3. Add to CAN map CSV
+ *   Done! PlantStatePacker automatically handles it.
  */
 class PlantStatePacker {
 public:
@@ -30,18 +38,18 @@ public:
     );
 
 private:
-    // Frame-specific packers
-    static can::SignalMap pack_vehicle_state_1(const plant::PlantState& s);
-    static can::SignalMap pack_motor_state_1(const plant::PlantState& s);
-    static can::SignalMap pack_brake_state(const plant::PlantState& s);
-    static can::SignalMap pack_position_state(const plant::PlantState& s);
-    static can::SignalMap pack_orientation_state(const plant::PlantState& s);
-    static can::SignalMap pack_drivetrain_state(const plant::PlantState& s);
-    static can::SignalMap pack_diagnostic_state(const plant::PlantState& s);
-
-    // Helper: Calculate derived signals
-    static double calc_motor_rpm(const plant::PlantState& s, double gear_ratio, double wheel_radius);
-    static double calc_yaw_rate_radps(const plant::PlantState& s);
+    // Helper: Calculate derived signals that don't exist directly in PlantState
+    static void add_derived_signals(
+        const plant::PlantState& state,
+        const can::FrameDef& frame_def,
+        can::SignalMap& signals
+    );
+    
+    // Helper: Check if signal exists in frame definition
+    static bool frame_has_signal(
+        const can::FrameDef& frame_def,
+        const std::string& signal_name
+    );
     
     // Constants (should match plant model params)
     static constexpr double DEFAULT_GEAR_RATIO = 9.0;

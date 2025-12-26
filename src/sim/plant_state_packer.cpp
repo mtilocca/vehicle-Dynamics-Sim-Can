@@ -1,6 +1,7 @@
 // src/sim/plant_state_packer.cpp
 #include "plant_state_packer.hpp"
 #include <cmath>
+#include <algorithm>
 
 namespace sim {
 
@@ -8,96 +9,27 @@ can::SignalMap PlantStatePacker::pack(
     const plant::PlantState& state,
     const can::FrameDef& frame_def
 ) {
-    // Dispatch based on frame ID
-    switch (frame_def.frame_id) {
-        case 0x300: return pack_vehicle_state_1(state);
-        case 0x310: return pack_motor_state_1(state);
-        case 0x320: return pack_brake_state(state);
-        case 0x330: return pack_position_state(state);
-        case 0x331: return pack_orientation_state(state);
-        case 0x340: return pack_drivetrain_state(state);
-        case 0x3F0: return pack_diagnostic_state(state);
-        default:
-            // Unknown frame - return empty map
-            return can::SignalMap{};
-    }
-}
-
-can::SignalMap PlantStatePacker::pack_vehicle_state_1(const plant::PlantState& s) {
     can::SignalMap signals;
     
-    signals["vehicle_speed_mps"] = s.v_mps;
-    signals["vehicle_accel_mps2"] = s.a_long_mps2;
-    signals["yaw_rate_radps"] = calc_yaw_rate_radps(s);
-    signals["status_flags"] = 0;  // TODO: Implement status flags
+    // ========================================================================
+    // AUTOMATIC FIELD EXTRACTION via Visitor Pattern
+    // ========================================================================
     
-    return signals;
-}
-
-can::SignalMap PlantStatePacker::pack_motor_state_1(const plant::PlantState& s) {
-    can::SignalMap signals;
+    // Create visitor that filters fields by frame definition
+    auto visitor = plant::make_visitor([&](const char* name, double value) {
+        if (frame_has_signal(frame_def, name)) {
+            signals[name] = value;
+        }
+    });
     
-    signals["motor_torque_nm"] = s.motor_torque_nm;
-    signals["motor_power_kw"] = s.motor_power_kW;
-    signals["motor_speed_rpm"] = calc_motor_rpm(s, DEFAULT_GEAR_RATIO, DEFAULT_WHEEL_RADIUS);
-    signals["motor_temp_c"] = 25.0;  // TODO: Add motor temperature to PlantState
+    // Extract all fields that match this frame's signals
+    state.accept_fields(visitor);
     
-    return signals;
-}
-
-can::SignalMap PlantStatePacker::pack_brake_state(const plant::PlantState& s) {
-    can::SignalMap signals;
+    // ========================================================================
+    // ADD DERIVED SIGNALS (calculated from multiple fields)
+    // ========================================================================
     
-    signals["brake_force_kn"] = s.brake_force_kN;
-    signals["brake_pct_actual"] = 0.0;  // TODO: Add to PlantState or pass from ActuatorCmd
-    signals["regen_power_kw"] = s.regen_power_kW;
-    signals["brake_temp_c"] = 25.0;  // TODO: Add brake temperature model
-    
-    return signals;
-}
-
-can::SignalMap PlantStatePacker::pack_position_state(const plant::PlantState& s) {
-    can::SignalMap signals;
-    
-    signals["pos_x_m"] = s.x_m;
-    signals["pos_y_m"] = s.y_m;
-    
-    return signals;
-}
-
-can::SignalMap PlantStatePacker::pack_orientation_state(const plant::PlantState& s) {
-    can::SignalMap signals;
-    
-    // Convert yaw to degrees
-    const double yaw_deg = s.yaw_rad * 180.0 / M_PI;
-    
-    signals["yaw_deg"] = yaw_deg;
-    signals["yaw_rad"] = s.yaw_rad;
-    signals["yaw_rate_dps"] = calc_yaw_rate_radps(s) * 180.0 / M_PI;
-    
-    return signals;
-}
-
-can::SignalMap PlantStatePacker::pack_drivetrain_state(const plant::PlantState& s) {
-    can::SignalMap signals;
-    
-    // Static configuration (should ideally come from PlantModelParams)
-    signals["gear_ratio"] = DEFAULT_GEAR_RATIO;
-    signals["drivetrain_eff_pct"] = DEFAULT_DRIVETRAIN_EFF * 100.0;
-    signals["wheel_radius_mm"] = DEFAULT_WHEEL_RADIUS * 1000.0;
-    signals["wheelbase_mm"] = DEFAULT_WHEELBASE * 1000.0;
-    signals["track_width_mm"] = DEFAULT_TRACK_WIDTH * 1000.0;
-    
-    return signals;
-}
-
-can::SignalMap PlantStatePacker::pack_diagnostic_state(const plant::PlantState& s) {
-    can::SignalMap signals;
-    
-    signals["sim_time_s"] = s.t_s;
-    signals["loop_time_us"] = 10000.0;  // TODO: Calculate actual loop time
-    signals["error_count"] = 0;
-    signals["status"] = 0;  // 0 = OK
+    add_derived_signals(state, frame_def, signals);
     
     return signals;
 }
@@ -106,33 +38,136 @@ can::SignalMap PlantStatePacker::pack_diagnostic_state(const plant::PlantState& 
 // Helper Functions
 // ============================================================================
 
-double PlantStatePacker::calc_motor_rpm(
-    const plant::PlantState& s,
-    double gear_ratio,
-    double wheel_radius
+bool PlantStatePacker::frame_has_signal(
+    const can::FrameDef& frame_def,
+    const std::string& signal_name
 ) {
-    // ω_motor = (v / r_wheel) * N_gear
-    // RPM = ω_motor * 60 / (2π)
-    
-    if (wheel_radius <= 0.0) return 0.0;
-    
-    const double omega_wheel_radps = s.v_mps / wheel_radius;
-    const double omega_motor_radps = omega_wheel_radps * gear_ratio;
-    const double motor_rpm = omega_motor_radps * 60.0 / (2.0 * M_PI);
-    
-    return motor_rpm;
+    for (const auto& sig : frame_def.signals) {
+        if (sig.signal_name == signal_name) {
+            return true;
+        }
+    }
+    return false;
 }
 
-double PlantStatePacker::calc_yaw_rate_radps(const plant::PlantState& s) {
-    // For bicycle model: ψ̇ = (v / L) * tan(δ)
-    // We can also use steer_rate_radps if available
+void PlantStatePacker::add_derived_signals(
+    const plant::PlantState& state,
+    const can::FrameDef& frame_def,
+    can::SignalMap& signals
+) {
+    // ========================================================================
+    // MOTOR STATE (0x310)
+    // ========================================================================
+    if (frame_has_signal(frame_def, "motor_speed_rpm")) {
+        // ω_motor = (v / r_wheel) * N_gear
+        // RPM = ω_motor * 60 / (2π)
+        const double omega_wheel = state.v_mps / DEFAULT_WHEEL_RADIUS;
+        const double omega_motor = omega_wheel * DEFAULT_GEAR_RATIO;
+        const double motor_rpm = omega_motor * 60.0 / (2.0 * M_PI);
+        signals["motor_speed_rpm"] = motor_rpm;
+    }
     
-    // Return steer rate as proxy (should be same as yaw rate for bicycle model)
-    return s.steer_rate_radps;
+    if (frame_has_signal(frame_def, "motor_temp_c")) {
+        // TODO: Implement motor thermal model
+        signals["motor_temp_c"] = 25.0;  // Ambient for now
+    }
     
-    // Alternative: Calculate from speed and steering angle
-    // const double L = DEFAULT_WHEELBASE;
-    // return (s.v_mps / L) * std::tan(s.steer_virtual_rad);
+    // ========================================================================
+    // BATTERY STATE (0x230)
+    // ========================================================================
+    if (frame_has_signal(frame_def, "batt_power_kw")) {
+        // P = V * I
+        const double power_kw = (state.batt_v * state.batt_i) / 1000.0;
+        signals["batt_power_kw"] = power_kw;
+    }
+    
+    // ========================================================================
+    // BRAKE STATE (0x320)
+    // ========================================================================
+    if (frame_has_signal(frame_def, "brake_pct_actual")) {
+        // TODO: Get this from ActuatorCmd or add to PlantState
+        signals["brake_pct_actual"] = 0.0;
+    }
+    
+    if (frame_has_signal(frame_def, "brake_temp_c")) {
+        // TODO: Implement brake thermal model
+        signals["brake_temp_c"] = 25.0;
+    }
+    
+    // ========================================================================
+    // ORIENTATION STATE (0x331)
+    // ========================================================================
+    if (frame_has_signal(frame_def, "yaw_deg")) {
+        signals["yaw_deg"] = state.yaw_rad * 180.0 / M_PI;
+    }
+    
+    if (frame_has_signal(frame_def, "yaw_rate_dps")) {
+        // Use steer_rate as proxy for yaw rate
+        signals["yaw_rate_dps"] = state.steer_rate_radps * 180.0 / M_PI;
+    }
+    
+    // ========================================================================
+    // STEERING STATE (0x221)
+    // ========================================================================
+    if (frame_has_signal(frame_def, "steer_deg")) {
+        signals["steer_deg"] = state.steer_virtual_rad * 180.0 / M_PI;
+    }
+    
+    if (frame_has_signal(frame_def, "steer_rate_dps")) {
+        signals["steer_rate_dps"] = state.steer_rate_radps * 180.0 / M_PI;
+    }
+    
+    if (frame_has_signal(frame_def, "delta_fl_deg")) {
+        signals["delta_fl_deg"] = state.delta_fl_rad * 180.0 / M_PI;
+    }
+    
+    if (frame_has_signal(frame_def, "delta_fr_deg")) {
+        signals["delta_fr_deg"] = state.delta_fr_rad * 180.0 / M_PI;
+    }
+    
+    if (frame_has_signal(frame_def, "steer_fault")) {
+        // TODO: Implement steering fault detection
+        signals["steer_fault"] = 0.0;
+    }
+    
+    // ========================================================================
+    // DRIVETRAIN STATE (0x340) - Static Configuration
+    // ========================================================================
+    if (frame_has_signal(frame_def, "gear_ratio")) {
+        signals["gear_ratio"] = DEFAULT_GEAR_RATIO;
+    }
+    
+    if (frame_has_signal(frame_def, "drivetrain_eff_pct")) {
+        signals["drivetrain_eff_pct"] = DEFAULT_DRIVETRAIN_EFF * 100.0;
+    }
+    
+    if (frame_has_signal(frame_def, "wheel_radius_mm")) {
+        signals["wheel_radius_mm"] = DEFAULT_WHEEL_RADIUS * 1000.0;
+    }
+    
+    if (frame_has_signal(frame_def, "wheelbase_mm")) {
+        signals["wheelbase_mm"] = DEFAULT_WHEELBASE * 1000.0;
+    }
+    
+    if (frame_has_signal(frame_def, "track_width_mm")) {
+        signals["track_width_mm"] = DEFAULT_TRACK_WIDTH * 1000.0;
+    }
+    
+    // ========================================================================
+    // DIAGNOSTIC STATE (0x3F0)
+    // ========================================================================
+    if (frame_has_signal(frame_def, "loop_time_us")) {
+        // TODO: Calculate actual loop time in sim_app
+        signals["loop_time_us"] = 10000.0;  // 10ms nominal
+    }
+    
+    if (frame_has_signal(frame_def, "error_count")) {
+        signals["error_count"] = 0.0;
+    }
+    
+    if (frame_has_signal(frame_def, "status")) {
+        signals["status"] = 0.0;  // 0 = OK
+    }
 }
 
 } // namespace sim
