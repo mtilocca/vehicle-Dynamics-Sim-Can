@@ -1,41 +1,87 @@
 // src/sim/sim_app.cpp
-#include "sim_app.hpp"
-
-#include <cmath>
-#include <cstdio>
-#include <fstream>
-#include <iomanip>
-#include <chrono>
-#include <thread>
-
-#include "plant/plant_model.hpp"
-#include "plant/plant_state.hpp"
+#include "sim/sim_app.hpp"
 #include "sim/actuator_cmd.hpp"
 #include "sim/plant_state_packer.hpp"
 #include "can/socketcan_iface.hpp"
+#include "can/tx_scheduler.hpp"
 #include "can/can_map.hpp"
 #include "can/can_codec.hpp"
-#include "can/tx_scheduler.hpp"
+#include "plant/plant_model.hpp"
 #include "utils/logging.hpp"
+
+#include <chrono>
+#include <cmath>
+#include <fstream>
+#include <thread>
+#include <iomanip>
 
 namespace sim {
 
-SimApp::SimApp(SimAppConfig cfg) : cfg_(std::move(cfg)) {}
+SimApp::SimApp(SimAppConfig cfg) : cfg_(cfg), lua_() {
+    if (cfg_.enable_debug_log_file) {
+        utils::open_log_file(cfg_.debug_log_path);  // FIXED: correct function name
+    }
+}
 
 int SimApp::run_plant_only() {
-    // Initialize debug log file if enabled
-    if (cfg_.enable_debug_log_file && !cfg_.debug_log_path.empty()) {
-        if (!utils::open_log_file(cfg_.debug_log_path)) {
-            LOG_WARN("Failed to open debug log file, continuing without file logging");
-        }
+    const double dt = cfg_.dt_s;
+    
+    // ---- Plant model initialization ----
+    plant::PlantModelParams pmp{};
+    pmp.wheelbase_m = 2.8;
+    pmp.track_width_m = 1.6;
+    pmp.steer.delta_max_deg = 35.0;
+    
+    // Battery parameters
+    pmp.battery_params.capacity_kWh = 60.0;
+    pmp.battery_params.efficiency_charge = 0.95;
+    pmp.battery_params.efficiency_discharge = 0.95;
+    pmp.battery_params.max_charge_power_kW = 50.0;
+    pmp.battery_params.max_discharge_power_kW = 150.0;
+    pmp.battery_params.min_soc = 0.05;
+    pmp.battery_params.max_soc = 0.95;
+    
+    // Motor parameters
+    pmp.motor_params.max_power_kW = 300.0;  // 300 kW motor
+    pmp.motor_params.max_torque_nm = 4000.0;
+    pmp.motor_params.efficiency = 0.92;
+    
+    // Drive parameters
+    pmp.drive.mass_kg = 1800.0;
+    pmp.drive.wheel_radius_m = 0.33;
+    pmp.drive.drag_c = 0.35;
+    pmp.drive.roll_c = 40.0;
+    pmp.drive.motor_torque_max_nm = 4000.0;
+    pmp.drive.brake_torque_max_nm = 4000.0;
+    pmp.drive.gear_ratio = 9.0;
+    pmp.drive.drivetrain_eff = 0.92;
+    pmp.drive.motor_power_max_w = 300000.0;  // 300 kW
+    pmp.drive.v_stop_eps = 0.3;
+    pmp.drive.v_max_mps = 60.0;
+
+    plant::PlantModel plant_model(pmp);
+    plant::PlantState s{};
+    s.batt_soc_pct = 50.0;
+
+    // ---- CSV logging ----
+    std::ofstream csv(cfg_.csv_log_path);
+    if (!csv) {
+        LOG_ERROR("Failed to open CSV: %s", cfg_.csv_log_path.c_str());
+        return 1;
     }
 
-    plant::PlantModelParams pm_params{};
-    plant::PlantModel plant_model(pm_params);
-    plant::PlantState s{};
+    // FIXED: Write header directly
+    csv << "t_s,x_m,y_m,yaw_deg,v_mps,steer_deg,"
+        << "delta_fl_deg,delta_fr_deg,motor_nm,brake_pct,"
+        << "batt_soc_pct,batt_v,batt_i,motor_power_kW,regen_power_kW,brake_force_kN\n";
+    csv << std::fixed << std::setprecision(6);
 
-    const double dt = cfg_.dt_s;
-    const int steps = (dt > 0.0) ? static_cast<int>(cfg_.duration_s / dt) : 0;
+    // ---- Loop control ----
+    ActuatorCmd cmd{};
+    cmd.system_enable = true;
+
+    const int max_iters = (cfg_.duration_s > 0.0) ?
+        static_cast<int>(cfg_.duration_s / dt) : 0;
 
     const double log_period_s = (cfg_.log_hz > 0.0) ? (1.0 / cfg_.log_hz) : 0.1;
     double next_log_t = 0.0;
@@ -53,6 +99,7 @@ int SimApp::run_plant_only() {
     can::TxScheduler tx_sched;
     can::CanMap can_map;
     bool can_enabled = false;
+    uint64_t can_tx_count = 0;
 
     if (cfg_.enable_can_tx && !cfg_.can_interface.empty()) {
         LOG_INFO("Attempting to open CAN interface: %s", cfg_.can_interface.c_str());
@@ -63,11 +110,22 @@ int SimApp::run_plant_only() {
             LOG_WARN("Failed to open CAN interface: %s (continuing without CAN)", 
                      cfg_.can_interface.c_str());
         } else {
-            // Filter only plant_state frames
+            // FIXED: Collect ALL plant_state frames (check all signals, not just signals[0])
             std::vector<can::FrameDef> plant_frames;
             for (const auto& frame : can_map.tx_frames()) {
-                if (!frame.signals.empty() && frame.signals[0].target == "plant_state") {
+                // Check if ANY signal has target "plant_state"
+                bool is_plant_frame = false;
+                for (const auto& sig : frame.signals) {
+                    if (sig.target == "plant_state") {
+                        is_plant_frame = true;
+                        break;
+                    }
+                }
+                
+                if (is_plant_frame) {
                     plant_frames.push_back(frame);
+                    LOG_INFO("Scheduling TX frame: 0x%03X (%s) @ %d ms", 
+                             frame.frame_id, frame.frame_name.c_str(), frame.cycle_ms);
                 }
             }
             
@@ -88,71 +146,31 @@ int SimApp::run_plant_only() {
         lua_ready_ = lua_.init(cfg_.lua_script_path, cfg_.scenario_json_path);
         if (!lua_ready_) {
             LOG_WARN("Lua scenario requested but failed to init. Falling back to defaults.");
-        } else {
-            LOG_INFO("Lua scenario loaded successfully");
-            if (!cfg_.scenario_json_path.empty()) {
-                LOG_INFO("JSON scenario: %s", cfg_.scenario_json_path.c_str());
-            }
         }
     }
 
-    // ---- CSV log init
-    std::ofstream csv;
-    const bool csv_enabled = !cfg_.csv_log_path.empty();
-    if (csv_enabled) {
-        csv.open(cfg_.csv_log_path, std::ios::out | std::ios::trunc);
-        if (!csv.is_open()) {
-            LOG_WARN("Failed to open CSV log file: %s", cfg_.csv_log_path.c_str());
-        } else {
-            csv << "t_s,x_m,y_m,yaw_deg,v_mps,steer_deg,delta_fl_deg,delta_fr_deg,motor_nm,brake_pct,"
-                   "batt_soc_pct,batt_v,batt_i,motor_power_kW,regen_power_kW,brake_force_kN\n";
-            csv << std::fixed << std::setprecision(6);
-            LOG_INFO("CSV logging to: %s", cfg_.csv_log_path.c_str());
-        }
-    }
+    LOG_INFO("Starting simulation...");
+    LOG_INFO("Duration: %.1f s, dt: %.3f s, real-time: %s, CAN TX: %s",
+             cfg_.duration_s, dt,
+             cfg_.real_time_mode ? "ON" : "OFF",
+             can_enabled ? "ON" : "OFF");
 
-    LOG_INFO("========================================");
-    LOG_INFO("Plant-only validator");
-    LOG_INFO("dt=%.4f s, duration=%.2f s, steps=%d", dt, cfg_.duration_s, steps);
-    LOG_INFO("Scenario: %s", (lua_ready_ ? "Lua" : "C++ defaults"));
-    LOG_INFO("Real-time mode: %s", cfg_.real_time_mode ? "ENABLED" : "DISABLED");
-    LOG_INFO("CAN TX: %s", can_enabled ? "ENABLED" : "DISABLED");
-    LOG_INFO("========================================");
-    
-    if (cfg_.real_time_mode) {
-        std::printf("\n⏱️  Running in REAL-TIME mode (%.1f seconds will take %.1f real seconds)\n", 
-                    cfg_.duration_s, cfg_.duration_s);
-        if (can_enabled) {
-            std::printf("   🚗 CAN frames broadcasting on %s\n", cfg_.can_interface.c_str());
-            std::printf("   📡 Monitor with: candump %s\n", cfg_.can_interface.c_str());
-        }
-        std::printf("\n");
-    } else {
-        std::printf("\n⚡ Running in FAST mode (simulation runs as fast as possible)\n\n");
-    }
-    
-    std::printf("Columns: t  x  y  yaw_deg  v_mps  steer_deg  fl_deg  fr_deg  motor_nm  brake_pct  ");
-    std::printf("soc_pct  batt_v  batt_i  motor_pwr_kW  regen_pwr_kW  brake_f_kN\n");
-    std::printf("--------------------------------------------------------------------------------------------\n");
+    int iter = 0;
 
-    // ---- Simulation loop ----
-    uint64_t can_tx_count = 0;
-    
-    for (int k = 0; k < steps; ++k) {
+    while (max_iters == 0 || iter < max_iters) {
         const double t = s.t_s;
 
-        ActuatorCmd cmd{};
-        cmd.system_enable = true;
-        cmd.mode = 0;
-
+        // ========== Actuator commands ==========
         if (lua_ready_) {
+            // FIXED: correct function name
             if (!lua_.get_actuator_cmd(t, s, cmd)) {
+                // Fallback
                 cmd.drive_torque_cmd_nm = cfg_.motor_torque_nm;
                 cmd.brake_cmd_pct = cfg_.brake_pct;
-                cmd.steer_cmd_deg =
-                    cfg_.steer_amp_deg * std::sin(2.0 * M_PI * cfg_.steer_freq_hz * t);
+                cmd.steer_cmd_deg = cfg_.steer_amp_deg * std::sin(2.0 * M_PI * cfg_.steer_freq_hz * t);
             }
         } else {
+            // Fallback: simple open-loop
             cmd.drive_torque_cmd_nm = cfg_.motor_torque_nm;
             cmd.brake_cmd_pct = cfg_.brake_pct;
             cmd.steer_cmd_deg =
@@ -180,6 +198,12 @@ int SimApp::run_plant_only() {
                     // Transmit
                     if (can_tx.write_frame(frame)) {
                         ++can_tx_count;
+                        
+                        // Debug log (only first few)
+                        if (can_tx_count <= 10) {
+                            LOG_DEBUG("TX 0x%03X (%s) with %zu signals", 
+                                     frame_def.frame_id, frame_def.frame_name.c_str(), signals.size());
+                        }
                     }
                 }
             }
@@ -202,49 +226,40 @@ int SimApp::run_plant_only() {
                     << steer_deg << ","
                     << fl_deg << ","
                     << fr_deg << ","
-                    << cmd.drive_torque_cmd_nm << ","
+                    << s.motor_torque_nm << ","
                     << cmd.brake_cmd_pct << ","
                     << s.batt_soc_pct << ","
                     << s.batt_v << ","
                     << s.batt_i << ","
                     << s.motor_power_kW << ","
                     << s.regen_power_kW << ","
-                    << s.brake_force_kN << "\n"; 
+                    << s.brake_force_kN << "\n";
             }
 
             next_log_t += log_period_s;
         }
 
-        // ========== REAL-TIME PACING ==========
+        // Real-time pacing
         if (cfg_.real_time_mode) {
-            next_step_time += std::chrono::duration_cast<Nanoseconds>(Duration(dt));
+            next_step_time += Nanoseconds(static_cast<long long>(dt * 1e9));
             std::this_thread::sleep_until(next_step_time);
         }
-        // ======================================
+
+        ++iter;
+        
+        // Progress logging every 1000 iterations
+        if (iter % 1000 == 0) {
+            LOG_INFO("t=%.2f s, v=%.2f m/s, SOC=%.1f%%, CAN frames sent: %llu",
+                     s.t_s, s.v_mps, s.batt_soc_pct, (unsigned long long)can_tx_count);
+        }
     }
 
-    if (csv.is_open()) {
-        csv.close();
-    }
-
-    // Calculate actual elapsed time
-    auto sim_end_time = Clock::now();
-    Duration elapsed = sim_end_time - sim_start_time;
-
-    LOG_INFO("========================================");
-    LOG_INFO("Simulation complete");
-    LOG_INFO("Final state: x=%.2f m, y=%.2f m, v=%.2f m/s, SOC=%.1f%%", 
-             s.x_m, s.y_m, s.v_mps, s.batt_soc_pct);
-    LOG_INFO("Sim time: %.2f s, Wall time: %.2f s (%.1fx realtime)", 
-             cfg_.duration_s, elapsed.count(), cfg_.duration_s / elapsed.count());
+    LOG_INFO("Simulation complete: t=%.2f s", s.t_s);
+    LOG_INFO("Final state: x=%.1f m, y=%.1f m, yaw=%.1f deg, v=%.2f m/s, SOC=%.1f%%",
+             s.x_m, s.y_m, s.yaw_rad * 180.0 / M_PI, s.v_mps, s.batt_soc_pct);
+    
     if (can_enabled) {
-        LOG_INFO("CAN frames transmitted: %llu", (unsigned long long)can_tx_count);
-    }
-    LOG_INFO("========================================");
-
-    // Close debug log file
-    if (cfg_.enable_debug_log_file) {
-        utils::close_log_file();
+        LOG_INFO("Total CAN frames transmitted: %llu", (unsigned long long)can_tx_count);
     }
 
     return 0;
