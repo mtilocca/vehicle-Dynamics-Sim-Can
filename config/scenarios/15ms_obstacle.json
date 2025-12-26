@@ -1,0 +1,90 @@
+{
+    "meta": {
+      "name": "obstacle_avoid_constant_speed_60s",
+      "version": 2,
+      "description": "1-minute obstacle avoidance at constant 15 m/s. Steering-only lateral avoidance; longitudinal controller holds speed constant."
+    },
+    "defaults": {
+      "system_enable": true,
+      "mode": 0,
+      "drive_torque_cmd_nm": 800.0,
+      "brake_cmd_pct": 0.0,
+      "steer_cmd_deg": 0.0,
+      "target_speed_mps": 15.0
+    },
+    "segments": [
+      {
+        "t0": 0.0,
+        "t1": 12.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Straight cruise at constant 15 m/s"
+      },
+      {
+        "t0": 12.0,
+        "t1": 13.0,
+        "steer_cmd_deg": 3.0,
+        "comment": "Obstacle detected: gentle left steer initiation"
+      },
+      {
+        "t0": 13.0,
+        "t1": 15.0,
+        "steer_cmd_deg": 8.0,
+        "comment": "Primary avoidance: peak left steering around obstacle"
+      },
+      {
+        "t0": 15.0,
+        "t1": 16.5,
+        "steer_cmd_deg": 4.0,
+        "comment": "Clear obstacle: unwind steering"
+      },
+      {
+        "t0": 16.5,
+        "t1": 18.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Short straight stabilization"
+      },
+      {
+        "t0": 18.0,
+        "t1": 19.5,
+        "steer_cmd_deg": -4.0,
+        "comment": "Counter-steer right to re-center in lane"
+      },
+      {
+        "t0": 19.5,
+        "t1": 21.0,
+        "steer_cmd_deg": -7.0,
+        "comment": "Peak counter-steer right"
+      },
+      {
+        "t0": 21.0,
+        "t1": 22.5,
+        "steer_cmd_deg": -3.0,
+        "comment": "Reduce counter-steer"
+      },
+      {
+        "t0": 22.5,
+        "t1": 35.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Recovered: straight cruise at 15 m/s"
+      },
+      {
+        "t0": 35.0,
+        "t1": 38.0,
+        "steer_cmd_deg": 1.5,
+        "comment": "Minor road curvature / residual correction"
+      },
+      {
+        "t0": 38.0,
+        "t1": 41.0,
+        "steer_cmd_deg": -1.5,
+        "comment": "Residual correction back"
+      },
+      {
+        "t0": 41.0,
+        "t1": -1.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Final straight driving to end (constant 15 m/s)"
+      }
+    ]
+  }
+  

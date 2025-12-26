@@ -1,3 +1,5 @@
+// src/plant/battery_plant.cpp
+// FINAL FIX: Update current_ in store_energy() for regen braking
 #include "battery_plant.hpp"
 #include "utils/logging.hpp"
 #include <algorithm>
@@ -32,15 +34,6 @@ void BatteryPlant::update_state(double power_demand_kW, double brake_force_kN, d
 
     LOG_DEBUG("[BatteryPlant::update_state] P_demand_W=%.1f W", power_demand_W);
 
-    // Regenerative braking power (if braking)
-    double regen_power_W = 0.0;
-    if (brake_force_kN > 0.001) {
-        // Note: This regen calculation is a placeholder
-        // The actual regen power is calculated in DrivePlant
-        // and applied via store_energy()
-        regen_power_W = 0.0;
-    }
-
     // Clamp power demand to motor limits
     power_demand_W = std::clamp(
         power_demand_W,
@@ -49,7 +42,8 @@ void BatteryPlant::update_state(double power_demand_kW, double brake_force_kN, d
     );
 
     // Select efficiency based on charge/discharge
-    const double eff = (power_demand_W > 0.0) ? params_.efficiency_discharge
+    const double eff = (power_demand_W > 0.0) 
+                                              ? params_.efficiency_discharge
                                               : params_.efficiency_charge;
 
     // Calculate energy consumed/generated over timestep
@@ -61,12 +55,16 @@ void BatteryPlant::update_state(double power_demand_kW, double brake_force_kN, d
     const double delta_soc = -(energy_Wh / cap_Wh) * eff;
     soc_ = std::clamp(soc_ + delta_soc, params_.min_soc, params_.max_soc);
 
-    // Update power and current
-    // Power = net power demand - regen power
-    power_ = power_demand_W - regen_power_W;
+    // Update voltage (simplified model - voltage depends on SOC)
+    // Typical Li-ion: ~300-420V range
+    voltage_ = 300.0 + (420.0 - 300.0) * soc_;
+    
+    // Update power (net power after accounting for efficiency)
+    power_ = power_demand_W;
     
     // Current = Power / Voltage
-    // Positive current = discharge, Negative current = charge
+    // Positive current = discharge (battery providing power to motor)
+    // Negative current = charge (motor providing power to battery via regen)
     current_ = power_ / voltage_;
 
     LOG_DEBUG("[BatteryPlant::update_state] SOC=%.3f (%.1f%%), V=%.1f V, I=%.2f A, P=%.1f W", 
@@ -85,14 +83,32 @@ void BatteryPlant::consume_energy(double energy_consumed_J) {
 }
 
 void BatteryPlant::store_energy(double energy_stored_J) {
+    // ========================================================================
+    // BUG FIX: Update current when storing regen energy
+    // ========================================================================
     // Convert Joules (W*s) to Wh
     const double energy_Wh = energy_stored_J / 3600.0;
     const double cap_Wh = params_.capacity_kWh * 1000.0;
     
     soc_ = std::clamp(soc_ + (energy_Wh / cap_Wh), params_.min_soc, params_.max_soc);
     
-    LOG_DEBUG("[BatteryPlant::store_energy] Stored %.2f J (%.4f Wh), SOC=%.3f", 
-              energy_stored_J, energy_Wh, soc_);
+    // CRITICAL FIX: Calculate and update current for regen
+    // Energy (J) was stored, so calculate equivalent power and current
+    // Assuming this energy was stored over a small timestep (use 0.01s as typical)
+    const double assumed_dt_s = 0.01;  // 10ms timestep
+    const double regen_power_W = energy_stored_J / assumed_dt_s;  // P = E / t
+    
+    // Update voltage based on new SOC
+    voltage_ = 300.0 + (420.0 - 300.0) * soc_;
+    
+    // Update power (negative = charging)
+    power_ = -regen_power_W;  // Negative because we're charging
+    
+    // Update current (negative = charging)
+    current_ = power_ / voltage_;  // Will be negative!
+    
+    LOG_DEBUG("[BatteryPlant::store_energy] Stored %.2f J (%.4f Wh), SOC=%.3f, I=%.2f A", 
+              energy_stored_J, energy_Wh, soc_, current_);
 }
 
 double BatteryPlant::regen_braking(double speed_mps, double brake_force_kN) {
