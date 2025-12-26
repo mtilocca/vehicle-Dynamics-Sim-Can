@@ -9,7 +9,7 @@ BatteryPlant::BatteryPlant(const BatteryPlantParams& params, const MotorParams& 
     : params_(params),
       motor_params_(motor_params),
       soc_(0.5),  // Start at 50% SOC
-      voltage_(400.0),
+      voltage_(400.0),  // Initial voltage (will be updated in step())
       current_(0.0),
       power_(0.0),
       regen_power_kW_(0.0) {}
@@ -32,10 +32,21 @@ void BatteryPlant::step(double power_demand_kW, double brake_force_kN, double dt
 void BatteryPlant::update_state(double power_demand_kW, double brake_force_kN, double dt_s) {
     if (dt_s <= 0.0) return;
 
+    // ========================================================================
+    // CRITICAL FIX: Update voltage based on SOC FIRST before using it
+    // ========================================================================
+    // Voltage model: V = V_nominal * (0.85 + 0.30 * SOC)
+    // At SOC=0%: V = 400 * 0.85 = 340V
+    // At SOC=50%: V = 400 * (0.85 + 0.15) = 400V
+    // At SOC=100%: V = 400 * 1.15 = 460V
+    const double nominal_voltage = 400.0;
+    voltage_ = nominal_voltage * (0.85 + 0.30 * soc_);
+    
     // Convert power from kW to W for calculations
     double power_demand_W = power_demand_kW * 1000.0;
 
-    LOG_DEBUG("[BatteryPlant::update_state] P_demand_W=%.1f W", power_demand_W);
+    LOG_DEBUG("[BatteryPlant::update_state] P_demand_W=%.1f W, V=%.1f V (SOC=%.1f%%)", 
+              power_demand_W, voltage_, soc_ * 100.0);
 
     // Clamp power demand to motor limits
     power_demand_W = std::clamp(
@@ -81,6 +92,12 @@ void BatteryPlant::consume_energy(double energy_consumed_J) {
 }
 
 void BatteryPlant::store_energy(double energy_stored_J, double regen_power_kW) {
+    // ========================================================================
+    // CRITICAL FIX: Update voltage based on current SOC before calculating current
+    // ========================================================================
+    const double nominal_voltage = 400.0;
+    voltage_ = nominal_voltage * (0.85 + 0.30 * soc_);
+    
     // Convert Joules (W*s) to Wh
     const double energy_Wh = energy_stored_J / 3600.0;
     const double cap_Wh = params_.capacity_kWh * 1000.0;
@@ -96,8 +113,8 @@ void BatteryPlant::store_energy(double energy_stored_J, double regen_power_kW) {
         current_ = power_ / voltage_;          // Will be negative
     }
     
-    LOG_DEBUG("[BatteryPlant::store_energy] Stored %.2f J (%.4f Wh), P_regen=%.2f kW, I=%.2f A, SOC=%.3f", 
-              energy_stored_J, energy_Wh, regen_power_kW, current_, soc_);
+    LOG_DEBUG("[BatteryPlant::store_energy] Stored %.2f J (%.4f Wh), P_regen=%.2f kW, V=%.1f V, I=%.2f A, SOC=%.3f", 
+              energy_stored_J, energy_Wh, regen_power_kW, voltage_, current_, soc_);
 }
 
 double BatteryPlant::regen_braking(double speed_mps, double brake_force_kN) {
@@ -123,5 +140,21 @@ double BatteryPlant::get_soc() const { return soc_; }
 double BatteryPlant::get_voltage() const { return voltage_; }
 double BatteryPlant::get_current() const { return current_; }
 double BatteryPlant::get_power() const { return power_; }
+
+void BatteryPlant::reset() {
+    soc_ = 0.5;  // Reset to 50% SOC
+    voltage_ = 400.0;
+    current_ = 0.0;
+    power_ = 0.0;
+    regen_power_kW_ = 0.0;
+}
+
+const BatteryPlantParams& BatteryPlant::params() const {
+    return params_;
+}
+
+const MotorParams& BatteryPlant::motor_params() const {
+    return motor_params_;
+}
 
 } // namespace plant

@@ -30,9 +30,9 @@ public:
 
     void initialize(PlantState& s) override;
     void reset(PlantState& s) override;
-    void pre_step(PlantState& s, const sim::ActuatorCmd& cmd, double dt) override;
+    void pre_step(PlantState& s, const sim::ActuatorCmd& cmd, double dt) override { (void)s; (void)cmd; (void)dt; }
     void step(PlantState& s, const sim::ActuatorCmd& cmd, double dt) override;
-    void post_step(PlantState& s, const sim::ActuatorCmd& cmd, double dt) override;
+    void post_step(PlantState& s, const sim::ActuatorCmd& cmd, double dt) override { (void)s; (void)cmd; (void)dt; }
     const char* name() const override { return "Battery"; }
     int priority() const override { return 150; } // Energy: 150-199
 
@@ -48,9 +48,8 @@ public:
 
     /**
      * Store regenerated energy in battery
-     * Returns actual power stored (may be less than offered due to limits)
      */
-    double store_power(double power_kW, double dt);
+    void store_energy(double energy_J, double regen_power_kW);
 
     /**
      * get_available_power_kW() - Maximum power battery can deliver now
@@ -78,12 +77,19 @@ public:
      */
     BatteryPlant& get_battery_plant() { return battery_; }
 
+    /**
+     * set_params() - Update battery parameters at runtime
+     * Called by PlantModel::set_params()
+     */
+    void set_params(const BatteryPlantParams& battery_params, const MotorParams& motor_params);
+
 private:
     BatteryPlant battery_;
+    BatteryPlantParams params_;
+    MotorParams motor_params_;
     
-    // Track power requests for limiting
-    double power_requested_kW_;
-    double power_delivered_kW_;
+    // Track power requests for diagnostics
+    double power_request_kW_ = 0.0;
 };
 
 } // namespace plant

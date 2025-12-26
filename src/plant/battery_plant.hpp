@@ -41,6 +41,11 @@ public:
     double get_voltage() const;
     double get_current() const;
     double get_power() const;
+    
+    // Additional methods needed by subsystem architecture
+    void reset();
+    const BatteryPlantParams& params() const;
+    const MotorParams& motor_params() const;
 
 private:
     void update_state(double power_demand_kW, double brake_force_kN, double dt_s);
@@ -49,7 +54,7 @@ private:
     MotorParams motor_params_;
     
     double soc_;
-    double voltage_;
+    double voltage_;       // Now dynamically calculated based on SOC
     double current_;
     double power_;
     double regen_power_kW_;  // Track regen power for current calculation
