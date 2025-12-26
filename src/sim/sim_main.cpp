@@ -1,3 +1,4 @@
+// src/sim/sim_main.cpp
 #include "sim/sim_app.hpp"
 #include "utils/logging.hpp"
 
@@ -21,6 +22,10 @@ int main(int argc, char** argv) {
     cfg.dt_s = 0.01;          // 10ms timestep
     cfg.duration_s = 20.0;    // 20 second simulation
     cfg.log_hz = 10.0;        // Log at 10 Hz
+    
+    // Real-time mode (NEW!)
+    cfg.real_time_mode = true;   // true = runs in wall-clock time (good for CAN monitoring)
+                                  // false = runs as fast as possible (good for batch testing)
     
     // Scenario
     cfg.use_lua_scenario = true;

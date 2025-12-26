@@ -14,6 +14,9 @@ struct SimAppConfig {
     double duration_s = 20.0;
     double log_hz = 10.0;
 
+    // Real-time mode
+    bool real_time_mode = true;  // NEW: Enable real-time pacing (true = wall-clock time)
+
     // Default open-loop (used when Lua scenario disabled or fails)
     double motor_torque_nm = 1200.0;
     double brake_pct = 0.0;
@@ -27,10 +30,10 @@ struct SimAppConfig {
 
     // Output files
     std::string csv_log_path = "sim_out.csv";
-    std::string debug_log_path = "sim_debug.log";  // NEW: debug log file
+    std::string debug_log_path = "sim_debug.log";
     
     // Logging control
-    bool enable_debug_log_file = true;  // NEW: enable/disable debug log file
+    bool enable_debug_log_file = true;
 };
 
 class SimApp {

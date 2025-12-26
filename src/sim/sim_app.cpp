@@ -5,6 +5,8 @@
 #include <cstdio>
 #include <fstream>
 #include <iomanip>
+#include <chrono>
+#include <thread>
 
 #include "plant/plant_model.hpp"
 #include "plant/plant_state.hpp"
@@ -32,6 +34,14 @@ int SimApp::run_plant_only() {
 
     const double log_period_s = (cfg_.log_hz > 0.0) ? (1.0 / cfg_.log_hz) : 0.1;
     double next_log_t = 0.0;
+
+    // ---- Real-time pacing setup ----
+    using Clock = std::chrono::steady_clock;
+    using Duration = std::chrono::duration<double>;
+    using Nanoseconds = std::chrono::nanoseconds;
+    
+    auto sim_start_time = Clock::now();
+    auto next_step_time = sim_start_time;
 
     // ---- Scenario init
     lua_ready_ = false;
@@ -66,9 +76,18 @@ int SimApp::run_plant_only() {
     LOG_INFO("Plant-only validator");
     LOG_INFO("dt=%.4f s, duration=%.2f s, steps=%d", dt, cfg_.duration_s, steps);
     LOG_INFO("Scenario: %s", (lua_ready_ ? "Lua" : "C++ defaults"));
+    LOG_INFO("Real-time mode: %s", cfg_.real_time_mode ? "ENABLED" : "DISABLED");
     LOG_INFO("========================================");
     
-    std::printf("\nColumns: t  x  y  yaw_deg  v_mps  steer_deg  fl_deg  fr_deg  motor_nm  brake_pct  ");
+    if (cfg_.real_time_mode) {
+        std::printf("\n⏱️  Running in REAL-TIME mode (%.1f seconds will take %.1f real seconds)\n", 
+                    cfg_.duration_s, cfg_.duration_s);
+        std::printf("   You have time to start monitoring tools like: candump vcan0\n\n");
+    } else {
+        std::printf("\n⚡ Running in FAST mode (simulation runs as fast as possible)\n\n");
+    }
+    
+    std::printf("Columns: t  x  y  yaw_deg  v_mps  steer_deg  fl_deg  fr_deg  motor_nm  brake_pct  ");
     std::printf("soc_pct  batt_v  batt_i  motor_pwr_kW  regen_pwr_kW  brake_f_kN\n");
     std::printf("--------------------------------------------------------------------------------------------\n");
 
@@ -101,15 +120,6 @@ int SimApp::run_plant_only() {
             const double fl_deg = s.delta_fl_rad * 180.0 / M_PI;
             const double fr_deg = s.delta_fr_rad * 180.0 / M_PI;
 
-            // console log
-            /*std::printf("%.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.2f  %.0f  %.1f  ",
-                        s.t_s, s.x_m, s.y_m, yaw_deg, s.v_mps,
-                        steer_deg, fl_deg, fr_deg,
-                        cmd.drive_torque_cmd_nm, cmd.brake_cmd_pct);
-            std::printf("%.1f  %.1f  %.2f  %.2f  %.2f  %.2f\n",
-                        s.batt_soc_pct, s.batt_v, s.batt_i, 
-                        s.motor_power_kW, s.regen_power_kW, s.brake_force_kN);*/
-
             // CSV log
             if (csv.is_open()) {
                 csv << s.t_s << ","
@@ -132,16 +142,29 @@ int SimApp::run_plant_only() {
 
             next_log_t += log_period_s;
         }
+
+        // ========== REAL-TIME PACING ==========
+        if (cfg_.real_time_mode) {
+            next_step_time += std::chrono::duration_cast<Nanoseconds>(Duration(dt));
+            std::this_thread::sleep_until(next_step_time);
+        }
+        // ======================================
     }
 
     if (csv.is_open()) {
         csv.close();
     }
 
+    // Calculate actual elapsed time
+    auto sim_end_time = Clock::now();
+    Duration elapsed = sim_end_time - sim_start_time;
+
     LOG_INFO("========================================");
     LOG_INFO("Simulation complete");
     LOG_INFO("Final state: x=%.2f m, y=%.2f m, v=%.2f m/s, SOC=%.1f%%", 
              s.x_m, s.y_m, s.v_mps, s.batt_soc_pct);
+    LOG_INFO("Sim time: %.2f s, Wall time: %.2f s (%.1fx realtime)", 
+             cfg_.duration_s, elapsed.count(), cfg_.duration_s / elapsed.count());
     LOG_INFO("========================================");
 
     // Close debug log file
