@@ -1,5 +1,5 @@
 #include "vehicle_bicycle_ackermann.hpp"
-
+#include "battery_plant.hpp"  // Include BatteryPlant for energy interaction
 #include <algorithm>
 
 namespace plant {
@@ -40,7 +40,9 @@ BicycleStepResult VehicleBicycleAckermann::step(
     double v,
     double steer_virtual,
     const BicycleAckermannParams& p,
-    double dt)
+    double dt,
+    BatteryPlant& battery_plant  // Receive BatteryPlant reference
+)
 {
     BicycleStepResult out{};
     out.next = s;
@@ -60,14 +62,14 @@ BicycleStepResult VehicleBicycleAckermann::step(
         yaw_rate *= (a_lat_max / std::abs(a_lat));
     }
 
-    // Integrate pose
+    // Update speed based on vehicle dynamics and motor power/regen braking
     out.next.x_m += v * std::cos(s.yaw_rad) * dt;
     out.next.y_m += v * std::sin(s.yaw_rad) * dt;
     out.next.yaw_rad += yaw_rate * dt;
 
     out.yaw_rate_rps = yaw_rate;
 
-    // Wheel angles
+    // Calculate wheel angles
     ackermann_map(
         steer_virtual,
         p,
@@ -75,6 +77,9 @@ BicycleStepResult VehicleBicycleAckermann::step(
         out.delta_fr_rad,
         nullptr
     );
+
+    // Update the state of charge and power consumption of the battery
+    battery_plant.step(v * battery_plant.get_current(), 0.0, dt);  // Update based on current speed
 
     return out;
 }

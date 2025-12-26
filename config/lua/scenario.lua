@@ -1,18 +1,58 @@
 -- config/lua/scenario.lua
--- Choose scenario by changing ACTIVE (no rebuild required)
+-- JSON-driven scenario system with lua-cjson
 
---local ACTIVE = "BRAKE_STEP"
--- local ACTIVE = "SIN_STEER_ACCEL"
--- local ACTIVE = "S_CURVE"
-local ACTIVE = "LANE_CHANGE"
--- local ACTIVE = "CONSTANT_RADIUS"
--- local ACTIVE = "STOP_AND_STEER"
+-- ----------------------------
+-- config/lua/scenario.lua
+-- JSON-driven scenario system
 
--- Optional JSON scenario (not required)
--- local JSON_PATH = "config/scenarios/brake_step.json"
--- local JSON_PATH = "config/scenarios/s_curve.json"
-local JSON_PATH = "config/scenarios/lane_change.json"
--- local JSON_PATH = "config/scenarios/constant_radius.json"
+-- ----------------------------
+-- Load JSON module (pure Lua)
+-- ----------------------------
+local json = nil
+local json_ok, json_module = pcall(dofile, "config/lua/json.lua")
+if json_ok then
+  json = json_module
+  print("[Lua] JSON module (pure Lua) loaded successfully")
+else
+  print("[Lua] JSON module load failed: " .. tostring(json_module))
+end
+
+-- (rest of your scenario.lua stays the same)
+
+-- ----------------------------
+-- Configuration
+-- ----------------------------
+local ACTIVE = nil  -- Active scenario (override from JSON or use built-in)
+local JSON_PATH = "config/scenarios/slalom.json"  -- Default JSON file path
+local JSON_SCENARIO = nil  -- Will be populated from JSON if loaded
+
+-- ----------------------------
+-- JSON Loading
+-- ----------------------------
+local function load_json_scenario(path)
+  if not json then
+    print("[Lua] JSON module not loaded, skipping JSON scenario")
+    return nil
+  end
+  
+  local file = io.open(path, "r")
+  if not file then
+    print(string.format("[Lua] Cannot open JSON file: %s", path))
+    return nil
+  end
+  
+  local content = file:read("*a")
+  file:close()
+  
+  local ok, scenario = pcall(json.decode, content)
+  if not ok then
+    print(string.format("[Lua] JSON decode error: %s", tostring(scenario)))
+    return nil
+  end
+  
+  print(string.format("[Lua] Loaded JSON scenario: %s", scenario.meta.name or "unnamed"))
+  return scenario
+end
 
 -- ----------------------------
 -- helpers
@@ -23,18 +63,40 @@ local function clamp(x, lo, hi)
   return x
 end
 
-local function deg(x) return x end
-
 local function in_window(t, t0, t1)
   return t >= t0 and (t1 < 0 or t <= t1)
 end
 
 -- ----------------------------
--- scenario registry
+-- JSON scenario interpreter
+-- ----------------------------
+local function get_json_cmd(t, scenario)
+  local cmd = {
+    system_enable = true,
+    mode = 0,
+    drive_torque_cmd_nm = scenario.defaults.drive_torque_cmd_nm or 0.0,
+    brake_cmd_pct = scenario.defaults.brake_cmd_pct or 0.0,
+    steer_cmd_deg = scenario.defaults.steer_cmd_deg or 0.0,
+  }
+  
+  -- Apply segment overrides
+  for _, seg in ipairs(scenario.segments) do
+    if in_window(t, seg.t0, seg.t1) then
+      cmd.drive_torque_cmd_nm = seg.drive_torque_cmd_nm or cmd.drive_torque_cmd_nm
+      cmd.brake_cmd_pct = seg.brake_cmd_pct or cmd.brake_cmd_pct
+      cmd.steer_cmd_deg = seg.steer_cmd_deg or cmd.steer_cmd_deg
+      break
+    end
+  end
+  
+  return cmd
+end
+
+-- ----------------------------
+-- Built-in scenario registry
 -- ----------------------------
 local scenarios = {}
 
--- 1) baseline: accelerating + sinusoidal steering
 scenarios.SIN_STEER_ACCEL = function(t, state)
   local steer = 10.0 * math.sin(2.0 * math.pi * 0.2 * t)
   return {
@@ -46,7 +108,6 @@ scenarios.SIN_STEER_ACCEL = function(t, state)
   }
 end
 
--- 2) brake step test
 scenarios.BRAKE_STEP = function(t, state)
   local motor, brake, steer = 0.0, 0.0, 0.0
 
@@ -67,7 +128,6 @@ scenarios.BRAKE_STEP = function(t, state)
   }
 end
 
--- 3) S-curve steering
 scenarios.S_CURVE = function(t, state)
   local steer = 0.0
   if in_window(t, 2.0, 5.0) then
@@ -85,7 +145,6 @@ scenarios.S_CURVE = function(t, state)
   }
 end
 
--- 4) Lane change (smooth)
 scenarios.LANE_CHANGE = function(t, state)
   local function bump(t, t0, t1, amp)
     if t < t0 or t > t1 then return 0.0 end
@@ -104,7 +163,6 @@ scenarios.LANE_CHANGE = function(t, state)
   }
 end
 
--- 5) Constant radius
 scenarios.CONSTANT_RADIUS = function(t, state)
   return {
     system_enable = true,
@@ -115,7 +173,6 @@ scenarios.CONSTANT_RADIUS = function(t, state)
   }
 end
 
--- 6) Stop & steer
 scenarios.STOP_AND_STEER = function(t, state)
   local motor, brake, steer = 0.0, 0.0, 0.0
 
@@ -139,21 +196,35 @@ scenarios.STOP_AND_STEER = function(t, state)
 end
 
 -- ----------------------------
--- lifecycle hooks
+-- Lifecycle hooks
 -- ----------------------------
-function scenario_init(_ignored_from_cpp)
-  -- prefer the Lua-selected path
-  local ok = false
-  if load_json_if_available then
-    ok = load_json_if_available(JSON_PATH)
+function scenario_init(json_path_from_cpp)
+  print("[Lua] scenario_init called")
+  
+  -- Use hardcoded JSON_PATH if no path provided from C++
+  local path = (json_path_from_cpp and json_path_from_cpp ~= "") and json_path_from_cpp or JSON_PATH
+  
+  -- Try to load JSON scenario if path provided
+  if path then
+    JSON_SCENARIO = load_json_scenario(path)
+    if JSON_SCENARIO then
+      print(string.format("[Lua] ✓ Using JSON scenario: %s", JSON_SCENARIO.meta.name or "unnamed"))
+      return true
+    end
   end
-  print(string.format("[Lua] Active scenario = %s", ACTIVE))
-  print(string.format("[Lua] scenario_init using JSON_PATH=%s (ok=%s)", JSON_PATH, tostring(ok)))
+  
+  -- Fallback to built-in Lua scenario
+  print(string.format("[Lua] ✓ Using built-in Lua scenario: %s", ACTIVE or "BRAKE_STEP"))
   return true
 end
 
--- REQUIRED by LuaRuntime
 function scenario_cmd(t, state)
-  local fn = scenarios[ACTIVE] or scenarios.SIN_STEER_ACCEL
+  -- Use JSON scenario if loaded, otherwise fall back to built-in
+  if JSON_SCENARIO then
+    return get_json_cmd(t, JSON_SCENARIO)
+  end
+  
+  -- Fall back to built-in Lua scenarios
+  local fn = scenarios[ACTIVE] or scenarios.BRAKE_STEP
   return fn(t, state)
 end

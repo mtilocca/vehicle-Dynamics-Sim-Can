@@ -16,18 +16,21 @@ struct SimAppConfig {
 
     // Default open-loop (used when Lua scenario disabled or fails)
     double motor_torque_nm = 1200.0;
-    double brake_pct = 0.0;        // 0..100
+    double brake_pct = 0.0;
     double steer_amp_deg = 10.0;
     double steer_freq_hz = 0.2;
 
     // Scenario via Lua
     bool use_lua_scenario = false;
     std::string lua_script_path;       // e.g. "config/lua/scenario.lua"
-    std::string scenario_json_path;    // optional (you can keep unused)
+    std::string scenario_json_path;    // e.g. "config/scenarios/brake_test.json"
 
-    // ---- NEW: CSV logging (Option A)
-    // If empty: no CSV file will be written
+    // Output files
     std::string csv_log_path = "sim_out.csv";
+    std::string debug_log_path = "sim_debug.log";  // NEW: debug log file
+    
+    // Logging control
+    bool enable_debug_log_file = true;  // NEW: enable/disable debug log file
 };
 
 class SimApp {

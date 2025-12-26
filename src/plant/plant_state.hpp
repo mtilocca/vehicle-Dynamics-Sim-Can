@@ -1,4 +1,3 @@
-// src/plant/plant_state.hpp
 #pragma once
 
 #include <cstdint>
@@ -21,7 +20,6 @@ struct PlantState {
     double v_mps = 0.0;        // longitudinal speed at rear axle reference
     double a_long_mps2 = 0.0;
 
-
     // --- Steering (virtual bicycle steer + physical wheel angles)
     double steer_virtual_rad = 0.0;  // bicycle steer angle δ
     double steer_rate_radps = 0.0;
@@ -40,6 +38,14 @@ struct PlantState {
     double batt_i = 0.0;             // + discharge, - charge (choose and stick)
     double batt_temp_c = 25.0;
     bool   batt_contactor_on = true;
+
+    // --- Motor & Energy (new additions)
+    double motor_torque_nm = 0.0;    // Current motor torque in Nm
+    double motor_power_kW = 0.0;     // Motor power (kW), positive for consumption, negative for regen
+    double regen_power_kW = 0.0;     // Regenerative braking power (kW)
+
+    // --- Brake Force (new addition for logging and calculation)
+    double brake_force_kN = 0.0;     // Brake force in kN
 
     // --- Fault/status bits you may want to expose later
     uint32_t status_flags = 0;
