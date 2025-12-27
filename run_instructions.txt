@@ -39,3 +39,7 @@ python3 plot_sim.py heavy_truck_test.csv
 # Real-time mode scenarios (from JSON timing section)
 ./build/src/sim/sim_main config/scenarios/obstacle_avoidance.json
 ./build/src/sim/sim_main config/scenarios/slalom.json
+
+
+
+./build/src/can/vcan_listener vcan0 config/can/can_map.csv --decode-tx | grep -E "(GNSS|RADAR)" | head -20
