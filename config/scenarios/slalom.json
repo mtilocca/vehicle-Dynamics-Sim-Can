@@ -8,7 +8,7 @@
     "dt_s": 0.01,
     "duration_s": 60.0,
     "log_hz": 10.0,
-    "real_time_mode": true
+    "real_time_mode": false
   },
   "defaults": {
     "system_enable": true,

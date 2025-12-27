@@ -1,7 +1,8 @@
-// src/sim/sim_app.cpp
+// src/sim/sim_app.cpp - UPDATED with TimingController
 #include "sim/sim_app.hpp"
 #include "sim/actuator_cmd.hpp"
 #include "sim/plant_state_packer.hpp"
+#include "sim/timing_controller.hpp"  // NEW
 #include "can/socketcan_iface.hpp"
 #include "can/tx_scheduler.hpp"
 #include "can/can_map.hpp"
@@ -28,12 +29,25 @@ int SimApp::run_plant_only() {
     const double dt = cfg_.dt_s;
     
     // ========================================================================
-    // Plant model initialization - NEW: Use vehicle params from config
+    // Timing controller - NEW: Cross-platform high-precision timing
+    // ========================================================================
+    TimingController timer(dt);
+    
+    // Configure spin threshold based on timestep
+    // Busy-wait last 5% of timestep for precision
+    double spin_threshold_us = (dt * 1e6) * 0.05;  // 5% of dt
+    spin_threshold_us = std::max(20.0, std::min(100.0, spin_threshold_us));  // Clamp 20-100us
+    timer.set_spin_threshold_us(spin_threshold_us);
+    
+    LOG_INFO("[Timing] dt=%.4fs (%.0f us), spin_threshold=%.0f us", 
+             dt, dt * 1e6, spin_threshold_us);
+    
+    // ========================================================================
+    // Plant model initialization
     // ========================================================================
     plant::PlantModelParams pmp;
     
     if (cfg_.vehicle_params.has_value()) {
-        // Use vehicle configuration from YAML
         pmp = cfg_.vehicle_params.value();
         LOG_INFO("[SimApp] Using vehicle params from YAML config");
     } else {
@@ -42,7 +56,6 @@ int SimApp::run_plant_only() {
         pmp.track_width_m = 1.6;
         pmp.steer.delta_max_deg = 35.0;
         
-        // Battery parameters
         pmp.battery_params.capacity_kWh = 60.0;
         pmp.battery_params.efficiency_charge = 0.95;
         pmp.battery_params.efficiency_discharge = 0.95;
@@ -51,12 +64,10 @@ int SimApp::run_plant_only() {
         pmp.battery_params.min_soc = 0.05;
         pmp.battery_params.max_soc = 0.95;
         
-        // Motor parameters
         pmp.motor_params.max_power_kW = 300.0;
         pmp.motor_params.max_torque_nm = 4000.0;
         pmp.motor_params.efficiency = 0.92;
         
-        // Drive parameters
         pmp.drive.mass_kg = 1800.0;
         pmp.drive.wheel_radius_m = 0.33;
         pmp.drive.drag_c = 0.35;
@@ -85,7 +96,8 @@ int SimApp::run_plant_only() {
 
     csv << "t_s,x_m,y_m,yaw_deg,v_mps,steer_deg,"
         << "delta_fl_deg,delta_fr_deg,motor_nm,brake_pct,"
-        << "batt_soc_pct,batt_v,batt_i,motor_power_kW,regen_power_kW,brake_force_kN\n";
+        << "batt_soc_pct,batt_v,batt_i,motor_power_kW,regen_power_kW,brake_force_kN,"
+        << "loop_time_us,wall_time_s,time_drift_ms\n";  // NEW: Added timing columns
     csv << std::fixed << std::setprecision(6);
 
     // ---- Loop control ----
@@ -132,17 +144,16 @@ int SimApp::run_plant_only() {
 
     // ---- Main loop ----
     LOG_INFO("Starting simulation loop (duration=%.1fs, dt=%.4fs)", cfg_.duration_s, dt);
-
-    auto wall_start = std::chrono::steady_clock::now();
-    double loop_time_us = 0.0;
+    
+    timer.reset();  // Start timing epoch
 
     for (int iter = 0; (max_iters == 0) || (iter < max_iters); ++iter) {
-        auto loop_start = std::chrono::steady_clock::now();
-        const double t = iter * dt;
+        timer.mark_loop_start();  // NEW: Mark computation start
+        
+        const double t = timer.get_sim_time();
 
         // ---- Generate actuator command ----
         if (lua_ready_) {
-            // Try Lua scenario
             if (!lua_.get_actuator_cmd(t, s, cmd)) {
                 LOG_WARN("[t=%.2f] Lua get_actuator_cmd failed, using defaults", t);
                 lua_ready_ = false;
@@ -160,6 +171,32 @@ int SimApp::run_plant_only() {
         plant_model.step(s, cmd, dt);
         s.t_s = t;
 
+        // ---- CAN TX ----
+        if (can_ready) {
+            auto now = std::chrono::steady_clock::now();
+            auto due_indices = tx_scheduler.due(now);
+            
+            for (size_t idx : due_indices) {
+                const auto& frame_def = can_map.tx_frames()[idx];
+                
+                // Pack plant state into signal map
+                auto signals = sim::PlantStatePacker::pack(s, frame_def);
+                
+                // Add loop_time_us to signals
+                signals["loop_time_us"] = timer.get_last_loop_time_us();
+                
+                // Encode to CAN frame
+                struct can_frame frame;
+                can::CanCodec::encode_from_map(frame_def, signals, frame);
+                
+                // Send
+                can_iface.write_frame(frame);
+            }
+        }
+
+        // Update timing stats
+        timer.update_loop_stats();
+
         // ---- Log to CSV ----
         if (t >= next_log) {
             // Convert radians to degrees for CSV output
@@ -174,44 +211,46 @@ int SimApp::run_plant_only() {
                 << delta_fl_deg << "," << delta_fr_deg << ","
                 << cmd.drive_torque_cmd_nm << "," << cmd.brake_cmd_pct << ","
                 << s.batt_soc_pct << "," << s.batt_v << "," << s.batt_i << ","
-                << s.motor_power_kW << "," << s.regen_power_kW << "," << s.brake_force_kN << "\n";
+                << s.motor_power_kW << "," << s.regen_power_kW << "," << s.brake_force_kN << ","
+                << timer.get_last_loop_time_us() << ","           // NEW
+                << timer.get_wall_time() << ","                   // NEW
+                << (timer.get_time_drift() * 1000.0) << "\n";    // NEW (ms)
 
             next_log += log_period_s;
         }
 
-        // ---- CAN TX ----
-        if (can_ready) {
-            auto now = std::chrono::steady_clock::now();
-            auto due_indices = tx_scheduler.due(now);
-            
-            for (size_t idx : due_indices) {
-                const auto& frame_def = can_map.tx_frames()[idx];
-                
-                // Pack plant state into signal map
-                auto signals = sim::PlantStatePacker::pack(s, frame_def);
-                
-                // Add loop_time_us to signals if this frame needs it
-                signals["loop_time_us"] = loop_time_us;
-                
-                // Encode to CAN frame
-                struct can_frame frame;
-                can::CanCodec::encode_from_map(frame_def, signals, frame);
-                
-                // Send
-                can_iface.write_frame(frame);
-            }
-        }
-
         // ---- Real-time pacing ----
         if (cfg_.real_time_mode) {
-            auto expected_wall_time = wall_start + std::chrono::duration<double>(t + dt);
-            std::this_thread::sleep_until(expected_wall_time);
+            bool on_time = timer.wait_for_next_step();
+            
+            // Warn on deadline misses (but only occasionally to avoid spam)
+            if (!on_time && (iter % 1000 == 0)) {
+                auto stats = timer.get_stats();
+                LOG_WARN("[t=%.2f] Deadline miss! Total misses: %zu, Max lateness: %.1f us",
+                         t, stats.deadline_misses, stats.max_lateness_us);
+            }
         }
-
-        // Track loop time
-        auto loop_end = std::chrono::steady_clock::now();
-        loop_time_us = std::chrono::duration<double, std::micro>(loop_end - loop_start).count();
     }
+
+    // ---- Final timing statistics ----
+    auto stats = timer.get_stats();
+    
+    LOG_INFO("========================================");
+    LOG_INFO("Timing Statistics");
+    LOG_INFO("========================================");
+    LOG_INFO("Total steps: %zu", stats.total_steps);
+    LOG_INFO("Deadline misses: %zu (%.2f%%)", 
+             stats.deadline_misses,
+             100.0 * stats.deadline_misses / stats.total_steps);
+    LOG_INFO("Max loop time: %.1f us (%.1f%% of dt)",
+             stats.max_loop_time_us,
+             100.0 * stats.max_loop_time_us / (dt * 1e6));
+    LOG_INFO("Max lateness: %.1f us", stats.max_lateness_us);
+    if (stats.deadline_misses > 0) {
+        LOG_INFO("Avg lateness: %.1f us", stats.avg_lateness_us);
+    }
+    LOG_INFO("Final time drift: %.3f ms", timer.get_time_drift() * 1000.0);
+    LOG_INFO("========================================");
 
     LOG_INFO("Simulation complete. CSV written to: %s", cfg_.csv_log_path.c_str());
     csv.close();
