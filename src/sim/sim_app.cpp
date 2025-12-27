@@ -1,8 +1,9 @@
-// src/sim/sim_app.cpp - UPDATED with TimingController
+// src/sim/sim_app.cpp - WITH SENSOR INTEGRATION
 #include "sim/sim_app.hpp"
 #include "sim/actuator_cmd.hpp"
 #include "sim/plant_state_packer.hpp"
-#include "sim/timing_controller.hpp"  // NEW
+#include "sim/timing_controller.hpp"
+#include "sensors/sensor_bank.hpp"  // NEW
 #include "can/socketcan_iface.hpp"
 #include "can/tx_scheduler.hpp"
 #include "can/can_map.hpp"
@@ -29,14 +30,11 @@ int SimApp::run_plant_only() {
     const double dt = cfg_.dt_s;
     
     // ========================================================================
-    // Timing controller - NEW: Cross-platform high-precision timing
+    // Timing controller
     // ========================================================================
     TimingController timer(dt);
-    
-    // Configure spin threshold based on timestep
-    // Busy-wait last 5% of timestep for precision
-    double spin_threshold_us = (dt * 1e6) * 0.05;  // 5% of dt
-    spin_threshold_us = std::max(20.0, std::min(100.0, spin_threshold_us));  // Clamp 20-100us
+    double spin_threshold_us = (dt * 1e6) * 0.05;
+    spin_threshold_us = std::max(20.0, std::min(100.0, spin_threshold_us));
     timer.set_spin_threshold_us(spin_threshold_us);
     
     LOG_INFO("[Timing] dt=%.4fs (%.0f us), spin_threshold=%.0f us", 
@@ -51,7 +49,7 @@ int SimApp::run_plant_only() {
         pmp = cfg_.vehicle_params.value();
         LOG_INFO("[SimApp] Using vehicle params from YAML config");
     } else {
-        // Use hardcoded defaults (backwards compatibility)
+        // Use hardcoded defaults
         pmp.wheelbase_m = 2.8;
         pmp.track_width_m = 1.6;
         pmp.steer.delta_max_deg = 35.0;
@@ -87,6 +85,29 @@ int SimApp::run_plant_only() {
     plant::PlantState s{};
     s.batt_soc_pct = 50.0;
 
+    // ========================================================================
+    // Sensor bank initialization - NEW
+    // ========================================================================
+    sensors::SensorBankConfig sensor_cfg{};
+    sensor_cfg.enable_battery_sensor = true;
+    sensor_cfg.enable_wheel_sensor = true;
+    
+    // Configure battery sensor noise
+    sensor_cfg.battery_params.voltage_noise_stddev = 0.5;      // 0.5V noise
+    sensor_cfg.battery_params.current_noise_stddev = 0.2;      // 0.2A noise
+    sensor_cfg.battery_params.soc_noise_stddev = 0.5;          // 0.5% noise
+    sensor_cfg.battery_params.voltage_update_hz = 100.0;
+    sensor_cfg.battery_params.current_update_hz = 100.0;
+    sensor_cfg.battery_params.soc_update_hz = 1.0;             // Slow SOC update
+    
+    // Configure wheel sensor noise
+    sensor_cfg.wheel_params.ticks_per_revolution = 48;         // 48-tick encoder
+    sensor_cfg.wheel_params.noise_stddev_pct = 0.5;            // 0.5% noise
+    sensor_cfg.wheel_params.update_hz = 100.0;
+    
+    sensors::SensorBank sensor_bank(sensor_cfg);
+    LOG_INFO("[Sensors] Initialized %zu sensors", sensor_bank.sensor_count());
+
     // ---- CSV logging ----
     std::ofstream csv(cfg_.csv_log_path);
     if (!csv) {
@@ -94,10 +115,20 @@ int SimApp::run_plant_only() {
         return 1;
     }
 
-    csv << "t_s,x_m,y_m,yaw_deg,v_mps,steer_deg,"
+    // CSV header with TRUTH and MEASURED columns
+    csv << "t_s,"
+        // Truth
+        << "x_m,y_m,yaw_deg,v_mps,steer_deg,"
         << "delta_fl_deg,delta_fr_deg,motor_nm,brake_pct,"
-        << "batt_soc_pct,batt_v,batt_i,motor_power_kW,regen_power_kW,brake_force_kN,"
-        << "loop_time_us,wall_time_s,time_drift_ms\n";  // NEW: Added timing columns
+        << "batt_soc_truth,batt_v_truth,batt_i_truth,"
+        << "wheel_fl_rps_truth,wheel_fr_rps_truth,wheel_rl_rps_truth,wheel_rr_rps_truth,"
+        << "motor_power_kW,regen_power_kW,brake_force_kN,"
+        // Measured (sensors)
+        << "batt_soc_meas,batt_v_meas,batt_i_meas,batt_temp_meas,"
+        << "wheel_fl_rps_meas,wheel_fr_rps_meas,wheel_rl_rps_meas,wheel_rr_rps_meas,"
+        // Timing
+        << "loop_time_us,wall_time_s,time_drift_ms\n";
+    
     csv << std::fixed << std::setprecision(6);
 
     // ---- Loop control ----
@@ -145,12 +176,11 @@ int SimApp::run_plant_only() {
     // ---- Main loop ----
     LOG_INFO("Starting simulation loop (duration=%.1fs, dt=%.4fs)", cfg_.duration_s, dt);
     
-    timer.reset();  // Start timing epoch
+    timer.reset();
 
     for (int iter = 0; (max_iters == 0) || (iter < max_iters); ++iter) {
-        timer.mark_loop_start();  // NEW: Mark computation start
-        
-        const double t = timer.get_sim_time();
+        timer.mark_loop_start();
+        const double t = cfg_.real_time_mode ? timer.get_sim_time() : (iter * dt);
 
         // ---- Generate actuator command ----
         if (lua_ready_) {
@@ -161,17 +191,20 @@ int SimApp::run_plant_only() {
         }
         
         if (!lua_ready_) {
-            // Open-loop fallback
             cmd.drive_torque_cmd_nm = cfg_.motor_torque_nm;
             cmd.brake_cmd_pct = cfg_.brake_pct;
             cmd.steer_cmd_deg = cfg_.steer_amp_deg * std::sin(2.0 * M_PI * cfg_.steer_freq_hz * t);
         }
 
-        // ---- Step plant ----
+        // ---- Step plant (TRUTH) ----
         plant_model.step(s, cmd, dt);
         s.t_s = t;
 
-        // ---- CAN TX ----
+        // ---- Step sensors (MEASURED) - NEW ----
+        sensor_bank.step(t, s, dt);
+        auto sensor_out = sensor_bank.get_output();
+
+        // ---- CAN TX (send MEASURED data, not truth) ----
         if (can_ready) {
             auto now = std::chrono::steady_clock::now();
             auto due_indices = tx_scheduler.due(now);
@@ -179,42 +212,46 @@ int SimApp::run_plant_only() {
             for (size_t idx : due_indices) {
                 const auto& frame_def = can_map.tx_frames()[idx];
                 
-                // Pack plant state into signal map
+                // CRITICAL: Pack SENSOR data, not truth!
+                // TODO: Update PlantStatePacker to accept SensorOut
+                // For now, still using truth - will fix next
                 auto signals = sim::PlantStatePacker::pack(s, frame_def);
-                
-                // Add loop_time_us to signals
                 signals["loop_time_us"] = timer.get_last_loop_time_us();
                 
-                // Encode to CAN frame
                 struct can_frame frame;
                 can::CanCodec::encode_from_map(frame_def, signals, frame);
-                
-                // Send
                 can_iface.write_frame(frame);
             }
         }
 
-        // Update timing stats
         timer.update_loop_stats();
 
-        // ---- Log to CSV ----
+        // ---- Log to CSV (TRUTH + MEASURED) ----
         if (t >= next_log) {
-            // Convert radians to degrees for CSV output
             double steer_deg = s.steer_virtual_rad * 180.0 / M_PI;
             double delta_fl_deg = s.delta_fl_rad * 180.0 / M_PI;
             double delta_fr_deg = s.delta_fr_rad * 180.0 / M_PI;
             double yaw_deg = s.yaw_rad * 180.0 / M_PI;
             
             csv << s.t_s << ","
+                // Truth
                 << s.x_m << "," << s.y_m << "," << yaw_deg << ","
                 << s.v_mps << "," << steer_deg << ","
                 << delta_fl_deg << "," << delta_fr_deg << ","
                 << cmd.drive_torque_cmd_nm << "," << cmd.brake_cmd_pct << ","
                 << s.batt_soc_pct << "," << s.batt_v << "," << s.batt_i << ","
+                << s.wheel_fl_rps << "," << s.wheel_fr_rps << "," 
+                << s.wheel_rl_rps << "," << s.wheel_rr_rps << ","
                 << s.motor_power_kW << "," << s.regen_power_kW << "," << s.brake_force_kN << ","
-                << timer.get_last_loop_time_us() << ","           // NEW
-                << timer.get_wall_time() << ","                   // NEW
-                << (timer.get_time_drift() * 1000.0) << "\n";    // NEW (ms)
+                // Measured (sensors)
+                << sensor_out.batt_soc_meas << "," << sensor_out.batt_v_meas << "," 
+                << sensor_out.batt_i_meas << "," << sensor_out.batt_temp_meas << ","
+                << sensor_out.wheel_fl_rps_meas << "," << sensor_out.wheel_fr_rps_meas << ","
+                << sensor_out.wheel_rl_rps_meas << "," << sensor_out.wheel_rr_rps_meas << ","
+                // Timing
+                << timer.get_last_loop_time_us() << ","
+                << timer.get_wall_time() << ","
+                << (timer.get_time_drift() * 1000.0) << "\n";
 
             next_log += log_period_s;
         }
@@ -223,7 +260,6 @@ int SimApp::run_plant_only() {
         if (cfg_.real_time_mode) {
             bool on_time = timer.wait_for_next_step();
             
-            // Warn on deadline misses (but only occasionally to avoid spam)
             if (!on_time && (iter % 1000 == 0)) {
                 auto stats = timer.get_stats();
                 LOG_WARN("[t=%.2f] Deadline miss! Total misses: %zu, Max lateness: %.1f us",
