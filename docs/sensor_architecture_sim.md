@@ -750,7 +750,7 @@ sensors:
 ## Document Metadata
 
 **Version History:**
-- v1.0 (2024-12-27): Initial comprehensive documentation
+- v1.0 (2025-12-27): Initial comprehensive documentation
 
 **Contact:**
 - Repository: `plant-sensor-can-sim`
