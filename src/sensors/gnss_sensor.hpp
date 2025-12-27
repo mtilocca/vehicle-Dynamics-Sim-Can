@@ -92,16 +92,17 @@ public:
         // VELOCITY (convert from vehicle frame to NED frame)
         // ====================================================================
         
-        // Vehicle velocity in vehicle frame (v_mps is longitudinal)
-        double vel_x_vehicle = truth.v_mps * std::cos(truth.yaw_rad);  // East component
-        double vel_y_vehicle = truth.v_mps * std::sin(truth.yaw_rad);  // North component
+        // Vehicle velocity in NED frame
+        // North = v * sin(yaw), East = v * cos(yaw) in standard convention
+        double vn_truth = truth.v_mps * std::sin(truth.yaw_rad);  // North
+        double ve_truth = truth.v_mps * std::cos(truth.yaw_rad);  // East
         
         // Add noise
         double vn_noise = vel_noise_.gaussian(params_.velocity_noise_stddev);
         double ve_noise = vel_noise_.gaussian(params_.velocity_noise_stddev);
         
-        double vn_raw = vel_y_vehicle + vn_noise;  // North
-        double ve_raw = vel_x_vehicle + ve_noise;  // East
+        double vn_raw = vn_truth + vn_noise;
+        double ve_raw = ve_truth + ve_noise;
         
         // ====================================================================
         // FIX QUALITY (simulate good fix with occasional degradation)

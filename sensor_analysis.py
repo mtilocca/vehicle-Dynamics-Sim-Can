@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Complete Sensor Suite Analysis
+Complete Sensor Suite Analysis - UPDATED FOR NEW FIELD NAMES
 Analyzes all sensors: Battery, Wheels, IMU, GNSS, Radar
+Matches CAN map specification field names
 """
 
 import pandas as pd
@@ -72,41 +73,72 @@ def analyze_complete_sensors(csv_file):
     print("✓ Saved: plots/battery_wheel_sensors.png")
     
     # ========================================
-    # Figure 2: IMU Sensor
+    # Figure 2: IMU Sensor (6-DOF)
     # ========================================
-    fig, axes = plt.subplots(3, 1, figsize=(14, 10))
-    fig.suptitle('IMU Sensor (Gyroscope & Accelerometer)', fontsize=16, fontweight='bold')
+    fig, axes = plt.subplots(3, 2, figsize=(14, 12))
+    fig.suptitle('IMU Sensor (6-DOF Gyroscope & Accelerometer)', fontsize=16, fontweight='bold')
     
-    # Gyro - Yaw Rate
-    ax = axes[0]
-    # Calculate truth yaw rate from yaw angle derivative
-    yaw_rate_truth = np.gradient(df['yaw_deg'].values, df['t_s'].values)
-    ax.plot(df['t_s'], yaw_rate_truth, 'b-', label='Truth (from yaw)', linewidth=2)
-    ax.plot(df['t_s'], df['imu_gyro_yaw_dps'], 'r--', label='Measured', alpha=0.7)
+    # Gyro X (Roll rate - should be ~0 for ground vehicle)
+    ax = axes[0, 0]
+    ax.plot(df['t_s'], df['imu_gx_rps'], 'r-', label='Measured', linewidth=2)
+    ax.axhline(y=0, color='b', linestyle='--', label='Expected (0)', alpha=0.5)
     ax.set_xlabel('Time (s)')
-    ax.set_ylabel('Yaw Rate (deg/s)')
-    ax.set_title('Gyroscope - Yaw Rate')
+    ax.set_ylabel('Roll Rate (rad/s)')
+    ax.set_title('Gyroscope X (Roll) - Should be ~0')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    
+    # Gyro Y (Pitch rate - should be ~0 for ground vehicle)
+    ax = axes[0, 1]
+    ax.plot(df['t_s'], df['imu_gy_rps'], 'r-', label='Measured', linewidth=2)
+    ax.axhline(y=0, color='b', linestyle='--', label='Expected (0)', alpha=0.5)
+    ax.set_xlabel('Time (s)')
+    ax.set_ylabel('Pitch Rate (rad/s)')
+    ax.set_title('Gyroscope Y (Pitch) - Should be ~0')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    
+    # Gyro Z (Yaw rate)
+    ax = axes[1, 0]
+    # Calculate truth yaw rate from yaw angle derivative (convert to rad/s)
+    yaw_rate_truth_rps = np.gradient(df['yaw_deg'].values, df['t_s'].values)
+    ax.plot(df['t_s'], yaw_rate_truth_rps, 'b-', label='Truth (from yaw)', linewidth=2)
+    ax.plot(df['t_s'], df['imu_gz_rps'], 'r--', label='Measured', alpha=0.7)
+    ax.set_xlabel('Time (s)')
+    ax.set_ylabel('Yaw Rate (rad/s)')
+    ax.set_title('Gyroscope Z (Yaw Rate)')
     ax.legend()
     ax.grid(True, alpha=0.3)
     
     # Accel X (longitudinal)
-    ax = axes[1]
+    ax = axes[1, 1]
     # Calculate truth accel from velocity derivative
     accel_x_truth = np.gradient(df['v_mps'].values, df['t_s'].values)
     ax.plot(df['t_s'], accel_x_truth, 'b-', label='Truth (from velocity)', linewidth=2)
-    ax.plot(df['t_s'], df['imu_accel_x_mps2'], 'r--', label='Measured', alpha=0.7)
+    ax.plot(df['t_s'], df['imu_ax_mps2'], 'r--', label='Measured', alpha=0.7)
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Accel X (m/s²)')
-    ax.set_title('Accelerometer - Longitudinal')
+    ax.set_title('Accelerometer X (Longitudinal)')
     ax.legend()
     ax.grid(True, alpha=0.3)
     
-    # Accel Y (lateral)
-    ax = axes[2]
-    ax.plot(df['t_s'], df['imu_accel_y_mps2'], 'r-', label='Measured (lateral)', linewidth=2)
+    # Accel Y (lateral - from turning)
+    ax = axes[2, 0]
+    ax.plot(df['t_s'], df['imu_ay_mps2'], 'r-', label='Measured', linewidth=2)
+    ax.axhline(y=0, color='b', linestyle='--', label='Expected (~0, no turning)', alpha=0.5)
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Accel Y (m/s²)')
-    ax.set_title('Accelerometer - Lateral (from turning)')
+    ax.set_title('Accelerometer Y (Lateral)')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    
+    # Accel Z (vertical - should be ~-9.81 m/s² gravity)
+    ax = axes[2, 1]
+    ax.plot(df['t_s'], df['imu_az_mps2'], 'r-', label='Measured', linewidth=2)
+    ax.axhline(y=-9.81, color='b', linestyle='--', label='Expected (-9.81)', alpha=0.5)
+    ax.set_xlabel('Time (s)')
+    ax.set_ylabel('Accel Z (m/s²)')
+    ax.set_title('Accelerometer Z (Gravity + Noise)')
     ax.legend()
     ax.grid(True, alpha=0.3)
     
@@ -115,49 +147,48 @@ def analyze_complete_sensors(csv_file):
     print("✓ Saved: plots/imu_sensor.png")
     
     # ========================================
-    # Figure 3: GNSS Sensor
+    # Figure 3: GNSS Sensor (WGS84 + NED Velocity)
     # ========================================
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    fig.suptitle('GNSS Sensor (GPS)', fontsize=16, fontweight='bold')
+    fig.suptitle('GNSS Sensor (GPS - WGS84 Position + NED Velocity)', fontsize=16, fontweight='bold')
     
-    # Position trajectory
+    # Position trajectory (lat/lon in degrees)
     ax = axes[0, 0]
-    ax.plot(df['x_m'], df['y_m'], 'b-', label='Truth', linewidth=2)
-    ax.plot(df['gnss_pos_x_m'], df['gnss_pos_y_m'], 'r--', label='GNSS', alpha=0.7)
-    ax.set_xlabel('X Position (m)')
-    ax.set_ylabel('Y Position (m)')
-    ax.set_title('Vehicle Trajectory')
+    ax.plot(df['gnss_lon_deg'], df['gnss_lat_deg'], 'r-', label='GNSS', linewidth=2)
+    ax.set_xlabel('Longitude (deg)')
+    ax.set_ylabel('Latitude (deg)')
+    ax.set_title('GNSS Trajectory (WGS84)')
     ax.legend()
     ax.grid(True, alpha=0.3)
     ax.axis('equal')
     
-    # Position X error
+    # Altitude
     ax = axes[0, 1]
-    pos_x_error = df['gnss_pos_x_m'] - df['x_m']
-    ax.plot(df['t_s'], pos_x_error, 'g-', linewidth=2)
-    ax.axhline(y=0, color='k', linestyle='--', alpha=0.3)
+    ax.plot(df['t_s'], df['gnss_alt_m'], 'g-', linewidth=2)
+    ax.axhline(y=0, color='k', linestyle='--', alpha=0.3, label='MSL (0m)')
     ax.set_xlabel('Time (s)')
-    ax.set_ylabel('X Position Error (m)')
-    ax.set_title(f'GNSS X Error (RMSE: {np.sqrt(np.mean(pos_x_error**2)):.2f}m)')
-    ax.grid(True, alpha=0.3)
-    
-    # Velocity
-    ax = axes[1, 0]
-    ax.plot(df['t_s'], df['v_mps'], 'b-', label='Truth', linewidth=2)
-    ax.plot(df['t_s'], df['gnss_vel_mps'], 'r--', label='GNSS', alpha=0.7)
-    ax.set_xlabel('Time (s)')
-    ax.set_ylabel('Velocity (m/s)')
-    ax.set_title('GNSS Velocity')
+    ax.set_ylabel('Altitude (m MSL)')
+    ax.set_title('GNSS Altitude')
     ax.legend()
     ax.grid(True, alpha=0.3)
     
-    # Heading
-    ax = axes[1, 1]
-    ax.plot(df['t_s'], df['yaw_deg'], 'b-', label='Truth', linewidth=2)
-    ax.plot(df['t_s'], df['gnss_hdg_deg'], 'r--', label='GNSS', alpha=0.7)
+    # Velocity North/East
+    ax = axes[1, 0]
+    ax.plot(df['t_s'], df['gnss_vn_mps'], 'b-', label='North', linewidth=2)
+    ax.plot(df['t_s'], df['gnss_ve_mps'], 'r-', label='East', linewidth=2)
     ax.set_xlabel('Time (s)')
-    ax.set_ylabel('Heading (deg)')
-    ax.set_title('GNSS Heading')
+    ax.set_ylabel('Velocity (m/s)')
+    ax.set_title('GNSS Velocity (NED Frame)')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    
+    # Fix quality
+    ax = axes[1, 1]
+    ax.plot(df['t_s'], df['gnss_fix_type'], 'g-', linewidth=2, label='Fix Type')
+    ax.plot(df['t_s'], df['gnss_sat_count'], 'b--', linewidth=2, label='Sat Count')
+    ax.set_xlabel('Time (s)')
+    ax.set_ylabel('Value')
+    ax.set_title('GNSS Quality (Fix Type: 0=none, 3=3D)')
     ax.legend()
     ax.grid(True, alpha=0.3)
     
@@ -173,35 +204,42 @@ def analyze_complete_sensors(csv_file):
     
     # Range
     ax = axes[0, 0]
-    ax.plot(df['t_s'], df['radar_range_m'], 'b-', linewidth=2)
+    ax.plot(df['t_s'], df['radar_target_range_m'], 'b-', linewidth=2)
+    ax.axhline(y=50.0, color='k', linestyle='--', alpha=0.3, label='Expected (50m)')
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Range (m)')
     ax.set_title('Radar Range to Target')
+    ax.legend()
     ax.grid(True, alpha=0.3)
     
     # Range rate (closing velocity)
     ax = axes[0, 1]
-    ax.plot(df['t_s'], df['radar_rate_mps'], 'r-', linewidth=2)
+    ax.plot(df['t_s'], df['radar_target_rel_vel_mps'], 'r-', linewidth=2)
+    # Expected: vehicle velocity (approaching stationary target)
+    ax.plot(df['t_s'], df['v_mps'], 'k--', alpha=0.3, label='Expected (v_ego)')
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Range Rate (m/s)')
     ax.set_title('Radar Doppler (Closing Velocity)')
+    ax.legend()
     ax.grid(True, alpha=0.3)
     
     # Angle
     ax = axes[1, 0]
-    ax.plot(df['t_s'], df['radar_angle_deg'], 'g-', linewidth=2)
+    ax.plot(df['t_s'], df['radar_target_angle_deg'], 'g-', linewidth=2)
+    ax.axhline(y=0, color='k', linestyle='--', alpha=0.3, label='Expected (0° ahead)')
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Angle (deg)')
     ax.set_title('Radar Angle to Target')
+    ax.legend()
     ax.grid(True, alpha=0.3)
     
-    # Target validity
+    # Target status
     ax = axes[1, 1]
-    ax.plot(df['t_s'], df['radar_valid'], 'k-', linewidth=2)
+    ax.plot(df['t_s'], df['radar_status'], 'k-', linewidth=2)
     ax.set_xlabel('Time (s)')
-    ax.set_ylabel('Valid Target')
-    ax.set_title('Radar Target Detection')
-    ax.set_ylim([-0.1, 1.1])
+    ax.set_ylabel('Status Flags')
+    ax.set_title('Radar Status (bit 0 = valid target)')
+    ax.set_ylim([-0.1, 2])
     ax.grid(True, alpha=0.3)
     
     plt.tight_layout()
@@ -226,14 +264,27 @@ def analyze_complete_sensors(csv_file):
     wheel_rmse = np.sqrt(np.mean((df['wheel_fl_rps_meas'] - df['wheel_fl_rps_truth'])**2))
     print(f"  FL RMSE:      {wheel_rmse:.3f} rps")
     
+    # IMU
+    print("\nIMU SENSOR:")
+    print(f"  Gyro Z RMSE:  {np.sqrt(np.mean((df['imu_gz_rps'] - yaw_rate_truth_rps)**2)):.4f} rad/s")
+    print(f"  Accel X RMSE: {np.sqrt(np.mean((df['imu_ax_mps2'] - accel_x_truth)**2)):.3f} m/s²")
+    print(f"  Accel Z mean: {df['imu_az_mps2'].mean():.3f} m/s² (expected ~-9.81)")
+    
     # GNSS
     print("\nGNSS SENSOR:")
-    pos_x_rmse = np.sqrt(np.mean((df['gnss_pos_x_m'] - df['x_m'])**2))
-    pos_y_rmse = np.sqrt(np.mean((df['gnss_pos_y_m'] - df['y_m'])**2))
-    print(f"  Position X RMSE: {pos_x_rmse:.2f}m")
-    print(f"  Position Y RMSE: {pos_y_rmse:.2f}m")
-    print(f"  2D Position RMSE: {np.sqrt(pos_x_rmse**2 + pos_y_rmse**2):.2f}m")
-    print(f"  Velocity RMSE: {np.sqrt(np.mean((df['gnss_vel_mps'] - df['v_mps'])**2)):.3f} m/s")
+    print(f"  Lat range:    {df['gnss_lat_deg'].min():.6f} to {df['gnss_lat_deg'].max():.6f} deg")
+    print(f"  Lon range:    {df['gnss_lon_deg'].min():.6f} to {df['gnss_lon_deg'].max():.6f} deg")
+    print(f"  Alt mean:     {df['gnss_alt_m'].mean():.2f}m MSL")
+    print(f"  Velocity N:   {df['gnss_vn_mps'].mean():.2f} ± {df['gnss_vn_mps'].std():.2f} m/s")
+    print(f"  Velocity E:   {df['gnss_ve_mps'].mean():.2f} ± {df['gnss_ve_mps'].std():.2f} m/s")
+    print(f"  Avg sats:     {df['gnss_sat_count'].mean():.1f}")
+    
+    # Radar
+    print("\nRADAR SENSOR:")
+    print(f"  Range mean:   {df['radar_target_range_m'].mean():.2f}m (expected ~50m)")
+    print(f"  Range RMSE:   {np.sqrt(np.mean((df['radar_target_range_m'] - 50.0)**2)):.3f}m")
+    print(f"  Angle mean:   {df['radar_target_angle_deg'].mean():.2f}° (expected ~0°)")
+    print(f"  Valid frames: {(df['radar_status'] == 1).sum()}/{len(df)} ({100*(df['radar_status']==1).sum()/len(df):.1f}%)")
     
     print("\n" + "="*60)
     print("✓ Complete sensor analysis finished!")
