@@ -685,7 +685,7 @@ Internal / personal R&D project.
 
 ---
 
-## Recent Updates (December 2024)
+## Recent Updates (December 2025)
 
 ### ✨ Major: Complete Sensor Simulation Framework
 
