@@ -29,23 +29,25 @@ struct SensorOut {
     double wheel_rr_rps_meas = 0.0;
     bool wheel_valid = false;
 
-    // --- IMU/GNSS (future) ---
-    double accel_x_meas = 0.0;          // m/s²
-    double accel_y_meas = 0.0;
-    double accel_z_meas = 0.0;
-    double gyro_x_meas = 0.0;           // rad/s
-    double gyro_y_meas = 0.0;
-    double gyro_z_meas = 0.0;
-    double gnss_lat_meas = 0.0;         // degrees
-    double gnss_lon_meas = 0.0;
-    double gnss_alt_meas = 0.0;         // meters
+    // --- IMU Sensor ---
+    double imu_gyro_yaw_rate_dps = 0.0; // Gyro yaw rate (deg/s)
+    double imu_accel_x_mps2 = 0.0;      // Longitudinal acceleration (m/s²)
+    double imu_accel_y_mps2 = 0.0;      // Lateral acceleration (m/s²)
     bool imu_valid = false;
+
+    // --- GNSS Sensor ---
+    double gnss_pos_x_m = 0.0;          // Position X / Easting (m)
+    double gnss_pos_y_m = 0.0;          // Position Y / Northing (m)
+    double gnss_altitude_m = 0.0;       // Altitude (m)
+    double gnss_velocity_mps = 0.0;     // Ground speed (m/s)
+    double gnss_heading_deg = 0.0;      // Course over ground (deg)
     bool gnss_valid = false;
 
-    // --- Radar (future) ---
-    double radar_range_meas = 0.0;      // meters
-    double radar_azimuth_meas = 0.0;    // radians
-    bool radar_valid = false;
+    // --- Radar Sensor ---
+    double radar_range_m = 0.0;         // Range to target (m)
+    double radar_range_rate_mps = 0.0;  // Closing velocity (m/s)
+    double radar_angle_deg = 0.0;       // Angle to target (deg)
+    bool radar_valid_target = false;    // Target detection valid
 
     // --- Status ---
     uint32_t sensor_status_flags = 0;

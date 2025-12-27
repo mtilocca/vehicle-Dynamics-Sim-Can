@@ -1,9 +1,10 @@
-// src/sim/sim_app.cpp - WITH SENSOR INTEGRATION
+// src/sim/sim_app.cpp - WITH COMPLETE SENSOR SUITE
 #include "sim/sim_app.hpp"
 #include "sim/actuator_cmd.hpp"
 #include "sim/plant_state_packer.hpp"
 #include "sim/timing_controller.hpp"
-#include "sensors/sensor_bank.hpp"  // NEW
+#include "sensors/sensor_bank.hpp"
+#include "can/sensor_state_packer.hpp"  // NEW - for packing sensor data
 #include "can/socketcan_iface.hpp"
 #include "can/tx_scheduler.hpp"
 #include "can/can_map.hpp"
@@ -86,24 +87,45 @@ int SimApp::run_plant_only() {
     s.batt_soc_pct = 50.0;
 
     // ========================================================================
-    // Sensor bank initialization - NEW
+    // Complete sensor bank initialization - UPDATED
     // ========================================================================
     sensors::SensorBankConfig sensor_cfg{};
+    
+    // Enable all sensors
     sensor_cfg.enable_battery_sensor = true;
     sensor_cfg.enable_wheel_sensor = true;
+    sensor_cfg.enable_imu_sensor = true;      // NEW
+    sensor_cfg.enable_gnss_sensor = true;     // NEW
+    sensor_cfg.enable_radar_sensor = true;    // NEW
     
-    // Configure battery sensor noise
-    sensor_cfg.battery_params.voltage_noise_stddev = 0.5;      // 0.5V noise
-    sensor_cfg.battery_params.current_noise_stddev = 0.2;      // 0.2A noise
-    sensor_cfg.battery_params.soc_noise_stddev = 0.5;          // 0.5% noise
+    // Battery sensor config
+    sensor_cfg.battery_params.voltage_noise_stddev = 0.5;
+    sensor_cfg.battery_params.current_noise_stddev = 0.2;
+    sensor_cfg.battery_params.soc_noise_stddev = 0.5;
     sensor_cfg.battery_params.voltage_update_hz = 100.0;
     sensor_cfg.battery_params.current_update_hz = 100.0;
-    sensor_cfg.battery_params.soc_update_hz = 1.0;             // Slow SOC update
+    sensor_cfg.battery_params.soc_update_hz = 1.0;
     
-    // Configure wheel sensor noise
-    sensor_cfg.wheel_params.ticks_per_revolution = 48;         // 48-tick encoder
-    sensor_cfg.wheel_params.noise_stddev_pct = 0.5;            // 0.5% noise
+    // Wheel sensor config
+    sensor_cfg.wheel_params.ticks_per_revolution = 48;
+    sensor_cfg.wheel_params.noise_stddev_pct = 0.5;
     sensor_cfg.wheel_params.update_hz = 100.0;
+    
+    // IMU config (NEW)
+    sensor_cfg.imu_params.gyro_noise_stddev = 0.1;        // 0.1 deg/s
+    sensor_cfg.imu_params.accel_noise_stddev = 0.05;      // 0.05 m/s^2
+    sensor_cfg.imu_params.update_hz = 100.0;
+    
+    // GNSS config (NEW)
+    sensor_cfg.gnss_params.position_noise_stddev = 2.0;   // 2m CEP
+    sensor_cfg.gnss_params.velocity_noise_stddev = 0.1;   // 0.1 m/s
+    sensor_cfg.gnss_params.update_hz = 10.0;
+    
+    // Radar config (NEW)
+    sensor_cfg.radar_params.range_noise_stddev = 0.2;     // 0.2m
+    sensor_cfg.radar_params.doppler_noise_stddev = 0.1;   // 0.1 m/s
+    sensor_cfg.radar_params.update_hz = 20.0;
+    sensor_cfg.radar_params.weather_condition = sensors::RadarWeatherCondition::CLEAR;
     
     sensors::SensorBank sensor_bank(sensor_cfg);
     LOG_INFO("[Sensors] Initialized %zu sensors", sensor_bank.sensor_count());
@@ -115,7 +137,7 @@ int SimApp::run_plant_only() {
         return 1;
     }
 
-    // CSV header with TRUTH and MEASURED columns
+    // CSV header with TRUTH and MEASURED columns (ALL SENSORS)
     csv << "t_s,"
         // Truth
         << "x_m,y_m,yaw_deg,v_mps,steer_deg,"
@@ -123,9 +145,16 @@ int SimApp::run_plant_only() {
         << "batt_soc_truth,batt_v_truth,batt_i_truth,"
         << "wheel_fl_rps_truth,wheel_fr_rps_truth,wheel_rl_rps_truth,wheel_rr_rps_truth,"
         << "motor_power_kW,regen_power_kW,brake_force_kN,"
-        // Measured (sensors)
+        // Battery sensors
         << "batt_soc_meas,batt_v_meas,batt_i_meas,batt_temp_meas,"
+        // Wheel sensors
         << "wheel_fl_rps_meas,wheel_fr_rps_meas,wheel_rl_rps_meas,wheel_rr_rps_meas,"
+        // IMU sensors (NEW)
+        << "imu_gyro_yaw_dps,imu_accel_x_mps2,imu_accel_y_mps2,"
+        // GNSS sensors (NEW)
+        << "gnss_pos_x_m,gnss_pos_y_m,gnss_alt_m,gnss_vel_mps,gnss_hdg_deg,"
+        // Radar sensors (NEW)
+        << "radar_range_m,radar_rate_mps,radar_angle_deg,radar_valid,"
         // Timing
         << "loop_time_us,wall_time_s,time_drift_ms\n";
     
@@ -142,7 +171,7 @@ int SimApp::run_plant_only() {
         1.0 / cfg_.log_hz : 0.1;
     double next_log = 0.0;
 
-    // ---- CAN setup ----
+    // ---- CAN setup with SENSOR frames ----
     can::SocketCanIface can_iface;
     can::TxScheduler tx_scheduler;
     can::CanMap can_map;
@@ -200,33 +229,56 @@ int SimApp::run_plant_only() {
         plant_model.step(s, cmd, dt);
         s.t_s = t;
 
-        // ---- Step sensors (MEASURED) - NEW ----
+        // ---- Step sensors (MEASURED) ----
         sensor_bank.step(t, s, dt);
-        auto sensor_out = sensor_bank.get_output();
+        auto sensor_out = sensor_bank.get_output(t);
 
-        // ---- CAN TX (send MEASURED data, not truth) ----
+        // ---- CAN TX (send SENSOR data using SensorStatePacker) ----
         if (can_ready) {
             auto now = std::chrono::steady_clock::now();
             auto due_indices = tx_scheduler.due(now);
             
             for (size_t idx : due_indices) {
                 const auto& frame_def = can_map.tx_frames()[idx];
-                
-                // CRITICAL: Pack SENSOR data, not truth!
-                // TODO: Update PlantStatePacker to accept SensorOut
-                // For now, still using truth - will fix next
-                auto signals = sim::PlantStatePacker::pack(s, frame_def);
-                signals["loop_time_us"] = timer.get_last_loop_time_us();
-                
                 struct can_frame frame;
-                can::CanCodec::encode_from_map(frame_def, signals, frame);
+                frame.can_id = frame_def.frame_id;  // CORRECT: use frame_id
+                frame.can_dlc = 8;
+                
+                // Use SensorStatePacker to pack sensor measurements
+                switch (frame_def.frame_id) {  // CORRECT: use frame_id
+                    case 0x200:  // Battery
+                        can::SensorStatePacker::pack_battery(sensor_out, frame.data);
+                        break;
+                    case 0x201:  // Wheel speeds
+                        can::SensorStatePacker::pack_wheel_speeds(sensor_out, frame.data);
+                        break;
+                    case 0x202:  // IMU
+                        can::SensorStatePacker::pack_imu(sensor_out, frame.data);
+                        break;
+                    case 0x203:  // GNSS position
+                        can::SensorStatePacker::pack_gnss_position(sensor_out, frame.data);
+                        break;
+                    case 0x204:  // GNSS velocity
+                        can::SensorStatePacker::pack_gnss_velocity(sensor_out, frame.data);
+                        break;
+                    case 0x205:  // Radar
+                        can::SensorStatePacker::pack_radar(sensor_out, frame.data);
+                        break;
+                    default:
+                        // Fall back to PlantStatePacker for other frames
+                        auto signals = sim::PlantStatePacker::pack(s, frame_def);
+                        signals["loop_time_us"] = timer.get_last_loop_time_us();
+                        can::CanCodec::encode_from_map(frame_def, signals, frame);
+                        break;
+                }
+                
                 can_iface.write_frame(frame);
             }
         }
 
         timer.update_loop_stats();
 
-        // ---- Log to CSV (TRUTH + MEASURED) ----
+        // ---- Log to CSV (TRUTH + ALL MEASURED) ----
         if (t >= next_log) {
             double steer_deg = s.steer_virtual_rad * 180.0 / M_PI;
             double delta_fl_deg = s.delta_fl_rad * 180.0 / M_PI;
@@ -243,11 +295,26 @@ int SimApp::run_plant_only() {
                 << s.wheel_fl_rps << "," << s.wheel_fr_rps << "," 
                 << s.wheel_rl_rps << "," << s.wheel_rr_rps << ","
                 << s.motor_power_kW << "," << s.regen_power_kW << "," << s.brake_force_kN << ","
-                // Measured (sensors)
+                // Battery measured
                 << sensor_out.batt_soc_meas << "," << sensor_out.batt_v_meas << "," 
                 << sensor_out.batt_i_meas << "," << sensor_out.batt_temp_meas << ","
+                // Wheel measured
                 << sensor_out.wheel_fl_rps_meas << "," << sensor_out.wheel_fr_rps_meas << ","
                 << sensor_out.wheel_rl_rps_meas << "," << sensor_out.wheel_rr_rps_meas << ","
+                // IMU measured (NEW)
+                << sensor_out.imu_gyro_yaw_rate_dps << "," 
+                << sensor_out.imu_accel_x_mps2 << "," 
+                << sensor_out.imu_accel_y_mps2 << ","
+                // GNSS measured (NEW)
+                << sensor_out.gnss_pos_x_m << "," << sensor_out.gnss_pos_y_m << "," 
+                << sensor_out.gnss_altitude_m << "," 
+                << sensor_out.gnss_velocity_mps << "," 
+                << sensor_out.gnss_heading_deg << ","
+                // Radar measured (NEW)
+                << sensor_out.radar_range_m << "," 
+                << sensor_out.radar_range_rate_mps << "," 
+                << sensor_out.radar_angle_deg << "," 
+                << (sensor_out.radar_valid_target ? 1 : 0) << ","
                 // Timing
                 << timer.get_last_loop_time_us() << ","
                 << timer.get_wall_time() << ","
@@ -289,6 +356,14 @@ int SimApp::run_plant_only() {
     LOG_INFO("========================================");
 
     LOG_INFO("Simulation complete. CSV written to: %s", cfg_.csv_log_path.c_str());
+    LOG_INFO("Sensor summary:");
+    LOG_INFO("  - Battery (100Hz on CAN 0x200)");
+    LOG_INFO("  - Wheel speeds (100Hz on CAN 0x201)");
+    LOG_INFO("  - IMU (100Hz on CAN 0x202)");
+    LOG_INFO("  - GNSS position (10Hz on CAN 0x203)");
+    LOG_INFO("  - GNSS velocity (10Hz on CAN 0x204)");
+    LOG_INFO("  - Radar (20Hz on CAN 0x205)");
+    
     csv.close();
     return 0;
 }

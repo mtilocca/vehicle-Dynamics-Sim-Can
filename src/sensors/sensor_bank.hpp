@@ -1,158 +1,171 @@
 // src/sensors/sensor_bank.hpp
 #pragma once
 
-#include "sensors/sensor_base.hpp"
 #include "sensors/sensor_out.hpp"
 #include "sensors/battery_sensor.hpp"
 #include "sensors/wheel_sensor.hpp"
-#include "plant/plant_state.hpp"
+#include "sensors/imu_sensor.hpp"
+#include "sensors/gnss_sensor.hpp"
+#include "sensors/radar_sensor.hpp"
 #include <memory>
-#include <vector>
 
 namespace sensors {
 
 /**
- * SensorBankConfig - Configuration for all sensors
+ * Configuration for sensor bank
  */
 struct SensorBankConfig {
     bool enable_battery_sensor = true;
     bool enable_wheel_sensor = true;
-    bool enable_imu_sensor = false;      // Future
-    bool enable_gnss_sensor = false;     // Future
-    bool enable_radar_sensor = false;    // Future
-
+    bool enable_imu_sensor = false;
+    bool enable_gnss_sensor = false;
+    bool enable_radar_sensor = false;
+    
     BatterySensorParams battery_params{};
     WheelSensorParams wheel_params{};
-    
-    // Global random seed (0 = random)
-    uint64_t random_seed = 0;
+    IMUSensorParams imu_params{};
+    GNSSSensorParams gnss_params{};
+    RadarSensorParams radar_params{};
 };
 
 /**
- * SensorBank - Manages all sensors in the simulation
- * 
- * Responsibilities:
- * - Create and initialize sensors
- * - Update all sensors each timestep
- * - Aggregate sensor outputs
- * - Provide unified interface to sim loop
+ * SensorBank - Manages all vehicle sensors
  */
 class SensorBank {
 public:
-    explicit SensorBank(const SensorBankConfig& cfg = {})
-        : cfg_(cfg)
+    SensorBank(const SensorBankConfig& cfg)
+        : config_(cfg)
     {
-        initialize();
+        // Create enabled sensors
+        if (config_.enable_battery_sensor) {
+            battery_sensor_ = std::make_unique<BatterySensor>(config_.battery_params);
+        }
+        if (config_.enable_wheel_sensor) {
+            wheel_sensor_ = std::make_unique<WheelSensor>(config_.wheel_params);
+        }
+        if (config_.enable_imu_sensor) {
+            imu_sensor_ = std::make_unique<IMUSensor>(config_.imu_params);
+        }
+        if (config_.enable_gnss_sensor) {
+            gnss_sensor_ = std::make_unique<GNSSSensor>(config_.gnss_params);
+        }
+        if (config_.enable_radar_sensor) {
+            radar_sensor_ = std::make_unique<RadarSensor>(config_.radar_params);
+        }
     }
 
     /**
-     * Update all sensors with ground truth
+     * Step all sensors with current truth state
      */
     void step(double t, const plant::PlantState& truth, double dt) {
-        for (auto& sensor : sensors_) {
-            sensor->step(t, truth, dt);
-        }
-
-        // Aggregate all sensor outputs into single SensorOut
-        aggregate_outputs();
+        if (battery_sensor_) battery_sensor_->step(t, truth, dt);
+        if (wheel_sensor_) wheel_sensor_->step(t, truth, dt);
+        if (imu_sensor_) imu_sensor_->step(t, truth, dt);
+        if (gnss_sensor_) gnss_sensor_->step(t, truth, dt);
+        if (radar_sensor_) radar_sensor_->step(t, truth, dt);
     }
 
     /**
-     * Get aggregated sensor measurements
+     * Get aggregated sensor outputs
+     * Merges outputs from all enabled sensors into one SensorOut
      */
-    const SensorOut& get_output() const {
-        return aggregated_out_;
+    SensorOut get_output(double t) const {
+        SensorOut out;
+        out.t_s = t;
+
+        // Merge battery sensor output
+        if (battery_sensor_) {
+            SensorOut batt_out = battery_sensor_->get_output();
+            out.batt_soc_meas = batt_out.batt_soc_meas;
+            out.batt_v_meas = batt_out.batt_v_meas;
+            out.batt_i_meas = batt_out.batt_i_meas;
+            out.batt_temp_meas = batt_out.batt_temp_meas;
+            out.batt_valid = batt_out.batt_valid;
+        }
+
+        // Merge wheel sensor output
+        if (wheel_sensor_) {
+            SensorOut wheel_out = wheel_sensor_->get_output();
+            out.wheel_fl_rps_meas = wheel_out.wheel_fl_rps_meas;
+            out.wheel_fr_rps_meas = wheel_out.wheel_fr_rps_meas;
+            out.wheel_rl_rps_meas = wheel_out.wheel_rl_rps_meas;
+            out.wheel_rr_rps_meas = wheel_out.wheel_rr_rps_meas;
+            out.wheel_valid = wheel_out.wheel_valid;
+        }
+
+        // Merge IMU sensor output
+        if (imu_sensor_) {
+            SensorOut imu_out = imu_sensor_->get_output();
+            out.imu_gyro_yaw_rate_dps = imu_out.imu_gyro_yaw_rate_dps;
+            out.imu_accel_x_mps2 = imu_out.imu_accel_x_mps2;
+            out.imu_accel_y_mps2 = imu_out.imu_accel_y_mps2;
+            out.imu_valid = imu_out.imu_valid;
+        }
+
+        // Merge GNSS sensor output
+        if (gnss_sensor_) {
+            SensorOut gnss_out = gnss_sensor_->get_output();
+            out.gnss_pos_x_m = gnss_out.gnss_pos_x_m;
+            out.gnss_pos_y_m = gnss_out.gnss_pos_y_m;
+            out.gnss_altitude_m = gnss_out.gnss_altitude_m;
+            out.gnss_velocity_mps = gnss_out.gnss_velocity_mps;
+            out.gnss_heading_deg = gnss_out.gnss_heading_deg;
+            out.gnss_valid = gnss_out.gnss_valid;
+        }
+
+        // Merge radar sensor output
+        if (radar_sensor_) {
+            SensorOut radar_out = radar_sensor_->get_output();
+            out.radar_range_m = radar_out.radar_range_m;
+            out.radar_range_rate_mps = radar_out.radar_range_rate_mps;
+            out.radar_angle_deg = radar_out.radar_angle_deg;
+            out.radar_valid_target = radar_out.radar_valid_target;
+        }
+
+        return out;
     }
 
     /**
      * Reset all sensors
      */
     void reset() {
-        for (auto& sensor : sensors_) {
-            sensor->reset();
-        }
-        aggregated_out_ = SensorOut{};
+        if (battery_sensor_) battery_sensor_->reset();
+        if (wheel_sensor_) wheel_sensor_->reset();
+        if (imu_sensor_) imu_sensor_->reset();
+        if (gnss_sensor_) gnss_sensor_->reset();
+        if (radar_sensor_) radar_sensor_->reset();
     }
 
     /**
-     * Get individual sensor by name (for debugging)
+     * Get count of enabled sensors
      */
-    SensorBase* get_sensor(const std::string& name) {
-        for (auto& sensor : sensors_) {
-            if (sensor->name() == name) {
-                return sensor.get();
-            }
-        }
-        return nullptr;
+    size_t sensor_count() const {
+        size_t count = 0;
+        if (battery_sensor_) count++;
+        if (wheel_sensor_) count++;
+        if (imu_sensor_) count++;
+        if (gnss_sensor_) count++;
+        if (radar_sensor_) count++;
+        return count;
     }
 
     /**
-     * Get number of active sensors
+     * Set radar weather condition
      */
-    size_t sensor_count() const { return sensors_.size(); }
+    void set_radar_weather(RadarWeatherCondition weather) {
+        if (radar_sensor_) {
+            radar_sensor_->set_weather(weather);
+        }
+    }
 
 private:
-    void initialize() {
-        sensors_.clear();
-
-        // Propagate global seed to individual sensors
-        uint64_t seed_offset = 0;
-
-        if (cfg_.enable_battery_sensor) {
-            if (cfg_.random_seed != 0) {
-                cfg_.battery_params.random_seed = cfg_.random_seed + seed_offset++;
-            }
-            auto battery = std::make_unique<BatterySensor>(cfg_.battery_params);
-            sensors_.push_back(std::move(battery));
-        }
-
-        if (cfg_.enable_wheel_sensor) {
-            if (cfg_.random_seed != 0) {
-                cfg_.wheel_params.random_seed = cfg_.random_seed + seed_offset++;
-            }
-            auto wheel = std::make_unique<WheelSensor>(cfg_.wheel_params);
-            sensors_.push_back(std::move(wheel));
-        }
-
-        // Future: IMU, GNSS, Radar sensors
-    }
-
-    void aggregate_outputs() {
-        // Start with clean slate
-        aggregated_out_ = SensorOut{};
-
-        // Merge outputs from all sensors
-        for (const auto& sensor : sensors_) {
-            auto out = sensor->get_output();
-
-            // Copy timestamp (should be same for all)
-            aggregated_out_.t_s = out.t_s;
-
-            // Merge battery data
-            if (out.batt_valid) {
-                aggregated_out_.batt_v_meas = out.batt_v_meas;
-                aggregated_out_.batt_i_meas = out.batt_i_meas;
-                aggregated_out_.batt_soc_meas = out.batt_soc_meas;
-                aggregated_out_.batt_temp_meas = out.batt_temp_meas;
-                aggregated_out_.batt_valid = true;
-            }
-
-            // Merge wheel data
-            if (out.wheel_valid) {
-                aggregated_out_.wheel_fl_rps_meas = out.wheel_fl_rps_meas;
-                aggregated_out_.wheel_fr_rps_meas = out.wheel_fr_rps_meas;
-                aggregated_out_.wheel_rl_rps_meas = out.wheel_rl_rps_meas;
-                aggregated_out_.wheel_rr_rps_meas = out.wheel_rr_rps_meas;
-                aggregated_out_.wheel_valid = true;
-            }
-
-            // Future: IMU, GNSS, Radar
-        }
-    }
-
-    SensorBankConfig cfg_;
-    std::vector<std::unique_ptr<SensorBase>> sensors_;
-    SensorOut aggregated_out_;
+    SensorBankConfig config_;
+    
+    std::unique_ptr<BatterySensor> battery_sensor_;
+    std::unique_ptr<WheelSensor> wheel_sensor_;
+    std::unique_ptr<IMUSensor> imu_sensor_;
+    std::unique_ptr<GNSSSensor> gnss_sensor_;
+    std::unique_ptr<RadarSensor> radar_sensor_;
 };
 
 } // namespace sensors
