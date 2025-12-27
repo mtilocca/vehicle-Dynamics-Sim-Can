@@ -29,25 +29,43 @@ struct SensorOut {
     double wheel_rr_rps_meas = 0.0;
     bool wheel_valid = false;
 
-    // --- IMU Sensor ---
-    double imu_gyro_yaw_rate_dps = 0.0; // Gyro yaw rate (deg/s)
-    double imu_accel_x_mps2 = 0.0;      // Longitudinal acceleration (m/s²)
-    double imu_accel_y_mps2 = 0.0;      // Lateral acceleration (m/s²)
+    // === IMU Sensor (6-DOF: 3-axis gyro + 3-axis accel) ===
+    // Gyroscope (angular velocity in rad/s)
+    double imu_gx_rps = 0.0;            // Roll rate (rad/s)
+    double imu_gy_rps = 0.0;            // Pitch rate (rad/s)
+    double imu_gz_rps = 0.0;            // Yaw rate (rad/s)
+    
+    // Accelerometer (linear acceleration in m/s²)
+    double imu_ax_mps2 = 0.0;           // Longitudinal / X-axis (m/s²)
+    double imu_ay_mps2 = 0.0;           // Lateral / Y-axis (m/s²)
+    double imu_az_mps2 = 0.0;           // Vertical / Z-axis (m/s²)
+    
+    // IMU metadata
+    double imu_temp_c = 25.0;           // Temperature (°C)
+    uint8_t imu_status = 0;             // Status flags (0=OK)
     bool imu_valid = false;
 
-    // --- GNSS Sensor ---
-    double gnss_pos_x_m = 0.0;          // Position X / Easting (m)
-    double gnss_pos_y_m = 0.0;          // Position Y / Northing (m)
-    double gnss_altitude_m = 0.0;       // Altitude (m)
-    double gnss_velocity_mps = 0.0;     // Ground speed (m/s)
-    double gnss_heading_deg = 0.0;      // Course over ground (deg)
+    // === GNSS Sensor (GPS) ===
+    // Position (WGS84 geodetic coordinates)
+    double gnss_lat_deg = 0.0;          // Latitude (deg, -90 to +90)
+    double gnss_lon_deg = 0.0;          // Longitude (deg, -180 to +180)
+    double gnss_alt_m = 0.0;            // Altitude MSL (m)
+    
+    // Velocity (NED frame components)
+    double gnss_vn_mps = 0.0;           // Velocity North (m/s)
+    double gnss_ve_mps = 0.0;           // Velocity East (m/s)
+    
+    // GNSS quality indicators
+    uint8_t gnss_fix_type = 0;          // Fix type (0=no fix, 3=3D fix)
+    uint8_t gnss_sat_count = 0;         // Satellites in use
     bool gnss_valid = false;
 
-    // --- Radar Sensor ---
-    double radar_range_m = 0.0;         // Range to target (m)
-    double radar_range_rate_mps = 0.0;  // Closing velocity (m/s)
-    double radar_angle_deg = 0.0;       // Angle to target (deg)
-    bool radar_valid_target = false;    // Target detection valid
+    // === Radar Sensor ===
+    double radar_target_range_m = 0.0;      // Range to target (m)
+    double radar_target_rel_vel_mps = 0.0;  // Relative velocity (m/s, + = approaching)
+    double radar_target_angle_deg = 0.0;    // Azimuth angle (deg)
+    uint8_t radar_status = 0;               // Status flags (bit 0 = target valid)
+    bool radar_valid = false;
 
     // --- Status ---
     uint32_t sensor_status_flags = 0;

@@ -10,173 +10,244 @@ namespace can {
 /**
  * SensorStatePacker - Packs sensor measurements into CAN frames
  * 
- * Similar to PlantStatePacker but uses SensorOut (measured values)
- * instead of PlantState (truth values).
- * 
- * This allows transmission of realistic sensor data with noise,
- * bias, quantization, etc. over the CAN bus.
+ * Maps SensorOut fields to CAN frames according to can_map.csv:
+ * - 0x200: IMU_ACC (accelerometer 3-axis + temp)
+ * - 0x201: IMU_GYR (gyroscope 3-axis + status)
+ * - 0x210: GNSS_LL (latitude + longitude)
+ * - 0x211: GNSS_AV (altitude + velocity north/east + fix + sats)
+ * - 0x220: WHEELS_1 (4 wheel speeds) - handled by existing code
+ * - 0x230: BATT_STATE (battery) - handled by existing code
+ * - 0x240: RADAR_1 (range + velocity + angle + status)
  */
 class SensorStatePacker {
 public:
     /**
-     * Pack battery sensor data
-     * CAN ID: 0x200
-     * 8 bytes: SOC(2) | Voltage(2) | Current(2) | Temp(1) | Valid(1)
+     * Pack IMU accelerometer data
+     * CAN ID: 0x200 (IMU_ACC)
+     * Signal layout per can_map.csv:
+     *   imu_ax_mps2  : start_bit=0,  bit_length=16, signed, factor=0.01
+     *   imu_ay_mps2  : start_bit=16, bit_length=16, signed, factor=0.01
+     *   imu_az_mps2  : start_bit=32, bit_length=16, signed, factor=0.01
+     *   imu_temp_c   : start_bit=48, bit_length=16, signed, factor=0.01
      */
-    static void pack_battery(const sensors::SensorOut& sens, uint8_t* data) {
-        // SOC: 0-100% -> 0-10000 (0.01% resolution)
-        uint16_t soc = static_cast<uint16_t>(sens.batt_soc_meas * 100.0);
+    static void pack_imu_acc(const sensors::SensorOut& sens, uint8_t* data) {
+        // Accel X: -50 to +50 m/s² with 0.01 resolution
+        int16_t ax = static_cast<int16_t>(sens.imu_ax_mps2 / 0.01);
         
-        // Voltage: 0-600V -> 0-6000 (0.1V resolution)
-        uint16_t voltage = static_cast<uint16_t>(sens.batt_v_meas * 10.0);
+        // Accel Y: -50 to +50 m/s² with 0.01 resolution
+        int16_t ay = static_cast<int16_t>(sens.imu_ay_mps2 / 0.01);
         
-        // Current: -500 to +500A -> 0-10000 (offset binary, 0.1A resolution)
-        int16_t current_raw = static_cast<int16_t>(sens.batt_i_meas * 10.0);
-        uint16_t current = static_cast<uint16_t>(current_raw + 5000);
+        // Accel Z: -50 to +50 m/s² with 0.01 resolution
+        int16_t az = static_cast<int16_t>(sens.imu_az_mps2 / 0.01);
         
-        // Temperature: -40 to +125°C -> 0-165 (1°C resolution)
-        uint8_t temp = static_cast<uint8_t>(sens.batt_temp_meas + 40.0);
+        // Temperature: -40 to +125°C with 0.01 resolution
+        int16_t temp = static_cast<int16_t>(sens.imu_temp_c / 0.01);
         
-        uint8_t valid = sens.batt_valid ? 1 : 0;
-
-        data[0] = (soc >> 8) & 0xFF;
-        data[1] = soc & 0xFF;
-        data[2] = (voltage >> 8) & 0xFF;
-        data[3] = voltage & 0xFF;
-        data[4] = (current >> 8) & 0xFF;
-        data[5] = current & 0xFF;
-        data[6] = temp;
-        data[7] = valid;
+        // Pack little-endian
+        data[0] = ax & 0xFF;
+        data[1] = (ax >> 8) & 0xFF;
+        data[2] = ay & 0xFF;
+        data[3] = (ay >> 8) & 0xFF;
+        data[4] = az & 0xFF;
+        data[5] = (az >> 8) & 0xFF;
+        data[6] = temp & 0xFF;
+        data[7] = (temp >> 8) & 0xFF;
     }
 
     /**
-     * Pack wheel speed sensor data
-     * CAN ID: 0x201
-     * 8 bytes: FL(2) | FR(2) | RL(2) | RR(2)
+     * Pack IMU gyroscope data
+     * CAN ID: 0x201 (IMU_GYR)
+     * Signal layout per can_map.csv:
+     *   imu_gx_rps   : start_bit=0,  bit_length=16, signed, factor=0.001
+     *   imu_gy_rps   : start_bit=16, bit_length=16, signed, factor=0.001
+     *   imu_gz_rps   : start_bit=32, bit_length=16, signed, factor=0.001
+     *   imu_status   : start_bit=48, bit_length=8,  unsigned
      */
-    static void pack_wheel_speeds(const sensors::SensorOut& sens, uint8_t* data) {
-        // Wheel speeds: 0-200 rps -> 0-20000 (0.01 rps resolution)
-        uint16_t fl = static_cast<uint16_t>(sens.wheel_fl_rps_meas * 100.0);
-        uint16_t fr = static_cast<uint16_t>(sens.wheel_fr_rps_meas * 100.0);
-        uint16_t rl = static_cast<uint16_t>(sens.wheel_rl_rps_meas * 100.0);
-        uint16_t rr = static_cast<uint16_t>(sens.wheel_rr_rps_meas * 100.0);
-
-        data[0] = (fl >> 8) & 0xFF;
-        data[1] = fl & 0xFF;
-        data[2] = (fr >> 8) & 0xFF;
-        data[3] = fr & 0xFF;
-        data[4] = (rl >> 8) & 0xFF;
-        data[5] = rl & 0xFF;
-        data[6] = (rr >> 8) & 0xFF;
-        data[7] = rr & 0xFF;
+    static void pack_imu_gyr(const sensors::SensorOut& sens, uint8_t* data) {
+        // Gyro X: -10 to +10 rad/s with 0.001 resolution
+        int16_t gx = static_cast<int16_t>(sens.imu_gx_rps / 0.001);
+        
+        // Gyro Y: -10 to +10 rad/s with 0.001 resolution
+        int16_t gy = static_cast<int16_t>(sens.imu_gy_rps / 0.001);
+        
+        // Gyro Z: -10 to +10 rad/s with 0.001 resolution
+        int16_t gz = static_cast<int16_t>(sens.imu_gz_rps / 0.001);
+        
+        // Status flags
+        uint8_t status = sens.imu_status;
+        
+        // Pack little-endian
+        data[0] = gx & 0xFF;
+        data[1] = (gx >> 8) & 0xFF;
+        data[2] = gy & 0xFF;
+        data[3] = (gy >> 8) & 0xFF;
+        data[4] = gz & 0xFF;
+        data[5] = (gz >> 8) & 0xFF;
+        data[6] = status;
+        data[7] = 0;  // Reserved
     }
 
     /**
-     * Pack IMU sensor data
-     * CAN ID: 0x202
-     * 8 bytes: Gyro_Yaw(2) | Accel_X(2) | Accel_Y(2) | Valid(1) | Reserved(1)
+     * Pack GNSS lat/lon data
+     * CAN ID: 0x210 (GNSS_LL)
+     * Signal layout per can_map.csv:
+     *   gnss_lat_deg : start_bit=0,  bit_length=32, signed, factor=1e-7
+     *   gnss_lon_deg : start_bit=32, bit_length=32, signed, factor=1e-7
      */
-    static void pack_imu(const sensors::SensorOut& sens, uint8_t* data) {
-        // Gyro: -500 to +500 deg/s -> 0-10000 (offset binary, 0.1 deg/s resolution)
-        int16_t gyro_raw = static_cast<int16_t>(sens.imu_gyro_yaw_rate_dps * 10.0);
-        uint16_t gyro = static_cast<uint16_t>(gyro_raw + 5000);
+    static void pack_gnss_ll(const sensors::SensorOut& sens, uint8_t* data) {
+        // Latitude: -90 to +90 deg with 1e-7 resolution (~1.1 cm precision)
+        int32_t lat = static_cast<int32_t>(sens.gnss_lat_deg / 1e-7);
         
-        // Accel X: -20 to +20 m/s² -> 0-4000 (offset binary, 0.01 m/s² resolution)
-        int16_t accel_x_raw = static_cast<int16_t>(sens.imu_accel_x_mps2 * 100.0);
-        uint16_t accel_x = static_cast<uint16_t>(accel_x_raw + 2000);
+        // Longitude: -180 to +180 deg with 1e-7 resolution
+        int32_t lon = static_cast<int32_t>(sens.gnss_lon_deg / 1e-7);
         
-        // Accel Y: -20 to +20 m/s² -> 0-4000
-        int16_t accel_y_raw = static_cast<int16_t>(sens.imu_accel_y_mps2 * 100.0);
-        uint16_t accel_y = static_cast<uint16_t>(accel_y_raw + 2000);
-        
-        uint8_t valid = sens.imu_valid ? 1 : 0;
-
-        data[0] = (gyro >> 8) & 0xFF;
-        data[1] = gyro & 0xFF;
-        data[2] = (accel_x >> 8) & 0xFF;
-        data[3] = accel_x & 0xFF;
-        data[4] = (accel_y >> 8) & 0xFF;
-        data[5] = accel_y & 0xFF;
-        data[6] = valid;
-        data[7] = 0; // Reserved
+        // Pack little-endian (4 bytes each)
+        data[0] = lat & 0xFF;
+        data[1] = (lat >> 8) & 0xFF;
+        data[2] = (lat >> 16) & 0xFF;
+        data[3] = (lat >> 24) & 0xFF;
+        data[4] = lon & 0xFF;
+        data[5] = (lon >> 8) & 0xFF;
+        data[6] = (lon >> 16) & 0xFF;
+        data[7] = (lon >> 24) & 0xFF;
     }
 
     /**
-     * Pack GNSS position data
-     * CAN ID: 0x203
-     * 8 bytes: Pos_X(3) | Pos_Y(3) | Valid(1) | Reserved(1)
+     * Pack GNSS altitude/velocity data
+     * CAN ID: 0x211 (GNSS_AV)
+     * Signal layout per can_map.csv:
+     *   gnss_alt_m      : start_bit=0,  bit_length=16, signed, factor=0.1, offset=-1000
+     *   gnss_vn_mps     : start_bit=16, bit_length=16, signed, factor=0.01
+     *   gnss_ve_mps     : start_bit=32, bit_length=16, signed, factor=0.01
+     *   gnss_fix_type   : start_bit=48, bit_length=8,  unsigned
+     *   gnss_sat_count  : start_bit=56, bit_length=8,  unsigned
      */
-    static void pack_gnss_position(const sensors::SensorOut& sens, uint8_t* data) {
-        // Position: -100000 to +100000 m -> 24-bit signed (0.01m resolution)
-        int32_t pos_x = static_cast<int32_t>(sens.gnss_pos_x_m * 100.0);
-        int32_t pos_y = static_cast<int32_t>(sens.gnss_pos_y_m * 100.0);
+    static void pack_gnss_av(const sensors::SensorOut& sens, uint8_t* data) {
+        // Altitude: -1000 to +8000m with 0.1m resolution, offset=-1000
+        // raw_value = (phys_value - offset) / factor
+        int16_t alt = static_cast<int16_t>((sens.gnss_alt_m - (-1000.0)) / 0.1);
         
-        uint8_t valid = sens.gnss_valid ? 1 : 0;
-
-        data[0] = (pos_x >> 16) & 0xFF;
-        data[1] = (pos_x >> 8) & 0xFF;
-        data[2] = pos_x & 0xFF;
-        data[3] = (pos_y >> 16) & 0xFF;
-        data[4] = (pos_y >> 8) & 0xFF;
-        data[5] = pos_y & 0xFF;
-        data[6] = valid;
-        data[7] = 0; // Reserved
-    }
-
-    /**
-     * Pack GNSS velocity/heading data
-     * CAN ID: 0x204
-     * 8 bytes: Velocity(2) | Heading(2) | Altitude(2) | Valid(1) | Reserved(1)
-     */
-    static void pack_gnss_velocity(const sensors::SensorOut& sens, uint8_t* data) {
-        // Velocity: 0-200 m/s -> 0-20000 (0.01 m/s resolution)
-        uint16_t velocity = static_cast<uint16_t>(sens.gnss_velocity_mps * 100.0);
+        // Velocity North: -200 to +200 m/s with 0.01 resolution
+        int16_t vn = static_cast<int16_t>(sens.gnss_vn_mps / 0.01);
         
-        // Heading: 0-360 deg -> 0-36000 (0.01 deg resolution)
-        uint16_t heading = static_cast<uint16_t>(sens.gnss_heading_deg * 100.0);
+        // Velocity East: -200 to +200 m/s with 0.01 resolution
+        int16_t ve = static_cast<int16_t>(sens.gnss_ve_mps / 0.01);
         
-        // Altitude: -1000 to +10000 m -> 0-11000 (1m resolution)
-        uint16_t altitude = static_cast<uint16_t>(sens.gnss_altitude_m + 1000.0);
+        // Fix type and satellite count
+        uint8_t fix_type = sens.gnss_fix_type;
+        uint8_t sat_count = sens.gnss_sat_count;
         
-        uint8_t valid = sens.gnss_valid ? 1 : 0;
-
-        data[0] = (velocity >> 8) & 0xFF;
-        data[1] = velocity & 0xFF;
-        data[2] = (heading >> 8) & 0xFF;
-        data[3] = heading & 0xFF;
-        data[4] = (altitude >> 8) & 0xFF;
-        data[5] = altitude & 0xFF;
-        data[6] = valid;
-        data[7] = 0; // Reserved
+        // Pack little-endian
+        data[0] = alt & 0xFF;
+        data[1] = (alt >> 8) & 0xFF;
+        data[2] = vn & 0xFF;
+        data[3] = (vn >> 8) & 0xFF;
+        data[4] = ve & 0xFF;
+        data[5] = (ve >> 8) & 0xFF;
+        data[6] = fix_type;
+        data[7] = sat_count;
     }
 
     /**
      * Pack radar sensor data
-     * CAN ID: 0x205
-     * 8 bytes: Range(2) | RangeRate(2) | Angle(2) | Valid(1) | Reserved(1)
+     * CAN ID: 0x240 (RADAR_1)
+     * Signal layout per can_map.csv:
+     *   radar_target_range_m     : start_bit=0,  bit_length=16, unsigned, factor=0.1
+     *   radar_target_rel_vel_mps : start_bit=16, bit_length=16, signed,   factor=0.01
+     *   radar_target_angle_deg   : start_bit=32, bit_length=16, signed,   factor=0.1
+     *   radar_status             : start_bit=48, bit_length=8,  unsigned
      */
     static void pack_radar(const sensors::SensorOut& sens, uint8_t* data) {
-        // Range: 0-300m -> 0-30000 (0.01m resolution)
-        uint16_t range = static_cast<uint16_t>(sens.radar_range_m * 100.0);
+        // Range: 0 to 1000m with 0.1m resolution
+        uint16_t range = static_cast<uint16_t>(sens.radar_target_range_m / 0.1);
         
-        // Range rate: -50 to +50 m/s -> 0-10000 (offset binary, 0.01 m/s resolution)
-        int16_t rate_raw = static_cast<int16_t>(sens.radar_range_rate_mps * 100.0);
-        uint16_t rate = static_cast<uint16_t>(rate_raw + 5000);
+        // Relative velocity: -200 to +200 m/s with 0.01 resolution
+        int16_t rel_vel = static_cast<int16_t>(sens.radar_target_rel_vel_mps / 0.01);
         
-        // Angle: -90 to +90 deg -> 0-18000 (offset binary, 0.01 deg resolution)
-        int16_t angle_raw = static_cast<int16_t>(sens.radar_angle_deg * 100.0);
-        uint16_t angle = static_cast<uint16_t>(angle_raw + 9000);
+        // Angle: -90 to +90 deg with 0.1 resolution
+        int16_t angle = static_cast<int16_t>(sens.radar_target_angle_deg / 0.1);
         
-        uint8_t valid = sens.radar_valid_target ? 1 : 0;
+        // Status flags
+        uint8_t status = sens.radar_status;
+        
+        // Pack little-endian
+        data[0] = range & 0xFF;
+        data[1] = (range >> 8) & 0xFF;
+        data[2] = rel_vel & 0xFF;
+        data[3] = (rel_vel >> 8) & 0xFF;
+        data[4] = angle & 0xFF;
+        data[5] = (angle >> 8) & 0xFF;
+        data[6] = status;
+        data[7] = 0;  // Reserved
+    }
 
-        data[0] = (range >> 8) & 0xFF;
-        data[1] = range & 0xFF;
-        data[2] = (rate >> 8) & 0xFF;
-        data[3] = rate & 0xFF;
-        data[4] = (angle >> 8) & 0xFF;
-        data[5] = angle & 0xFF;
-        data[6] = valid;
-        data[7] = 0; // Reserved
+    /**
+     * Pack battery sensor data
+     * CAN ID: 0x230 (BATT_STATE)
+     * This is handled by PlantStatePacker in existing code,
+     * but included here for completeness if sensor measurements are preferred.
+     * 
+     * Signal layout per can_map.csv:
+     *   batt_v          : start_bit=0,  bit_length=16, unsigned, factor=0.1
+     *   batt_i          : start_bit=16, bit_length=16, signed,   factor=0.1
+     *   batt_soc_pct    : start_bit=32, bit_length=8,  unsigned, factor=0.5
+     *   batt_temp_c     : start_bit=40, bit_length=8,  unsigned, factor=1, offset=-40
+     *   batt_power_kw   : start_bit=48, bit_length=16, signed,   factor=0.1
+     */
+    static void pack_battery(const sensors::SensorOut& sens, uint8_t* data) {
+        // Voltage: 0-1000V with 0.1V resolution
+        uint16_t voltage = static_cast<uint16_t>(sens.batt_v_meas / 0.1);
+        
+        // Current: -2000 to +2000A with 0.1A resolution
+        int16_t current = static_cast<int16_t>(sens.batt_i_meas / 0.1);
+        
+        // SOC: 0-100% with 0.5% resolution
+        uint8_t soc = static_cast<uint8_t>(sens.batt_soc_meas / 0.5);
+        
+        // Temperature: -40 to +125°C with 1°C resolution, offset=-40
+        uint8_t temp = static_cast<uint8_t>(sens.batt_temp_meas - (-40.0));
+        
+        // Power: V * I (calculated)
+        double power_kw = (sens.batt_v_meas * sens.batt_i_meas) / 1000.0;
+        int16_t power = static_cast<int16_t>(power_kw / 0.1);
+        
+        // Pack little-endian
+        data[0] = voltage & 0xFF;
+        data[1] = (voltage >> 8) & 0xFF;
+        data[2] = current & 0xFF;
+        data[3] = (current >> 8) & 0xFF;
+        data[4] = soc;
+        data[5] = temp;
+        data[6] = power & 0xFF;
+        data[7] = (power >> 8) & 0xFF;
+    }
+
+    /**
+     * Pack wheel speed sensor data
+     * CAN ID: 0x220 (WHEELS_1)
+     * 
+     * Signal layout per can_map.csv:
+     *   wheel_fl_rps : start_bit=0,  bit_length=16, signed, factor=0.01
+     *   wheel_fr_rps : start_bit=16, bit_length=16, signed, factor=0.01
+     *   wheel_rl_rps : start_bit=32, bit_length=16, signed, factor=0.01
+     *   wheel_rr_rps : start_bit=48, bit_length=16, signed, factor=0.01
+     */
+    static void pack_wheel_speeds(const sensors::SensorOut& sens, uint8_t* data) {
+        // All wheels: -300 to +300 rad/s with 0.01 resolution
+        int16_t fl = static_cast<int16_t>(sens.wheel_fl_rps_meas / 0.01);
+        int16_t fr = static_cast<int16_t>(sens.wheel_fr_rps_meas / 0.01);
+        int16_t rl = static_cast<int16_t>(sens.wheel_rl_rps_meas / 0.01);
+        int16_t rr = static_cast<int16_t>(sens.wheel_rr_rps_meas / 0.01);
+        
+        // Pack little-endian
+        data[0] = fl & 0xFF;
+        data[1] = (fl >> 8) & 0xFF;
+        data[2] = fr & 0xFF;
+        data[3] = (fr >> 8) & 0xFF;
+        data[4] = rl & 0xFF;
+        data[5] = (rl >> 8) & 0xFF;
+        data[6] = rr & 0xFF;
+        data[7] = (rr >> 8) & 0xFF;
     }
 };
 

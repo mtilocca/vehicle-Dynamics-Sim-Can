@@ -149,12 +149,16 @@ int SimApp::run_plant_only() {
         << "batt_soc_meas,batt_v_meas,batt_i_meas,batt_temp_meas,"
         // Wheel sensors
         << "wheel_fl_rps_meas,wheel_fr_rps_meas,wheel_rl_rps_meas,wheel_rr_rps_meas,"
-        // IMU sensors (NEW)
-        << "imu_gyro_yaw_dps,imu_accel_x_mps2,imu_accel_y_mps2,"
-        // GNSS sensors (NEW)
-        << "gnss_pos_x_m,gnss_pos_y_m,gnss_alt_m,gnss_vel_mps,gnss_hdg_deg,"
-        // Radar sensors (NEW)
-        << "radar_range_m,radar_rate_mps,radar_angle_deg,radar_valid,"
+        // IMU sensors - 6-DOF (3 gyro + 3 accel axes)
+        << "imu_gx_rps,imu_gy_rps,imu_gz_rps,"
+        << "imu_ax_mps2,imu_ay_mps2,imu_az_mps2,"
+        << "imu_temp_c,imu_status,"
+        // GNSS sensors - lat/lon + velocity components + quality
+        << "gnss_lat_deg,gnss_lon_deg,gnss_alt_m,"
+        << "gnss_vn_mps,gnss_ve_mps,"
+        << "gnss_fix_type,gnss_sat_count,"
+        // Radar sensors
+        << "radar_target_range_m,radar_target_rel_vel_mps,radar_target_angle_deg,radar_status,"
         // Timing
         << "loop_time_us,wall_time_s,time_drift_ms\n";
     
@@ -241,31 +245,34 @@ int SimApp::run_plant_only() {
             for (size_t idx : due_indices) {
                 const auto& frame_def = can_map.tx_frames()[idx];
                 struct can_frame frame;
-                frame.can_id = frame_def.frame_id;  // CORRECT: use frame_id
+                frame.can_id = frame_def.frame_id;
                 frame.can_dlc = 8;
                 
-                // Use SensorStatePacker to pack sensor measurements
-                switch (frame_def.frame_id) {  // CORRECT: use frame_id
-                    case 0x200:  // Battery
-                        can::SensorStatePacker::pack_battery(sensor_out, frame.data);
+                // Use SensorStatePacker for sensor frames
+                switch (frame_def.frame_id) {
+                    case 0x200:  // IMU_ACC (accelerometer)
+                        can::SensorStatePacker::pack_imu_acc(sensor_out, frame.data);
                         break;
-                    case 0x201:  // Wheel speeds
+                    case 0x201:  // IMU_GYR (gyroscope)
+                        can::SensorStatePacker::pack_imu_gyr(sensor_out, frame.data);
+                        break;
+                    case 0x210:  // GNSS_LL (lat/lon)
+                        can::SensorStatePacker::pack_gnss_ll(sensor_out, frame.data);
+                        break;
+                    case 0x211:  // GNSS_AV (alt/velocity/fix/sats)
+                        can::SensorStatePacker::pack_gnss_av(sensor_out, frame.data);
+                        break;
+                    case 0x220:  // WHEELS_1 (wheel speeds)
                         can::SensorStatePacker::pack_wheel_speeds(sensor_out, frame.data);
                         break;
-                    case 0x202:  // IMU
-                        can::SensorStatePacker::pack_imu(sensor_out, frame.data);
+                    case 0x230:  // BATT_STATE (battery)
+                        can::SensorStatePacker::pack_battery(sensor_out, frame.data);
                         break;
-                    case 0x203:  // GNSS position
-                        can::SensorStatePacker::pack_gnss_position(sensor_out, frame.data);
-                        break;
-                    case 0x204:  // GNSS velocity
-                        can::SensorStatePacker::pack_gnss_velocity(sensor_out, frame.data);
-                        break;
-                    case 0x205:  // Radar
+                    case 0x240:  // RADAR_1 (radar)
                         can::SensorStatePacker::pack_radar(sensor_out, frame.data);
                         break;
                     default:
-                        // Fall back to PlantStatePacker for other frames
+                        // Fall back to PlantStatePacker for plant truth frames
                         auto signals = sim::PlantStatePacker::pack(s, frame_def);
                         signals["loop_time_us"] = timer.get_last_loop_time_us();
                         can::CanCodec::encode_from_map(frame_def, signals, frame);
@@ -301,20 +308,19 @@ int SimApp::run_plant_only() {
                 // Wheel measured
                 << sensor_out.wheel_fl_rps_meas << "," << sensor_out.wheel_fr_rps_meas << ","
                 << sensor_out.wheel_rl_rps_meas << "," << sensor_out.wheel_rr_rps_meas << ","
-                // IMU measured (NEW)
-                << sensor_out.imu_gyro_yaw_rate_dps << "," 
-                << sensor_out.imu_accel_x_mps2 << "," 
-                << sensor_out.imu_accel_y_mps2 << ","
-                // GNSS measured (NEW)
-                << sensor_out.gnss_pos_x_m << "," << sensor_out.gnss_pos_y_m << "," 
-                << sensor_out.gnss_altitude_m << "," 
-                << sensor_out.gnss_velocity_mps << "," 
-                << sensor_out.gnss_heading_deg << ","
-                // Radar measured (NEW)
-                << sensor_out.radar_range_m << "," 
-                << sensor_out.radar_range_rate_mps << "," 
-                << sensor_out.radar_angle_deg << "," 
-                << (sensor_out.radar_valid_target ? 1 : 0) << ","
+                // IMU measured - 6-DOF
+                << sensor_out.imu_gx_rps << "," << sensor_out.imu_gy_rps << "," << sensor_out.imu_gz_rps << ","
+                << sensor_out.imu_ax_mps2 << "," << sensor_out.imu_ay_mps2 << "," << sensor_out.imu_az_mps2 << ","
+                << sensor_out.imu_temp_c << "," << static_cast<int>(sensor_out.imu_status) << ","
+                // GNSS measured - lat/lon + velocity + quality
+                << sensor_out.gnss_lat_deg << "," << sensor_out.gnss_lon_deg << "," << sensor_out.gnss_alt_m << ","
+                << sensor_out.gnss_vn_mps << "," << sensor_out.gnss_ve_mps << ","
+                << static_cast<int>(sensor_out.gnss_fix_type) << "," << static_cast<int>(sensor_out.gnss_sat_count) << ","
+                // Radar measured
+                << sensor_out.radar_target_range_m << "," 
+                << sensor_out.radar_target_rel_vel_mps << "," 
+                << sensor_out.radar_target_angle_deg << "," 
+                << static_cast<int>(sensor_out.radar_status) << ","
                 // Timing
                 << timer.get_last_loop_time_us() << ","
                 << timer.get_wall_time() << ","

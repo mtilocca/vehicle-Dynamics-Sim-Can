@@ -96,30 +96,38 @@ public:
         // Merge IMU sensor output
         if (imu_sensor_) {
             SensorOut imu_out = imu_sensor_->get_output();
-            out.imu_gyro_yaw_rate_dps = imu_out.imu_gyro_yaw_rate_dps;
-            out.imu_accel_x_mps2 = imu_out.imu_accel_x_mps2;
-            out.imu_accel_y_mps2 = imu_out.imu_accel_y_mps2;
+            out.imu_gx_rps = imu_out.imu_gx_rps;
+            out.imu_gy_rps = imu_out.imu_gy_rps;
+            out.imu_gz_rps = imu_out.imu_gz_rps;
+            out.imu_ax_mps2 = imu_out.imu_ax_mps2;
+            out.imu_ay_mps2 = imu_out.imu_ay_mps2;
+            out.imu_az_mps2 = imu_out.imu_az_mps2;
+            out.imu_temp_c = imu_out.imu_temp_c;
+            out.imu_status = imu_out.imu_status;
             out.imu_valid = imu_out.imu_valid;
         }
 
         // Merge GNSS sensor output
         if (gnss_sensor_) {
             SensorOut gnss_out = gnss_sensor_->get_output();
-            out.gnss_pos_x_m = gnss_out.gnss_pos_x_m;
-            out.gnss_pos_y_m = gnss_out.gnss_pos_y_m;
-            out.gnss_altitude_m = gnss_out.gnss_altitude_m;
-            out.gnss_velocity_mps = gnss_out.gnss_velocity_mps;
-            out.gnss_heading_deg = gnss_out.gnss_heading_deg;
+            out.gnss_lat_deg = gnss_out.gnss_lat_deg;
+            out.gnss_lon_deg = gnss_out.gnss_lon_deg;
+            out.gnss_alt_m = gnss_out.gnss_alt_m;
+            out.gnss_vn_mps = gnss_out.gnss_vn_mps;
+            out.gnss_ve_mps = gnss_out.gnss_ve_mps;
+            out.gnss_fix_type = gnss_out.gnss_fix_type;
+            out.gnss_sat_count = gnss_out.gnss_sat_count;
             out.gnss_valid = gnss_out.gnss_valid;
         }
 
         // Merge radar sensor output
         if (radar_sensor_) {
             SensorOut radar_out = radar_sensor_->get_output();
-            out.radar_range_m = radar_out.radar_range_m;
-            out.radar_range_rate_mps = radar_out.radar_range_rate_mps;
-            out.radar_angle_deg = radar_out.radar_angle_deg;
-            out.radar_valid_target = radar_out.radar_valid_target;
+            out.radar_target_range_m = radar_out.radar_target_range_m;
+            out.radar_target_rel_vel_mps = radar_out.radar_target_rel_vel_mps;
+            out.radar_target_angle_deg = radar_out.radar_target_angle_deg;
+            out.radar_status = radar_out.radar_status;
+            out.radar_valid = radar_out.radar_valid;
         }
 
         return out;

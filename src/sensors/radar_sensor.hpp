@@ -72,7 +72,7 @@ public:
         bool valid = true;
         if (params_.weather_condition == RadarWeatherCondition::FOG) {
             // 30% chance of false detection in fog
-            double rand_val = uniform_noise_.uniform(0.0, 1.0);
+            double rand_val = uniform_noise_.uniform(1.0);  // Returns [0, 1)
             if (rand_val > 0.7) {
                 valid = false;
             }
@@ -83,10 +83,14 @@ public:
         auto [doppler_meas, doppler_updated] = rate_limiter_.update(t, doppler_raw);
         auto [angle_meas, angle_updated] = rate_limiter_.update(t, angle_raw);
         
-        out_.radar_range_m = range_meas;
-        out_.radar_range_rate_mps = doppler_meas;
-        out_.radar_angle_deg = angle_meas;
-        out_.radar_valid_target = valid;
+        // Status flags: bit 0 = target valid, bit 1-7 reserved for quality/mode
+        uint8_t status = valid ? 0x01 : 0x00;
+        
+        out_.radar_target_range_m = range_meas;
+        out_.radar_target_rel_vel_mps = doppler_meas;
+        out_.radar_target_angle_deg = angle_meas;
+        out_.radar_status = status;
+        out_.radar_valid = valid;
         out_.t_s = t;
     }
 
