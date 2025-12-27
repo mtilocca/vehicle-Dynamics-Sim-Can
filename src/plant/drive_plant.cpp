@@ -124,7 +124,7 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {
             s.batt_i = battery_plant_->get_current();
             s.batt_v = battery_plant_->get_voltage();  // Also update voltage
             
-            LOG_INFO("[DrivePlant] Coasting Regen: P=%.2f kW, I=%.2f A, F_res=%.2f kN", 
+            LOG_DEBUG("[DrivePlant] Coasting Regen: P=%.2f kW, I=%.2f A, F_res=%.2f kN", 
                       regen_power_kW, s.batt_i, F_res/1000.0);
         }
     }

@@ -13,3 +13,29 @@
 
 # Only vehicle and motor state
 ./build/src/can/vcan_listener vcan0 config/can_map.csv --decode-tx --filter=0x300,0x310
+
+
+
+# Should load heavy_truck.yaml
+./build/src/sim/sim_main \
+    config/scenarios/heavy_truck_test.json \
+    config/vehicles/heavy_truck.yaml
+
+# Expect very different dynamics (180 tons, 2.6 MW)
+python3 plot_sim.py heavy_truck_test.csv
+
+
+
+
+# Use vehicle from brake_test.json (points to default.yaml)
+./build/src/sim/sim_main config/scenarios/brake_test.json
+
+# Override with performance EV
+./build/src/sim/sim_main config/scenarios/brake_test.json config/vehicles/performance_ev.yaml
+
+# Use heavy truck from JSON
+./build/src/sim/sim_main config/scenarios/heavy_truck_test.json
+
+# Real-time mode scenarios (from JSON timing section)
+./build/src/sim/sim_main config/scenarios/obstacle_avoidance.json
+./build/src/sim/sim_main config/scenarios/slalom.json

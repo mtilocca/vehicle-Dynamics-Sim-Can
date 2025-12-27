@@ -32,9 +32,8 @@ else()
 endif()
 
 # ---- Link libraries ----
-# NEW: Link CAN libraries (socketcan_iface, can_map, can_codec, tx_scheduler are in the can tools)
-# We need to create a CAN library that can be linked
-target_link_libraries(sim_main PRIVATE plant utils)
+# Link plant, utils, and NEW: config library
+target_link_libraries(sim_main PRIVATE plant utils config)
 
 # ---- CAN support ----
 # Add CAN source files directly since we don't have a can library yet

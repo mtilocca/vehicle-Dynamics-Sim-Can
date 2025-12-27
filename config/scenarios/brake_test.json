@@ -1,8 +1,8 @@
 {
   "meta": {
     "name": "brake_test",
-    "version": 3,
-    "description": "Test motor acceleration, regenerative braking, and coasting regen"
+    "version": 1,
+    "description": "Acceleration, braking with regen, and coasting test"
   },
   "timing": {
     "dt_s": 0.01,
@@ -10,6 +10,7 @@
     "log_hz": 10.0,
     "real_time_mode": false
   },
+  "vehicle_config": "config/vehicles/default.yaml",
   "defaults": {
     "system_enable": true,
     "mode": 0,
@@ -24,7 +25,7 @@
       "drive_torque_cmd_nm": 1200.0,
       "brake_cmd_pct": 0.0,
       "steer_cmd_deg": 0.0,
-      "comment": "Accelerate with motor torque"
+      "comment": "Accelerate to 40 m/s"
     },
     {
       "t0": 4.0,
@@ -32,7 +33,7 @@
       "drive_torque_cmd_nm": 0.0,
       "brake_cmd_pct": 60.0,
       "steer_cmd_deg": 0.0,
-      "comment": "Active regenerative braking (70% efficiency)"
+      "comment": "Brake hard with regen"
     },
     {
       "t0": 8.0,
@@ -40,7 +41,7 @@
       "drive_torque_cmd_nm": 600.0,
       "brake_cmd_pct": 0.0,
       "steer_cmd_deg": 0.0,
-      "comment": "Moderate acceleration"
+      "comment": "Accelerate to 40 m/s again"
     },
     {
       "t0": 12.0,
@@ -48,7 +49,7 @@
       "drive_torque_cmd_nm": 0.0,
       "brake_cmd_pct": 0.0,
       "steer_cmd_deg": 0.0,
-      "comment": "Coast to end - coasting regen (10% efficiency, 18 seconds)"
+      "comment": "Coast (regen from drag) - 18 seconds"
     }
   ]
 }
