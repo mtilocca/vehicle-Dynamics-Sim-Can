@@ -7,43 +7,43 @@ vehicle:
   manufacturer: "Komatsu"
   year: 2024
 
-# Physical dimensions and mass
-geometry:
-  mass_kg: 180000.0                  # 180 tons empty weight
-  wheelbase_m: 5.85                  # Long wheelbase for stability
-  track_width_m: 6.85                # Very wide for mining roads
-  wheel_radius_m: 1.83               # 3.65m diameter tires
+  # Physical dimensions and mass
+  geometry:
+    mass_kg: 180000.0                  # 180 tons empty weight
+    wheelbase_m: 5.85                  # Long wheelbase for stability
+    track_width_m: 6.85                # Very wide for mining roads
+    wheel_radius_m: 1.83               # 3.65m diameter tires
 
-# Electric drivetrain configuration
-drivetrain:
-  motor_torque_max_nm: 120000.0      # Massive torque for hauling
-  motor_power_max_w: 2600000.0       # 2.6 MW (3,500 hp) power
-  gear_ratio: 25.0                   # Large reduction for torque
-  efficiency: 0.94                   # Large motor efficiency
+  # Electric drivetrain configuration
+  drivetrain:
+    motor_torque_max_nm: 120000.0      # Massive torque for hauling
+    motor_power_max_w: 2600000.0       # 2.6 MW (3,500 hp) power
+    gear_ratio: 25.0                   # Large reduction for torque
+    efficiency: 0.94                   # Large motor efficiency
 
-# Braking system
-brakes:
-  brake_torque_max_nm: 150000.0      # Huge braking capacity
-  regen_efficiency_active: 0.65      # Good regen on downhill (65%)
-  regen_efficiency_coast: 0.02       # Minimal coasting regen (2%)
+  # Braking system
+  brakes:
+    brake_torque_max_nm: 150000.0      # Huge braking capacity
+    regen_efficiency_active: 0.65      # Good regen on downhill (65%)
+    regen_efficiency_coast: 0.02       # Minimal coasting regen (2%)
 
-# Battery pack specifications
-battery:
-  capacity_kwh: 1400.0               # Enormous 1.4 MWh pack
-  nominal_voltage_v: 1000.0          # High voltage system (1000V)
-  max_charge_power_kw: 500.0         # 500 kW charging (takes hours)
-  max_discharge_power_kw: 2000.0     # 2 MW peak discharge
-  efficiency_charge: 0.93            # Good efficiency at scale
-  efficiency_discharge: 0.94         # High discharge efficiency
-  min_soc: 0.15                      # Conservative minimum (15%)
-  max_soc: 0.90                      # Conservative maximum (90%)
+  # Battery pack specifications
+  battery:
+    capacity_kwh: 1400.0               # Enormous 1.4 MWh pack
+    nominal_voltage_v: 1000.0          # High voltage system (1000V)
+    max_charge_power_kw: 500.0         # 500 kW charging (takes hours)
+    max_discharge_power_kw: 2000.0     # 2 MW peak discharge
+    efficiency_charge: 0.93            # Good efficiency at scale
+    efficiency_discharge: 0.94         # High discharge efficiency
+    min_soc: 0.15                      # Conservative minimum (15%)
+    max_soc: 0.90                      # Conservative maximum (90%)
 
-# Resistive forces
-resistance:
-  drag_coefficient: 1.85             # Poor aerodynamics (large frontal area)
-  rolling_resistance: 8000.0         # High rolling resistance (8 kN)
+  # Resistive forces
+  resistance:
+    drag_coefficient: 1.85             # Poor aerodynamics (large frontal area)
+    rolling_resistance: 8000.0         # High rolling resistance (8 kN)
 
-# Operational limits
-limits:
-  v_max_mps: 20.0                    # 72 km/h (45 mph) top speed
-  v_stop_eps: 0.5                    # Coarse stop detection for heavy vehicle
+  # Operational limits
+  limits:
+    v_max_mps: 20.0                    # 72 km/h (45 mph) top speed
+    v_stop_eps: 0.5                    # Coarse stop detection for heavy vehicle

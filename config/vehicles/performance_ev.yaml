@@ -1,49 +1,43 @@
-# Performance Electric Vehicle Configuration
-# High-performance dual-motor EV (Tesla Model S Plaid-like)
+# Performance EV Configuration  
+# High-performance tri-motor electric vehicle
 
 vehicle:
-  name: "Performance EV Dual Motor"
-  description: "High-performance electric sedan with 750kW tri-motor drivetrain"
+  name: "Performance EV Tri-Motor"
+  description: "High-performance electric vehicle with 750kW tri-motor configuration"
   manufacturer: "Generic"
   year: 2024
 
-# Physical dimensions and mass
-geometry:
-  mass_kg: 2200.0                    # Heavier due to large battery
-  wheelbase_m: 2.96                  # Long wheelbase for stability
-  track_width_m: 1.66                # Wide track for handling
-  wheel_radius_m: 0.356              # 20" performance wheels
+  geometry:
+    mass_kg: 2200.0                    # Heavier due to large battery
+    wheelbase_m: 2.96                  # Long wheelbase for stability
+    track_width_m: 1.85                # Wide track for handling
+    wheel_radius_m: 0.368              # 20" performance wheels (736mm diameter)
 
-# Electric drivetrain configuration
-drivetrain:
-  motor_torque_max_nm: 1420.0        # Combined torque (tri-motor)
-  motor_power_max_w: 750000.0        # 750 kW (1006 hp) peak power
-  gear_ratio: 9.0                    # Single-speed reduction
-  efficiency: 0.95                   # High efficiency motors
+  drivetrain:
+    motor_torque_max_nm: 1420.0        # Combined torque from 3 motors
+    motor_power_max_w: 750000.0        # 750 kW (1,006 hp) total power
+    gear_ratio: 9.0                    # Single-speed reduction
+    efficiency: 0.95                   # High efficiency motors
 
-# Braking system
-brakes:
-  brake_torque_max_nm: 3000.0        # Performance brakes
-  regen_efficiency_active: 0.85      # Very efficient regen (85%)
-  regen_efficiency_coast: 0.15       # Better coasting regen (15%)
+  brakes:
+    brake_torque_max_nm: 6000.0        # Performance braking
+    regen_efficiency_active: 0.85      # Excellent regen (85%)
+    regen_efficiency_coast: 0.12       # Good coasting regen (12%)
 
-# Battery pack specifications
-battery:
-  capacity_kwh: 100.0                # Large 100 kWh pack
-  nominal_voltage_v: 400.0           # 400V architecture
-  max_charge_power_kw: 250.0         # 250 kW fast charging
-  max_discharge_power_kw: 600.0      # 600 kW peak discharge
-  efficiency_charge: 0.95            # Excellent efficiency
-  efficiency_discharge: 0.96         # High discharge efficiency
-  min_soc: 0.02                      # Can go lower safely (2%)
-  max_soc: 0.98                      # Can charge higher (98%)
+  battery:
+    capacity_kwh: 100.0                # Large 100 kWh pack
+    nominal_voltage_v: 400.0           # 400V architecture
+    max_charge_power_kw: 250.0         # 250 kW fast charging
+    max_discharge_power_kw: 600.0      # 600 kW peak discharge
+    efficiency_charge: 0.96            # Excellent charge efficiency
+    efficiency_discharge: 0.96         # Excellent discharge efficiency
+    min_soc: 0.05                      # Standard minimum (5%)
+    max_soc: 0.95                      # Standard maximum (95%)
 
-# Resistive forces
-resistance:
-  drag_coefficient: 0.21             # Excellent aerodynamics (Cd ~0.21)
-  rolling_resistance: 25.0           # Low rolling resistance tires
+  resistance:
+    drag_coefficient: 0.21             # Excellent aerodynamics
+    rolling_resistance: 25.0           # Low rolling resistance (performance tires)
 
-# Operational limits
-limits:
-  v_max_mps: 89.4                    # 322 km/h (200 mph) top speed
-  v_stop_eps: 0.2                    # More precise stop detection
+  limits:
+    v_max_mps: 89.4                    # 322 km/h (200 mph) top speed
+    v_stop_eps: 0.2                    # Fine stop detection

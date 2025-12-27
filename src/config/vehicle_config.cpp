@@ -126,9 +126,9 @@ VehicleConfig VehicleConfig::load(const std::string& yaml_path) {
 VehicleConfig VehicleConfig::get_default() {
     VehicleConfig vehicle;
     
-    vehicle.name = "XCMG XDE90 Electric (Default)";
+    vehicle.name = "EV Random";
     vehicle.description = "Default configuration matching hardcoded values";
-    vehicle.manufacturer = "XCMG";
+    vehicle.manufacturer = "Nobody";
     vehicle.year = 2024;
     
     // Geometry

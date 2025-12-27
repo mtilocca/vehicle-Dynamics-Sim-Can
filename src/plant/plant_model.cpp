@@ -17,23 +17,6 @@ PlantModel::PlantModel(PlantModelParams p)
     p_.steer.wheelbase_m = p_.wheelbase_m;
     p_.steer.track_width_m = p_.track_width_m;
     
-    // Set default battery parameters if not provided
-    if (p_.battery_params.capacity_kWh == 0.0) {
-        p_.battery_params.capacity_kWh = 60.0;
-        p_.battery_params.efficiency_charge = 0.95;
-        p_.battery_params.efficiency_discharge = 0.95;
-        p_.battery_params.max_charge_power_kW = 50.0;
-        p_.battery_params.max_discharge_power_kW = 150.0;
-        p_.battery_params.min_soc = 0.05;
-        p_.battery_params.max_soc = 0.95;
-    }
-    
-    // Set default motor parameters if not provided
-    if (p_.motor_params.max_power_kW == 0.0) {
-        p_.motor_params.max_power_kW = 90.0;
-        p_.motor_params.max_torque_nm = 4000.0;
-        p_.motor_params.efficiency = 0.92;
-    }
     
     LOG_INFO("[PlantModel] Initializing with SubsystemManager architecture");
     LOG_INFO("[PlantModel] Battery: %.1f kWh, Motor: %.1f kW, Mass: %.0f kg",
