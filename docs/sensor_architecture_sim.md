@@ -1,7 +1,7 @@
 # Sensor System Architecture & Implementation
 
 **Version:** 1.0  
-**Date:** December 2024  
+**Date:** December 2025 
 **Authors:** Mario (Plant-Sensor-CAN Simulation Project)
 
 ---
