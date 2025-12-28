@@ -42,7 +42,43 @@ struct SimAppConfig {
     std::string can_interface = "vcan0";            // CAN interface name
     std::string can_map_path = "config/can_map.csv"; // Path to CAN map
     
-    // NEW: Vehicle configuration (optional - if not set, uses hardcoded defaults)
+    // ========== NEW: CAN RX for closed-loop control ==========
+    
+    /**
+     * Enable CAN RX for closed-loop control
+     * 
+     * When true:
+     * - Simulator listens for ACTUATOR_CMD_1 frames on CAN
+     * - Lua scenario is automatically disabled
+     * - Actuator commands come from external controller (e.g., Go)
+     * 
+     * When false (default):
+     * - Use Lua/JSON scenarios (open-loop)
+     */
+    bool enable_can_rx = false;
+    
+    /**
+     * CAN frame name to listen for actuator commands
+     * Must exist in can_map.csv as RX frame
+     * Default: "ACTUATOR_CMD_1" (frame ID 0x100)
+     */
+    std::string actuator_cmd_frame_name = "ACTUATOR_CMD_1";
+    
+    /**
+     * CAN RX timeout (seconds)
+     * 
+     * If no CAN messages received for this duration, simulator enters safe mode:
+     * - Zero torque
+     * - Zero brake
+     * - Zero steering
+     * - System disabled
+     * 
+     * Typical values: 0.1 - 1.0 seconds
+     * Default: 0.5 seconds (10 missed frames at 20 Hz)
+     */
+    double can_rx_timeout_s = 0.5;
+    
+    // Vehicle configuration (optional - if not set, uses hardcoded defaults)
     std::optional<plant::PlantModelParams> vehicle_params;
 };
 

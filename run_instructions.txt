@@ -43,3 +43,8 @@ python3 plot_sim.py heavy_truck_test.csv
 
 
 ./build/src/can/vcan_listener vcan0 config/can/can_map.csv --decode-tx | grep -E "(GNSS|RADAR)" | head -20
+
+
+
+
+ ./build/src/sim/sim_main --can-rx --duration 60 --real-time

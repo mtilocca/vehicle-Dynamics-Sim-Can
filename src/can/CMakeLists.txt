@@ -7,7 +7,7 @@ add_executable(vcan_random_sender
     can_codec.cpp
     tx_scheduler.cpp
     socketcan_iface.cpp
-
+    actuator_cmd_decoder.cpp  # NEW
 )
 
 add_executable(vcan_listener
@@ -16,6 +16,7 @@ add_executable(vcan_listener
     can_codec.cpp
     tx_scheduler.cpp
     socketcan_iface.cpp
+    actuator_cmd_decoder.cpp  # NEW
 )
 
 # Make "utils/xxx.hpp" resolvable (and also lets you include from "src/..." if you want)

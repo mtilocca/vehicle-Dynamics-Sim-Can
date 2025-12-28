@@ -42,4 +42,5 @@ target_sources(sim_main PRIVATE
     ${CMAKE_SOURCE_DIR}/src/can/can_map.cpp
     ${CMAKE_SOURCE_DIR}/src/can/can_codec.cpp
     ${CMAKE_SOURCE_DIR}/src/can/tx_scheduler.cpp
+    ${CMAKE_SOURCE_DIR}/src/can/actuator_cmd_decoder.cpp
 )
