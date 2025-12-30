@@ -48,3 +48,7 @@ python3 plot_sim.py heavy_truck_test.csv
 
 
  ./build/src/sim/sim_main --can-rx --duration 60 --real-time
+
+
+
+ ./build/src/sim/sim_main --real-time --can-rx --duration 600 --vehicle config/vehicles/heavy_truck.yaml
