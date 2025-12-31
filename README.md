@@ -503,7 +503,7 @@ Comprehensive documentation is available in the `docs/` directory:
 
 ## License
 
-Internal R&D project - Fortescue Metals Group
+Internal R&D project
 
 ---
 
