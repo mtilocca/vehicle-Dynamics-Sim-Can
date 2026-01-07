@@ -65,17 +65,20 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
-          # Clone vcpkg
           git clone https://github.com/microsoft/vcpkg "$env:GITHUB_WORKSPACE\vcpkg"
-
-          # Bootstrap
           & "$env:GITHUB_WORKSPACE\vcpkg\bootstrap-vcpkg.bat"
 
-          # Make vcpkg available to later steps
           "VCPKG_ROOT=$env:GITHUB_WORKSPACE\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-          # Install dependencies (x64)
           & "$env:GITHUB_WORKSPACE\vcpkg\vcpkg.exe" install yaml-cpp lua --triplet x64-windows
+
+      - name: Install pkg-config (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          choco install -y pkgconfiglite
+          "PKG_CONFIG_EXECUTABLE=C:\ProgramData\chocolatey\bin\pkg-config.exe" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       # -------------------------
       # Configure
@@ -97,6 +100,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           cmake -B "${{ steps.strings.outputs.build-output-dir }}" `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake" `
+            -DPKG_CONFIG_EXECUTABLE="$env:PKG_CONFIG_EXECUTABLE" `
             -S "${{ github.workspace }}"
 
       # -------------------------
@@ -106,5 +110,6 @@ jobs:
         run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
 
       - name: Test
-        working-directory: ${{ steps.strings.outputs.build-output-dir }}
-        run: ctest --build-config ${{ matrix.build_type }}
+        shell: bash
+        run: |
+          ctest --test-dir "${{ steps.strings.outputs.build-output-dir }}/test" --build-config "${{ matrix.build_type }}"
