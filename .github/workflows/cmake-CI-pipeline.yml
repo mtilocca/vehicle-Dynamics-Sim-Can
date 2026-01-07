@@ -39,11 +39,11 @@ jobs:
           echo "=== Where are CTestTestfile.cmake files? ==="
           find "${{ github.workspace }}/build" -name CTestTestfile.cmake -print || true
 
-          echo "=== Does tests/ exist in the repo? ==="
+          echo "=== Does test/ exist in the repo? ==="
           ls -la "${{ github.workspace }}"
-          ls -la "${{ github.workspace }}/tests" || true
+          ls -la "${{ github.workspace }}/test" || true
 
-          echo "=== List tests (ctest -N) ==="
+          echo "=== List test (ctest -N) ==="
           ctest --test-dir "${{ github.workspace }}/build" -N || true
 
       - name: Build
