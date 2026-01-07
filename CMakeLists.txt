@@ -35,5 +35,5 @@ add_subdirectory(src/can)
 include(CTest)  # provides BUILD_TESTING option
 if(BUILD_TESTING AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests")
     enable_testing()
-    add_subdirectory(tests)
+    add_subdirectory(test)
 endif()
