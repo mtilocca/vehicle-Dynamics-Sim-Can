@@ -1,49 +1,54 @@
-# Heavy Mining Truck Configuration
-# Ultra-heavy 180-ton electric mining haul truck
+# XCMG XDE360 Electric Dump Truck Configuration
+# 360-ton electric mining haul truck optimized for Western Australian desert operations
 
 vehicle:
-  name: "Komatsu 980E-5 Electric"
-  description: "180-ton ultra-class mining haul truck with 2.6MW electric drive"
-  manufacturer: "Komatsu"
-  year: 2024
+  name: "XCMG XDE360 Electric"
+  description: "360-ton electric dump truck with dual-motor rear-drive for Pilbara iron ore mining"
+  manufacturer: "XCMG"
+  year: 2025
 
   # Physical dimensions and mass
   geometry:
-    mass_kg: 180000.0                  # 180 tons empty weight
-    wheelbase_m: 5.85                  # Long wheelbase for stability
-    track_width_m: 6.85                # Very wide for mining roads
-    wheel_radius_m: 1.83               # 3.65m diameter tires
+    mass_kg: 220000.0                  # 220 tons empty weight (larger than Komatsu 980E)
+    wheelbase_m: 6.35                  # Extra-long wheelbase for stability under extreme loads
+    track_width_m: 7.20                # Very wide for desert haul roads
+    wheel_radius_m: 1.95               # ~3.9m diameter tires (37.00R57 typical)
 
-  # Electric drivetrain configuration
+  # Electric drivetrain configuration (dual rear AC motors)
   drivetrain:
-    motor_torque_max_nm: 120000.0      # Massive torque for hauling
-    motor_power_max_w: 2600000.0       # 2.6 MW (3,500 hp) power
-    gear_ratio: 25.0                   # Large reduction for torque
-    efficiency: 0.94                   # Large motor efficiency
+    motor_torque_max_nm: 145000.0      # Combined torque from dual rear motors
+    motor_power_max_w: 3200000.0       # 3.2 MW (4,290 hp) total power (higher for desert heat)
+    gear_ratio: 28.0                   # Large reduction for loaded climbing
+    efficiency: 0.93                   # Slightly lower due to dual-motor coordination
 
-  # Braking system
+  # Braking system (dynamic + mechanical)
   brakes:
-    brake_torque_max_nm: 150000.0      # Huge braking capacity
-    regen_efficiency_active: 0.65      # Good regen on downhill (65%)
-    regen_efficiency_coast: 0.02       # Minimal coasting regen (2%)
+    brake_torque_max_nm: 180000.0      # Massive braking for loaded descents
+    regen_efficiency_active: 0.68      # Good regen in WA heat (thermal limited)
+    regen_efficiency_coast: 0.03       # Minimal coasting regen (hot ambient reduces effectiveness)
 
-  # Battery pack specifications
+  # Battery pack specifications (thermal-optimized for 45-50°C ambient)
   battery:
-    capacity_kwh: 1400.0               # Enormous 1.4 MWh pack
-    nominal_voltage_v: 1000.0          # High voltage system (1000V)
-    max_charge_power_kw: 500.0         # 500 kW charging (takes hours)
-    max_discharge_power_kw: 2000.0     # 2 MW peak discharge
-    efficiency_charge: 0.93            # Good efficiency at scale
-    efficiency_discharge: 0.94         # High discharge efficiency
-    min_soc: 0.15                      # Conservative minimum (15%)
-    max_soc: 0.90                      # Conservative maximum (90%)
+    capacity_kwh: 1650.0               # 1.65 MWh pack (larger for longer hauls in Pilbara)
+    nominal_voltage_v: 1200.0          # Higher voltage system (1200V) for efficiency
+    max_charge_power_kw: 600.0         # 600 kW fast charging (limited by desert heat)
+    max_discharge_power_kw: 2400.0     # 2.4 MW peak discharge (thermal derating considered)
+    efficiency_charge: 0.91            # Lower due to extreme cooling requirements
+    efficiency_discharge: 0.93         # Lower due to thermal management overhead
+    min_soc: 0.18                      # Conservative for battery longevity in heat
+    max_soc: 0.88                      # Conservative max to prevent thermal issues
 
-  # Resistive forces
+  # Resistive forces (desert conditions)
   resistance:
-    drag_coefficient: 1.85             # Poor aerodynamics (large frontal area)
-    rolling_resistance: 8000.0         # High rolling resistance (8 kN)
+    drag_coefficient: 1.95             # Worse aero than Komatsu (Chinese design philosophy)
+    rolling_resistance: 9500.0         # Higher due to red iron ore dust, soft top layer (9.5 kN)
 
-  # Operational limits
+  # Operational limits (Western Australian mining environment)
   limits:
-    v_max_mps: 20.0                    # 72 km/h (45 mph) top speed
-    v_stop_eps: 0.5                    # Coarse stop detection for heavy vehicle
+    v_max_mps: 18.5                    # 66.6 km/h (slightly lower for safety on dusty roads)
+    v_stop_eps: 0.6                    # Coarser stop detection for ultra-heavy vehicle
+
+# XCMG-Specific Notes:
+# - Dual rear AC motors with differential coordination (not modeled yet, treated as single unit)
+# - Rigid frame rear-drive (all propulsion through rear axle)
+# - Front axle: passive load-bearing only, no drive
