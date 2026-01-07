@@ -12,27 +12,43 @@ target_include_directories(sim_main PRIVATE
     ${CMAKE_SOURCE_DIR}/src
 )
 
-# ---- Lua (preferred: pkg-config) ----
-find_package(PkgConfig REQUIRED)
+# ---- Lua ----
+# On Windows (vcpkg), prefer CMake's find_package(Lua).
+# On Unix, prefer pkg-config lua5.4/lua5.3.
+if(WIN32)
+    find_package(Lua REQUIRED)
+    message(STATUS "Found Lua via find_package: ${LUA_VERSION_STRING}")
 
-# Try Lua 5.4 first, then 5.3
-pkg_check_modules(LUA54 QUIET lua5.4)
-pkg_check_modules(LUA53 QUIET lua5.3)
+    # CMake's FindLua typically sets LUA_INCLUDE_DIR and LUA_LIBRARIES
+    if(DEFINED LUA_INCLUDE_DIR)
+        target_include_directories(sim_main PRIVATE ${LUA_INCLUDE_DIR})
+    endif()
 
-if (LUA54_FOUND)
-    target_include_directories(sim_main PRIVATE ${LUA54_INCLUDE_DIRS})
-    target_link_libraries(sim_main PRIVATE ${LUA54_LIBRARIES})
-    target_compile_options(sim_main PRIVATE ${LUA54_CFLAGS_OTHER})
-elseif (LUA53_FOUND)
-    target_include_directories(sim_main PRIVATE ${LUA53_INCLUDE_DIRS})
-    target_link_libraries(sim_main PRIVATE ${LUA53_LIBRARIES})
-    target_compile_options(sim_main PRIVATE ${LUA53_CFLAGS_OTHER})
+    if(DEFINED LUA_LIBRARIES)
+        target_link_libraries(sim_main PRIVATE ${LUA_LIBRARIES})
+    endif()
 else()
-    message(FATAL_ERROR "Lua not found via pkg-config (lua5.4 or lua5.3). Install liblua5.4-dev or liblua5.3-dev.")
+    find_package(PkgConfig REQUIRED)
+
+    # Try Lua 5.4 first, then 5.3
+    pkg_check_modules(LUA54 QUIET lua5.4)
+    pkg_check_modules(LUA53 QUIET lua5.3)
+
+    if(LUA54_FOUND)
+        target_include_directories(sim_main PRIVATE ${LUA54_INCLUDE_DIRS})
+        target_link_libraries(sim_main PRIVATE ${LUA54_LIBRARIES})
+        target_compile_options(sim_main PRIVATE ${LUA54_CFLAGS_OTHER})
+    elseif(LUA53_FOUND)
+        target_include_directories(sim_main PRIVATE ${LUA53_INCLUDE_DIRS})
+        target_link_libraries(sim_main PRIVATE ${LUA53_LIBRARIES})
+        target_compile_options(sim_main PRIVATE ${LUA53_CFLAGS_OTHER})
+    else()
+        message(FATAL_ERROR "Lua not found via pkg-config (lua5.4 or lua5.3). Install liblua5.4-dev or liblua5.3-dev.")
+    endif()
 endif()
 
 # ---- Link libraries ----
-# Link plant, utils, and NEW: config library
+# Link plant, utils, and config library
 target_link_libraries(sim_main PRIVATE plant utils config)
 
 # ---- CAN support ----
