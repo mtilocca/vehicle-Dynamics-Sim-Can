@@ -30,6 +30,22 @@ jobs:
             -DBUILD_TESTING=ON \
             -S "${{ github.workspace }}"
 
+      - name: Debug CTest setup
+        shell: bash
+        run: |
+          echo "=== BUILD_TESTING in cache ==="
+          grep -E '^BUILD_TESTING:' "${{ github.workspace }}/build/CMakeCache.txt" || true
+
+          echo "=== Where are CTestTestfile.cmake files? ==="
+          find "${{ github.workspace }}/build" -name CTestTestfile.cmake -print || true
+
+          echo "=== Does tests/ exist in the repo? ==="
+          ls -la "${{ github.workspace }}"
+          ls -la "${{ github.workspace }}/tests" || true
+
+          echo "=== List tests (ctest -N) ==="
+          ctest --test-dir "${{ github.workspace }}/build" -N || true
+
       - name: Build
         shell: bash
         run: |
