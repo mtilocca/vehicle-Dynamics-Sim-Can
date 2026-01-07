@@ -49,7 +49,10 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y libyaml-cpp-dev
+          sudo apt-get install -y \
+            pkg-config \
+            libyaml-cpp-dev \
+            liblua5.4-dev
 
       # --- Dependencies (Windows via vcpkg) ---
       - name: Setup vcpkg (Windows)
@@ -57,7 +60,7 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           runVcpkgInstall: true
-          vcpkgArguments: "yaml-cpp"
+          vcpkgArguments: "yaml-cpp lua"
 
       - name: Configure CMake
         shell: bash
