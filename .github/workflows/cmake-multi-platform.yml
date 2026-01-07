@@ -91,6 +91,7 @@ jobs:
           -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
           -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DBUILD_TESTING=ON
           -S "${{ github.workspace }}"
 
       - name: Configure CMake (Windows)
@@ -101,6 +102,7 @@ jobs:
           cmake -B "${{ steps.strings.outputs.build-output-dir }}" `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake" `
             -DPKG_CONFIG_EXECUTABLE="$env:PKG_CONFIG_EXECUTABLE" `
+            -DBUILD_TESTING=ON `
             -S "${{ github.workspace }}"
 
       # -------------------------
@@ -112,4 +114,6 @@ jobs:
       - name: Test
         shell: bash
         run: |
-          ctest --test-dir "${{ steps.strings.outputs.build-output-dir }}/test" --build-config "${{ matrix.build_type }}"
+          ctest --test-dir "${{ steps.strings.outputs.build-output-dir }}" \
+                --build-config "${{ matrix.build_type }}" \
+                --output-on-failure
