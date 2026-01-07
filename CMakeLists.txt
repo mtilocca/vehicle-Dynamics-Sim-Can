@@ -27,13 +27,23 @@ include_directories(
 # Core libraries (build order matters due to dependencies)
 add_subdirectory(utils)
 add_subdirectory(src/plant)
-add_subdirectory(src/config)     # NEW: Config library (depends on plant, utils)
+add_subdirectory(src/config)     # Config library (depends on plant, utils)
 add_subdirectory(src/sim)
 add_subdirectory(src/can)
 
-# Optional: Tests
-include(CTest)  # provides BUILD_TESTING option
-if(BUILD_TESTING AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests")
-    enable_testing()
-    add_subdirectory(test)
+# ============================================================================
+# Testing
+# ============================================================================
+
+# Enable CTest support
+include(CTest)  # Provides BUILD_TESTING option (defaults to ON)
+
+# Add test directory if it exists and BUILD_TESTING is ON
+if(BUILD_TESTING)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test")
+        enable_testing()
+        add_subdirectory(test)
+    else()
+        message(WARNING "BUILD_TESTING is ON but test/ directory not found")
+    endif()
 endif()
