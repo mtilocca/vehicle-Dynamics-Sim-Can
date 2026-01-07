@@ -43,7 +43,9 @@ jobs:
         run: |
           echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
-      # --- Dependencies (Linux) ---
+      # -------------------------
+      # Linux dependencies
+      # -------------------------
       - name: Install dependencies (Ubuntu)
         if: runner.os == 'Linux'
         shell: bash
@@ -54,29 +56,52 @@ jobs:
             libyaml-cpp-dev \
             liblua5.4-dev
 
-      # --- Dependencies (Windows via vcpkg) ---
-      - name: Setup vcpkg (Windows)
+      # -------------------------
+      # Windows dependencies (vcpkg classic mode)
+      # -------------------------
+      - name: Setup vcpkg + install deps (Windows)
         if: runner.os == 'Windows'
-        uses: lukka/run-vcpkg@v11
-        with:
-          runVcpkgInstall: true
-          vcpkgArguments: "yaml-cpp lua"
-
-      - name: Configure CMake
-        shell: bash
+        shell: pwsh
         run: |
-          EXTRA_ARGS=""
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            EXTRA_ARGS="-DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
-          fi
+          $ErrorActionPreference = "Stop"
 
-          cmake -B "${{ steps.strings.outputs.build-output-dir }}" \
-            -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
-            -DCMAKE_C_COMPILER=${{ matrix.c_compiler }} \
-            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            ${EXTRA_ARGS} \
+          # Clone vcpkg
+          git clone https://github.com/microsoft/vcpkg "$env:GITHUB_WORKSPACE\vcpkg"
+
+          # Bootstrap
+          & "$env:GITHUB_WORKSPACE\vcpkg\bootstrap-vcpkg.bat"
+
+          # Make vcpkg available to later steps
+          "VCPKG_ROOT=$env:GITHUB_WORKSPACE\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+          # Install dependencies (x64)
+          & "$env:GITHUB_WORKSPACE\vcpkg\vcpkg.exe" install yaml-cpp lua --triplet x64-windows
+
+      # -------------------------
+      # Configure
+      # -------------------------
+      - name: Configure CMake (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: >
+          cmake -B "${{ steps.strings.outputs.build-output-dir }}"
+          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -S "${{ github.workspace }}"
+
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          cmake -B "${{ steps.strings.outputs.build-output-dir }}" `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake" `
             -S "${{ github.workspace }}"
 
+      # -------------------------
+      # Build & Test
+      # -------------------------
       - name: Build
         run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
 
