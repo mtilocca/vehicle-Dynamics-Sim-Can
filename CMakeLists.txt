@@ -26,7 +26,10 @@ add_subdirectory(src/plant)
 add_subdirectory(src/config)     # NEW: Config library (depends on plant, utils)
 add_subdirectory(src/sim)
 add_subdirectory(src/can)
+
 # Optional: Tests
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+include(CTest)  # provides BUILD_TESTING option
+if(BUILD_TESTING AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests")
+    enable_testing()
     add_subdirectory(tests)
 endif()
