@@ -8,8 +8,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Build Configuration
 # ============================================================================
 
-# Compiler warnings
-add_compile_options(-Wall -Wextra -Wpedantic)
+# Compiler warnings (compiler-specific)
+if (MSVC)
+    add_compile_options(/W4 /permissive-)
+else()
+    add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
 
 # Include directories
 include_directories(
