@@ -1,5 +1,5 @@
-// src/sim/sim_app.cpp - WITH CAN RX CLOSED-LOOP SUPPORT
-#include "can/actuator_cmd_decoder.hpp"  // NEW for CAN RX
+// src/sim/sim_app.cpp - WITH CAN RX CLOSED-LOOP SUPPORT AND INFLUXDB
+#include "can/actuator_cmd_decoder.hpp"
 #include "sim/sim_app.hpp"
 #include "sim/actuator_cmd.hpp"
 #include "sim/plant_state_packer.hpp"
@@ -12,6 +12,7 @@
 #include "can/can_codec.hpp"
 #include "plant/plant_model.hpp"
 #include "utils/logging.hpp"
+#include "utils/influx.hpp"  // NEW for InfluxDB logging
 
 #include <chrono>
 #include <cmath>
@@ -131,6 +132,36 @@ int SimApp::run_plant_only() {
     sensors::SensorBank sensor_bank(sensor_cfg);
     LOG_INFO("[Sensors] Initialized %zu sensors", sensor_bank.sensor_count());
 
+    // ========================================================================
+    // InfluxDB setup (NEW)
+    // ========================================================================
+    std::unique_ptr<utils::InfluxClient> influx_client;
+    
+    // Validation: InfluxDB requires real-time mode
+    if (cfg_.enable_influx && !cfg_.real_time_mode) {
+        LOG_WARN("[InfluxDB] InfluxDB logging requires --real-time mode. Disabling InfluxDB.");
+        cfg_.enable_influx = false;
+    }
+    
+    if (cfg_.enable_influx) {
+        try {
+            utils::InfluxClient::Config influx_config;
+            influx_config.enabled = true;
+            influx_config.url = cfg_.influx_url;
+            influx_config.token = cfg_.influx_token;
+            influx_config.org = cfg_.influx_org;
+            influx_config.bucket = cfg_.influx_bucket;
+            influx_config.write_interval_s = cfg_.influx_interval_s;
+            
+            influx_client = std::make_unique<utils::InfluxClient>(influx_config);
+            LOG_INFO("[InfluxDB] Logging enabled");
+        } catch (const std::exception& e) {
+            LOG_ERROR("[InfluxDB] Failed to initialize client: %s", e.what());
+            LOG_WARN("[InfluxDB] Continuing without InfluxDB logging");
+            cfg_.enable_influx = false;
+        }
+    }
+
     // ---- CSV logging ----
     std::ofstream csv(cfg_.csv_log_path);
     if (!csv) {
@@ -138,29 +169,22 @@ int SimApp::run_plant_only() {
         return 1;
     }
 
-    // CSV header with TRUTH and MEASURED columns (ALL SENSORS)
+    // CSV header
     csv << "t_s,"
-        // Truth
         << "x_m,y_m,yaw_deg,v_mps,steer_deg,"
         << "delta_fl_deg,delta_fr_deg,motor_nm,brake_pct,"
         << "batt_soc_truth,batt_v_truth,batt_i_truth,"
         << "wheel_fl_rps_truth,wheel_fr_rps_truth,wheel_rl_rps_truth,wheel_rr_rps_truth,"
         << "motor_power_kW,regen_power_kW,brake_force_kN,"
-        // Battery sensors
         << "batt_soc_meas,batt_v_meas,batt_i_meas,batt_temp_meas,"
-        // Wheel sensors
         << "wheel_fl_rps_meas,wheel_fr_rps_meas,wheel_rl_rps_meas,wheel_rr_rps_meas,"
-        // IMU sensors - 6-DOF
         << "imu_gx_rps,imu_gy_rps,imu_gz_rps,"
         << "imu_ax_mps2,imu_ay_mps2,imu_az_mps2,"
         << "imu_temp_c,imu_status,"
-        // GNSS sensors
         << "gnss_lat_deg,gnss_lon_deg,gnss_alt_m,"
         << "gnss_vn_mps,gnss_ve_mps,"
         << "gnss_fix_type,gnss_sat_count,"
-        // Radar sensors
         << "radar_target_range_m,radar_target_rel_vel_mps,radar_target_angle_deg,radar_status,"
-        // Timing
         << "loop_time_us,wall_time_s,time_drift_ms\n";
     
     csv << std::fixed << std::setprecision(6);
@@ -177,14 +201,14 @@ int SimApp::run_plant_only() {
     double next_log = 0.0;
 
     // ========================================================================
-    // CAN setup with SENSOR frames (TX)
+    // CAN setup
     // ========================================================================
     can::SocketCanIface can_iface;
     can::TxScheduler tx_scheduler;
     can::CanMap can_map;
     bool can_ready = false;
 
-    if (cfg_.enable_can_tx || cfg_.enable_can_rx) {  // Open CAN if either TX or RX enabled
+    if (cfg_.enable_can_tx || cfg_.enable_can_rx) {
         if (can_map.load(cfg_.can_map_path)) {
             if (can_iface.open(cfg_.can_interface)) {
                 if (cfg_.enable_can_tx) {
@@ -204,10 +228,10 @@ int SimApp::run_plant_only() {
     }
 
     // ========================================================================
-    // CAN RX setup (NEW - for closed-loop control)
+    // CAN RX setup
     // ========================================================================
     std::unique_ptr<can::ActuatorCmdDecoder> can_rx_decoder;
-    double last_can_rx_time = -999.0;  // Track last successful RX
+    double last_can_rx_time = -999.0;
     bool can_rx_active = false;
     
     if (cfg_.enable_can_rx) {
@@ -231,7 +255,7 @@ int SimApp::run_plant_only() {
     }
 
     // ========================================================================
-    // Lua scenario setup (disabled if CAN RX active)
+    // Lua scenario setup
     // ========================================================================
     if (cfg_.use_lua_scenario && !can_rx_active) {
         if (!lua_.init(cfg_.lua_script_path, cfg_.scenario_json_path)) {
@@ -256,6 +280,13 @@ int SimApp::run_plant_only() {
         LOG_INFO("Mode: OPEN-LOOP (hardcoded defaults)");
     }
     
+    if (influx_client && influx_client->is_enabled()) {
+        LOG_INFO("InfluxDB: Logging at %.0fms intervals to %s/%s", 
+                 cfg_.influx_interval_s * 1000.0,
+                 cfg_.influx_org.c_str(), 
+                 cfg_.influx_bucket.c_str());
+    }
+    
     timer.reset();
 
     for (int iter = 0; (max_iters == 0) || (iter < max_iters); ++iter) {
@@ -263,26 +294,20 @@ int SimApp::run_plant_only() {
         const double t = cfg_.real_time_mode ? timer.get_sim_time() : (iter * dt);
 
         // ====================================================================
-        // Generate actuator command (CAN RX or Lua or defaults)
+        // Generate actuator command
         // ====================================================================
         
         if (can_rx_active && can_rx_decoder) {
-            // ----------------------------------------------------------------
-            // CLOSED-LOOP MODE: Read actuator commands from CAN
-            // ----------------------------------------------------------------
-            
-            // Poll CAN for new messages (non-blocking, may get multiple frames)
+            // CLOSED-LOOP MODE
             struct can_frame rx_frame;
             bool got_new_command = false;
             int frames_read = 0;
             
-            // Read all available frames (get most recent)
             while (can_iface.read_nonblocking(rx_frame)) {
                 frames_read++;
                 if (can_rx_decoder->decode(rx_frame, cmd, t)) {
                     last_can_rx_time = t;
                     got_new_command = true;
-                    // Continue reading to get latest message if multiple queued
                 }
             }
             
@@ -290,21 +315,17 @@ int SimApp::run_plant_only() {
                 LOG_TRACE("CAN RX: Read %d frames at t=%.3f (using latest)", frames_read, t);
             }
             
-            // Check for timeout (no messages received recently)
             const double time_since_last_rx = t - last_can_rx_time;
             if (time_since_last_rx > cfg_.can_rx_timeout_s) {
-                // SAFETY: Timeout detected - use safe defaults
-                if (got_new_command || (iter % 1000 == 0)) {  // Log periodically
+                if (got_new_command || (iter % 1000 == 0)) {
                     LOG_WARN("[t=%.2f] CAN RX timeout (%.2fs since last msg), entering safe mode",
                              t, time_since_last_rx);
                 }
-                cmd.reset();  // Zero torque, zero brake, zero steer, disabled
+                cmd.reset();
             }
             
         } else if (lua_ready_) {
-            // ----------------------------------------------------------------
-            // OPEN-LOOP MODE: Use Lua scenario
-            // ----------------------------------------------------------------
+            // OPEN-LOOP MODE: Lua
             if (!lua_.get_actuator_cmd(t, s, cmd)) {
                 LOG_WARN("[t=%.2f] Lua get_actuator_cmd failed, using defaults", t);
                 lua_ready_ = false;
@@ -312,9 +333,7 @@ int SimApp::run_plant_only() {
         }
         
         if (!lua_ready_ && !can_rx_active) {
-            // ----------------------------------------------------------------
-            // FALLBACK: Hardcoded default commands
-            // ----------------------------------------------------------------
+            // FALLBACK: Hardcoded
             cmd.drive_torque_cmd_nm = cfg_.motor_torque_nm;
             cmd.brake_cmd_pct = cfg_.brake_pct;
             cmd.steer_cmd_deg = cfg_.steer_amp_deg * 
@@ -322,19 +341,26 @@ int SimApp::run_plant_only() {
         }
 
         // ====================================================================
-        // Step plant (TRUTH)
+        // Step plant
         // ====================================================================
         plant_model.step(s, cmd, dt);
         s.t_s = t;
 
         // ====================================================================
-        // Step sensors (MEASURED)
+        // Step sensors
         // ====================================================================
         sensor_bank.step(t, s, dt);
         auto sensor_out = sensor_bank.get_output(t);
 
         // ====================================================================
-        // CAN TX (send SENSOR data using SensorStatePacker)
+        // Write to InfluxDB (NEW)
+        // ====================================================================
+        if (influx_client && influx_client->is_enabled()) {
+            influx_client->write_data_point(s, sensor_out, cmd, t);
+        }
+
+        // ====================================================================
+        // CAN TX
         // ====================================================================
         if (can_ready && cfg_.enable_can_tx) {
             auto now = std::chrono::steady_clock::now();
@@ -346,31 +372,29 @@ int SimApp::run_plant_only() {
                 frame.can_id = frame_def.frame_id;
                 frame.can_dlc = 8;
                 
-                // Use SensorStatePacker for sensor frames
                 switch (frame_def.frame_id) {
-                    case 0x200:  // IMU_ACC
+                    case 0x200:
                         can::SensorStatePacker::pack_imu_acc(sensor_out, frame.data);
                         break;
-                    case 0x201:  // IMU_GYR
+                    case 0x201:
                         can::SensorStatePacker::pack_imu_gyr(sensor_out, frame.data);
                         break;
-                    case 0x210:  // GNSS_LL
+                    case 0x210:
                         can::SensorStatePacker::pack_gnss_ll(sensor_out, frame.data);
                         break;
-                    case 0x211:  // GNSS_AV
+                    case 0x211:
                         can::SensorStatePacker::pack_gnss_av(sensor_out, frame.data);
                         break;
-                    case 0x220:  // WHEELS_1
+                    case 0x220:
                         can::SensorStatePacker::pack_wheel_speeds(sensor_out, frame.data);
                         break;
-                    case 0x230:  // BATT_STATE
+                    case 0x230:
                         can::SensorStatePacker::pack_battery(sensor_out, frame.data);
                         break;
-                    case 0x240:  // RADAR_1
+                    case 0x240:
                         can::SensorStatePacker::pack_radar(sensor_out, frame.data);
                         break;
                     default:
-                        // Fall back to PlantStatePacker for plant truth frames
                         auto signals = sim::PlantStatePacker::pack(s, frame_def);
                         signals["loop_time_us"] = timer.get_last_loop_time_us();
                         can::CanCodec::encode_from_map(frame_def, signals, frame);
@@ -384,7 +408,7 @@ int SimApp::run_plant_only() {
         timer.update_loop_stats();
 
         // ====================================================================
-        // Log to CSV (TRUTH + ALL MEASURED)
+        // Log to CSV
         // ====================================================================
         if (t >= next_log) {
             double steer_deg = s.steer_virtual_rad * 180.0 / M_PI;
@@ -393,7 +417,6 @@ int SimApp::run_plant_only() {
             double yaw_deg = s.yaw_rad * 180.0 / M_PI;
             
             csv << s.t_s << ","
-                // Truth
                 << s.x_m << "," << s.y_m << "," << yaw_deg << ","
                 << s.v_mps << "," << steer_deg << ","
                 << delta_fl_deg << "," << delta_fr_deg << ","
@@ -402,26 +425,20 @@ int SimApp::run_plant_only() {
                 << s.wheel_fl_rps << "," << s.wheel_fr_rps << "," 
                 << s.wheel_rl_rps << "," << s.wheel_rr_rps << ","
                 << s.motor_power_kW << "," << s.regen_power_kW << "," << s.brake_force_kN << ","
-                // Battery measured
                 << sensor_out.batt_soc_meas << "," << sensor_out.batt_v_meas << "," 
                 << sensor_out.batt_i_meas << "," << sensor_out.batt_temp_meas << ","
-                // Wheel measured
                 << sensor_out.wheel_fl_rps_meas << "," << sensor_out.wheel_fr_rps_meas << ","
                 << sensor_out.wheel_rl_rps_meas << "," << sensor_out.wheel_rr_rps_meas << ","
-                // IMU measured
                 << sensor_out.imu_gx_rps << "," << sensor_out.imu_gy_rps << "," << sensor_out.imu_gz_rps << ","
                 << sensor_out.imu_ax_mps2 << "," << sensor_out.imu_ay_mps2 << "," << sensor_out.imu_az_mps2 << ","
                 << sensor_out.imu_temp_c << "," << static_cast<int>(sensor_out.imu_status) << ","
-                // GNSS measured
                 << sensor_out.gnss_lat_deg << "," << sensor_out.gnss_lon_deg << "," << sensor_out.gnss_alt_m << ","
                 << sensor_out.gnss_vn_mps << "," << sensor_out.gnss_ve_mps << ","
                 << static_cast<int>(sensor_out.gnss_fix_type) << "," << static_cast<int>(sensor_out.gnss_sat_count) << ","
-                // Radar measured
                 << sensor_out.radar_target_range_m << "," 
                 << sensor_out.radar_target_rel_vel_mps << "," 
                 << sensor_out.radar_target_angle_deg << "," 
                 << static_cast<int>(sensor_out.radar_status) << ","
-                // Timing
                 << timer.get_last_loop_time_us() << ","
                 << timer.get_wall_time() << ","
                 << (timer.get_time_drift() * 1000.0) << "\n";
@@ -446,6 +463,12 @@ int SimApp::run_plant_only() {
     // ========================================================================
     // Final statistics and cleanup
     // ========================================================================
+    
+    // Flush InfluxDB (NEW)
+    if (influx_client) {
+        influx_client->flush();
+        LOG_INFO("[InfluxDB] Data flushed");
+    }
     
     // CAN RX summary
     if (can_rx_active) {

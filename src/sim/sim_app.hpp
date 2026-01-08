@@ -42,7 +42,7 @@ struct SimAppConfig {
     std::string can_interface = "vcan0";            // CAN interface name
     std::string can_map_path = "config/can_map.csv"; // Path to CAN map
     
-    // ========== NEW: CAN RX for closed-loop control ==========
+    // ========== CAN RX for closed-loop control ==========
     
     /**
      * Enable CAN RX for closed-loop control
@@ -80,6 +80,55 @@ struct SimAppConfig {
     
     // Vehicle configuration (optional - if not set, uses hardcoded defaults)
     std::optional<plant::PlantModelParams> vehicle_params;
+    
+    // ========== InfluxDB Configuration ==========
+    
+    /**
+     * Enable InfluxDB time-series logging
+     * 
+     * When true:
+     * - Logs all simulation data to InfluxDB at specified interval
+     * - Only works in real-time mode (ignored if real_time_mode = false)
+     * - Uses same field names as CSV logging
+     * 
+     * Organization: Autonomy
+     * Bucket: vehicle-sim
+     * Default write interval: 250ms (4Hz)
+     */
+    bool enable_influx = false;
+    
+    /**
+     * InfluxDB server URL
+     * Default: http://localhost:8086 (local instance)
+     */
+    std::string influx_url = "http://localhost:8086";
+    
+    /**
+     * InfluxDB authentication token
+     * Leave empty for local instances without authentication
+     */
+    std::string influx_token = "";
+    
+    /**
+     * InfluxDB organization name
+     * Default: Autonomy (matches VER Team - Autonomy)
+     */
+    std::string influx_org = "Autonomy";
+    
+    /**
+     * InfluxDB bucket name
+     * Default: vehicle-sim
+     */
+    std::string influx_bucket = "vehicle-sim";
+    
+    /**
+     * InfluxDB write interval in seconds
+     * Default: 0.25 seconds (250ms = 4Hz)
+     * 
+     * Balances data granularity with network overhead.
+     * Higher frequency = more data, more network traffic.
+     */
+    double influx_interval_s = 0.25;
 };
 
 class SimApp {
