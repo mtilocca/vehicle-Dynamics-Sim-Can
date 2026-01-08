@@ -1,70 +1,74 @@
 // utils/influx.hpp
 #pragma once
 
+#include <string>
+#include <memory>
+#include <cstdint>
 #include "plant/plant_state.hpp"
 #include "sensors/sensor_out.hpp"
 #include "sim/actuator_cmd.hpp"
-#include <string>
-#include <memory>
 
 namespace utils {
 
 /**
- * InfluxDB Client for time-series logging of vehicle dynamics simulation
+ * InfluxDB Line Protocol Client for Time-Series Logging
  * 
- * Logs same data as CSV but to InfluxDB for real-time monitoring and analysis.
- * Only enabled when --influx flag is set AND simulation is in real-time mode.
+ * Writes simulation data to InfluxDB v2 using the Line Protocol format over HTTP.
+ * Supports authentication, configurable write intervals, and multiple measurements.
  * 
- * Write interval: 250ms (4Hz) - balances granularity with network overhead
+ * Features:
+ * - Real-time data logging (wall clock timestamps)
+ * - Rate-limited writes (configurable interval)
+ * - Multiple measurements: vehicle_truth, battery_sensors, wheel_sensors, 
+ *   imu_sensors, gnss_sensors, radar_sensors
+ * - HTTP authentication with bearer tokens
+ * - Matching field names with CSV logger
  * 
- * Organization: Autonomy
- * Bucket: vehicle-sim
- * 
- * Measurement schema:
- *   - vehicle_truth: Ground truth plant state
- *   - battery_sensors: Battery sensor measurements
- *   - wheel_sensors: Wheel speed sensor measurements
- *   - imu_sensors: IMU 6-DOF measurements
- *   - gnss_sensors: GNSS position/velocity measurements
- *   - radar_sensors: Radar target tracking measurements
+ * Usage:
+ *   InfluxClient::Config config;
+ *   config.enabled = true;
+ *   config.url = "http://localhost:8086";
+ *   config.token = "your-token";
+ *   config.org = "Autonomy";
+ *   config.bucket = "vehicle-sim";
+ *   config.write_interval_s = 0.25;  // 4Hz
+ *   
+ *   InfluxClient client(config);
+ *   
+ *   // In simulation loop
+ *   client.write_data_point(state, sensor_out, cmd, sim_time);
+ *   
+ *   // At end
+ *   client.flush();
  */
 class InfluxClient {
 public:
     struct Config {
-        std::string url = "http://localhost:8086";  // InfluxDB server URL
-        std::string token = "";                      // Authentication token (optional for local)
-        std::string org = "Autonomy";                // Organization name
-        std::string bucket = "vehicle-sim";          // Bucket name
-        double write_interval_s = 0.25;              // 250ms = 4Hz
-        bool enabled = false;                        // Only enabled with --influx flag
+        bool enabled = false;
+        std::string url = "http://localhost:8086";
+        std::string token = "";  // Empty = no authentication (local only)
+        std::string org = "Autonomy";
+        std::string bucket = "vehicle-sim";
+        double write_interval_s = 0.25;  // 250ms = 4Hz
     };
     
-    /**
-     * Initialize InfluxDB client
-     * 
-     * @param config InfluxDB configuration
-     * @throws std::runtime_error if connection fails
-     */
     explicit InfluxClient(const Config& config);
-    
-    /**
-     * Destructor - flushes any pending writes
-     */
     ~InfluxClient();
     
+    // Delete copy/move to ensure single ownership of CURL handle
+    InfluxClient(const InfluxClient&) = delete;
+    InfluxClient& operator=(const InfluxClient&) = delete;
+    InfluxClient(InfluxClient&&) = delete;
+    InfluxClient& operator=(InfluxClient&&) = delete;
+    
     /**
-     * Write simulation data point to InfluxDB
+     * Write data point to InfluxDB (rate-limited by write_interval_s)
      * 
-     * Only writes if:
-     *   - enabled flag is true
-     *   - simulation is in real-time mode
-     *   - sufficient time has elapsed since last write (write_interval_s)
-     * 
-     * @param state Ground truth plant state
-     * @param sensor_out All sensor measurements
-     * @param cmd Current actuator commands
-     * @param sim_time Current simulation time
-     * @return true if data was written, false if skipped (rate limiting)
+     * @param state Current plant state
+     * @param sensor_out Sensor measurements
+     * @param cmd Actuator commands
+     * @param sim_time Current simulation time (used for rate limiting only)
+     * @return true if write succeeded, false if skipped or failed
      */
     bool write_data_point(const plant::PlantState& state,
                          const sensors::SensorOut& sensor_out,
@@ -72,98 +76,51 @@ public:
                          double sim_time);
     
     /**
-     * Flush any buffered writes immediately
+     * Flush any buffered data (no-op in current implementation)
      */
     void flush();
     
     /**
-     * Check if client is enabled and connected
+     * Check if InfluxDB logging is enabled
      */
     bool is_enabled() const { return config_.enabled; }
     
-    /**
-     * Get current configuration
-     */
-    const Config& get_config() const { return config_; }
-
 private:
     Config config_;
     double last_write_time_;
     
-    // Implementation details hidden (pimpl pattern)
+    // Pimpl idiom to hide CURL implementation details
     struct Impl;
     std::unique_ptr<Impl> impl_;
     
-    /**
-     * Build line protocol string for vehicle truth data
-     * 
-     * Measurement: vehicle_truth
-     * Tags: none (single vehicle simulation)
-     * Fields: All ground truth state variables
-     */
+    // Line protocol builders for each measurement
     std::string build_vehicle_truth_line(const plant::PlantState& state,
-                                         const sim::ActuatorCmd& cmd,
-                                         int64_t timestamp_ns);
+                                        const sim::ActuatorCmd& cmd,
+                                        int64_t timestamp_ns);
     
-    /**
-     * Build line protocol string for battery sensor data
-     * 
-     * Measurement: battery_sensors
-     * Fields: SOC, voltage, current, temperature (truth + measured)
-     */
     std::string build_battery_sensors_line(const plant::PlantState& state,
-                                           const sensors::SensorOut& sensor_out,
-                                           int64_t timestamp_ns);
+                                          const sensors::SensorOut& sensor_out,
+                                          int64_t timestamp_ns);
     
-    /**
-     * Build line protocol string for wheel sensor data
-     * 
-     * Measurement: wheel_sensors
-     * Fields: All 4 wheel speeds (truth + measured)
-     */
     std::string build_wheel_sensors_line(const plant::PlantState& state,
-                                         const sensors::SensorOut& sensor_out,
-                                         int64_t timestamp_ns);
+                                        const sensors::SensorOut& sensor_out,
+                                        int64_t timestamp_ns);
     
-    /**
-     * Build line protocol string for IMU sensor data
-     * 
-     * Measurement: imu_sensors
-     * Fields: 3-axis gyro, 3-axis accel, temperature
-     */
     std::string build_imu_sensors_line(const sensors::SensorOut& sensor_out,
                                        int64_t timestamp_ns);
     
-    /**
-     * Build line protocol string for GNSS sensor data
-     * 
-     * Measurement: gnss_sensors
-     * Fields: lat/lon/alt, velocity NE, fix type, sat count
-     */
     std::string build_gnss_sensors_line(const sensors::SensorOut& sensor_out,
                                         int64_t timestamp_ns);
     
-    /**
-     * Build line protocol string for radar sensor data
-     * 
-     * Measurement: radar_sensors
-     * Fields: target range, relative velocity, angle
-     */
     std::string build_radar_sensors_line(const sensors::SensorOut& sensor_out,
                                          int64_t timestamp_ns);
     
-    /**
-     * Send line protocol data to InfluxDB
-     * 
-     * @param line_protocol Concatenated line protocol strings
-     * @return true if write succeeded, false otherwise
-     */
+    // HTTP communication
     bool send_to_influx(const std::string& line_protocol);
     
-    /**
-     * Convert simulation time to nanosecond timestamp
-     */
-    int64_t sim_time_to_ns(double sim_time_s);
+    // Time conversion utilities
+    int64_t wall_clock_time_ns();      // Get current wall clock time in nanoseconds
+    int64_t sim_time_to_ns(double sim_time_s);  // Convert sim time to ns (deprecated)
 };
 
 } // namespace utils

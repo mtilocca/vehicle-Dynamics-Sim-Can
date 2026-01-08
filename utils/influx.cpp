@@ -1,4 +1,4 @@
-// utils/influx.cpp
+// utils/influx.cpp - IMPROVED VERSION WITH VERBOSE LOGGING
 #include "influx.hpp"
 #include "logging.hpp"
 #include <curl/curl.h>
@@ -7,6 +7,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <cstring>
+#include <chrono>
 
 namespace utils {
 
@@ -77,6 +78,9 @@ InfluxClient::InfluxClient(const Config& config)
     if (!config_.token.empty()) {
         impl_->auth_header = "Authorization: Token " + config_.token;
         impl_->headers = curl_slist_append(impl_->headers, impl_->auth_header.c_str());
+        LOG_INFO("[InfluxDB] Authentication enabled (token configured)");
+    } else {
+        LOG_WARN("[InfluxDB] No authentication token provided - writes may fail!");
     }
     
     // Configure curl
@@ -117,8 +121,9 @@ bool InfluxClient::write_data_point(const plant::PlantState& state,
     
     last_write_time_ = sim_time;
     
-    // Convert simulation time to nanosecond timestamp
-    int64_t timestamp_ns = sim_time_to_ns(sim_time);
+    // Use wall clock time instead of simulation time for InfluxDB
+    // This makes data appear at "now" in InfluxDB UI
+    int64_t timestamp_ns = wall_clock_time_ns();
     
     // Build line protocol for all measurements
     std::ostringstream line_protocol;
@@ -289,7 +294,7 @@ std::string InfluxClient::build_radar_sensors_line(const sensors::SensorOut& sen
 }
 
 // ============================================================================
-// HTTP Communication
+// HTTP Communication - WITH VERBOSE LOGGING
 // ============================================================================
 
 bool InfluxClient::send_to_influx(const std::string& line_protocol) {
@@ -299,7 +304,7 @@ bool InfluxClient::send_to_influx(const std::string& line_protocol) {
     CURLcode res = curl_easy_perform(impl_->curl);
     
     if (res != CURLE_OK) {
-        LOG_ERROR("[InfluxDB] Write failed: %s", curl_easy_strerror(res));
+        LOG_ERROR("[InfluxDB] Write failed: CURL error: %s", curl_easy_strerror(res));
         return false;
     }
     
@@ -307,14 +312,20 @@ bool InfluxClient::send_to_influx(const std::string& line_protocol) {
     curl_easy_getinfo(impl_->curl, CURLINFO_RESPONSE_CODE, &http_code);
     
     if (http_code != 204) {  // InfluxDB returns 204 No Content on success
-        LOG_ERROR("[InfluxDB] Write failed: HTTP %ld", http_code);
+        LOG_ERROR("[InfluxDB] Write failed: HTTP %ld (expected 204)", http_code);
         return false;
     }
     
-    // Success - log occasionally for debugging
+    // Success - log more frequently at INFO level for visibility
     static int write_count = 0;
-    if (++write_count % 100 == 0) {  // Log every 100 writes (~25 seconds at 4Hz)
-        LOG_DEBUG("[InfluxDB] Successfully wrote %d data points", write_count);
+    write_count++;
+    
+    if (write_count == 1) {
+        // Always log first successful write
+        LOG_INFO("[InfluxDB] ✓ First write successful!");
+    } else if (write_count % 20 == 0) {
+        // Log every 20 writes (~5 seconds at 4Hz)
+        LOG_INFO("[InfluxDB] Successfully wrote %d data points", write_count);
     }
     
     return true;
@@ -324,9 +335,19 @@ bool InfluxClient::send_to_influx(const std::string& line_protocol) {
 // Time Conversion
 // ============================================================================
 
+int64_t InfluxClient::wall_clock_time_ns() {
+    // Get current wall clock time in nanoseconds since Unix epoch
+    // This makes data appear at "now" in InfluxDB UI
+    auto now = std::chrono::system_clock::now();
+    auto duration = now.time_since_epoch();
+    auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration);
+    return nanoseconds.count();
+}
+
 int64_t InfluxClient::sim_time_to_ns(double sim_time_s) {
     // Convert simulation time (seconds) to nanoseconds
-    // InfluxDB uses int64 nanosecond timestamps
+    // NOTE: This creates timestamps starting from Unix epoch (1970-01-01)
+    // which won't show up in InfluxDB UI when querying "recent" data
     return static_cast<int64_t>(sim_time_s * 1e9);
 }
 

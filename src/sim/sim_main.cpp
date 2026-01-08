@@ -186,7 +186,7 @@ int main(int argc, char** argv) {
     // InfluxDB defaults
     cfg.enable_influx = false;
     cfg.influx_url = "http://localhost:8086";
-    cfg.influx_token = "";  // Empty = no auth (local only)
+    cfg.influx_token = "";  // 
     cfg.influx_org = "Autonomy";
     cfg.influx_bucket = "vehicle-sim";
     cfg.influx_interval_s = 0.25;  // 250ms = 4Hz
