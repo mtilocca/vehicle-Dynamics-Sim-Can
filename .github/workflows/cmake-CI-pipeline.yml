@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [ "main" ]
 
+  # Manual trigger with a boolean flag
+  workflow_dispatch:
+    inputs:
+      publish_prerelease:
+        description: "Upload built binaries for a new pre-release"
+        type: boolean
+        required: true
+        default: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -56,3 +65,40 @@ jobs:
         run: |
           ctest --test-dir "${{ github.workspace }}/build" \
                 --output-on-failure
+
+      # Package binaries (adjust paths/names to match your actual outputs)
+      - name: Package binaries
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_prerelease }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p dist
+
+          # Example binaries based on your build output earlier:
+          # build/src/sim/sim_main
+          # build/src/can/vcan_listener
+          # build/src/can/vcan_random_sender
+          #
+          # Copy what exists (won't fail if one is missing)
+          for f in \
+            "${{ github.workspace }}/build/src/sim/sim_main" \
+            "${{ github.workspace }}/build/src/can/vcan_listener" \
+            "${{ github.workspace }}/build/src/can/vcan_random_sender"
+          do
+            if [ -f "$f" ]; then
+              cp -v "$f" dist/
+            fi
+          done
+
+          # Include any runtime files you need (optional)
+          # cp -v configs/*.yaml dist/ || true
+
+          tar -czf "vehicle-dynamics-sim-linux-${{ github.sha }}.tar.gz" -C dist .
+
+      - name: Upload binaries artifact
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_prerelease }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: vehicle-dynamics-sim-linux-${{ github.sha }}
+          path: vehicle-dynamics-sim-linux-${{ github.sha }}.tar.gz
+          if-no-files-found: error
