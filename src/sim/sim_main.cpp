@@ -1,12 +1,12 @@
 // src/sim/sim_main.cpp
-// UPDATED: Added CAN RX support with command-line flags
+// UPDATED: Added CAN RX support and InfluxDB logging with command-line flags
 #include "sim/sim_app.hpp"
 #include "config/vehicle_config.hpp"
 #include "utils/logging.hpp"
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <getopt.h>  // NEW for command-line parsing
+#include <getopt.h>
 
 // Parse timing section from JSON (handles both old and new formats)
 bool load_timing_from_json(const std::string& scenario_path, sim::SimAppConfig& cfg) {
@@ -20,23 +20,19 @@ bool load_timing_from_json(const std::string& scenario_path, sim::SimAppConfig& 
     bool found_timing = false;
     
     while (std::getline(file, line)) {
-        // Remove whitespace
         line.erase(0, line.find_first_not_of(" \t\r\n"));
         line.erase(line.find_last_not_of(" \t\r\n") + 1);
         
-        // Check for timing section start (new format)
         if (line.find("\"timing\"") != std::string::npos) {
             in_timing_section = true;
             found_timing = true;
             continue;
         }
         
-        // Check for section end
         if (in_timing_section && line.find("}") != std::string::npos) {
             in_timing_section = false;
         }
         
-        // Parse timing fields
         bool should_parse = in_timing_section || !found_timing;
         
         if (should_parse) {
@@ -126,13 +122,36 @@ void print_usage(const char* prog_name) {
     printf("  --duration SEC        Simulation duration in seconds (default: from JSON)\n");
     printf("  --vehicle PATH        Vehicle config YAML (default: from JSON or built-in)\n");
     printf("  --help, -h            Show this help\n");
+    
+    printf("\nInfluxDB Options:\n");
+    printf("  --influx              Enable InfluxDB time-series logging\n");
+    printf("  --influx-url URL      InfluxDB server URL (default: http://localhost:8086)\n");
+    printf("  --influx-token TOKEN  Authentication token (optional for local)\n");
+    printf("  --influx-org ORG      Organization name (default: Autonomy)\n");
+    printf("  --influx-bucket NAME  Bucket name (default: vehicle-sim)\n");
+    printf("  --influx-interval MS  Write interval in ms (default: 250)\n");
+    printf("\n  Note: InfluxDB logging requires --real-time mode\n");
+    
     printf("\nExamples:\n");
     printf("  # Open-loop with scenario file:\n");
     printf("  %s config/scenarios/slalom.json\n\n", prog_name);
-    printf("  # Closed-loop, wait for CAN commands from external controller:\n");
-    printf("  %s --can-rx --duration 60\n\n", prog_name);
+    
+    printf("  # Real-time with InfluxDB logging:\n");
+    printf("  %s --real-time --influx config/scenarios/slalom.json\n\n", prog_name);
+    
+    printf("  # Custom InfluxDB server with authentication:\n");
+    printf("  %s --real-time --influx --influx-url http://192.168.1.100:8086 \\\n", prog_name);
+    printf("    --influx-token \"mytoken123\" config/scenarios/slalom.json\n\n");
+    
+    printf("  # High-frequency InfluxDB logging (10Hz):\n");
+    printf("  %s --real-time --influx --influx-interval 100 config/scenarios/slalom.json\n\n", prog_name);
+    
+    printf("  # Closed-loop with InfluxDB:\n");
+    printf("  %s --can-rx --real-time --influx --duration 60\n\n", prog_name);
+    
     printf("  # Closed-loop with faster timestep:\n");
     printf("  %s --can-rx --dt 0.001 --duration 30\n\n", prog_name);
+    
     printf("  # Open-loop, fast-forward mode (no real-time):\n");
     printf("  %s --fast config/scenarios/brake_test.json\n\n", prog_name);
 }
@@ -158,29 +177,43 @@ int main(int argc, char** argv) {
     cfg.enable_debug_log_file = true;
 
     cfg.enable_can_tx = true;
-    cfg.enable_can_rx = false;  // NEW: default is open-loop
+    cfg.enable_can_rx = false;
     cfg.can_interface = "vcan0";
     cfg.can_map_path = "config/can_map.csv";
     cfg.actuator_cmd_frame_name = "ACTUATOR_CMD_1";
     cfg.can_rx_timeout_s = 0.5;
     
-    std::string vehicle_config_path = "";  // Empty = try JSON, then defaults
+    // InfluxDB defaults
+    cfg.enable_influx = false;
+    cfg.influx_url = "http://localhost:8086";
+    cfg.influx_token = "";  // Empty = no auth (local only)
+    cfg.influx_org = "Autonomy";
+    cfg.influx_bucket = "vehicle-sim";
+    cfg.influx_interval_s = 0.25;  // 250ms = 4Hz
+    
+    std::string vehicle_config_path = "";
     
     // ========================================================================
-    // Command-line parsing (NEW)
+    // Command-line parsing
     // ========================================================================
     static struct option long_options[] = {
-        {"can-rx",      no_argument,       0, 'r'},
-        {"can-tx",      no_argument,       0, 't'},
-        {"no-can-tx",   no_argument,       0, 'T'},
-        {"can-iface",   required_argument, 0, 'i'},
-        {"can-timeout", required_argument, 0, 'x'},
-        {"real-time",   no_argument,       0, 'R'},
-        {"fast",        no_argument,       0, 'F'},
-        {"dt",          required_argument, 0, 'd'},
-        {"duration",    required_argument, 0, 'D'},
-        {"vehicle",     required_argument, 0, 'v'},
-        {"help",        no_argument,       0, 'h'},
+        {"can-rx",          no_argument,       0, 'r'},
+        {"can-tx",          no_argument,       0, 't'},
+        {"no-can-tx",       no_argument,       0, 'T'},
+        {"can-iface",       required_argument, 0, 'i'},
+        {"can-timeout",     required_argument, 0, 'x'},
+        {"real-time",       no_argument,       0, 'R'},
+        {"fast",            no_argument,       0, 'F'},
+        {"dt",              required_argument, 0, 'd'},
+        {"duration",        required_argument, 0, 'D'},
+        {"vehicle",         required_argument, 0, 'v'},
+        {"influx",          no_argument,       0, 'I'},
+        {"influx-url",      required_argument, 0, 'U'},
+        {"influx-token",    required_argument, 0, 'K'},
+        {"influx-org",      required_argument, 0, 'O'},
+        {"influx-bucket",   required_argument, 0, 'B'},
+        {"influx-interval", required_argument, 0, 'N'},
+        {"help",            no_argument,       0, 'h'},
         {0, 0, 0, 0}
     };
     
@@ -191,7 +224,7 @@ int main(int argc, char** argv) {
         switch (opt) {
             case 'r':
                 cfg.enable_can_rx = true;
-                cfg.use_lua_scenario = false;  // Disable Lua when using CAN RX
+                cfg.use_lua_scenario = false;
                 break;
             case 't':
                 cfg.enable_can_tx = true;
@@ -232,6 +265,28 @@ int main(int argc, char** argv) {
             case 'v':
                 vehicle_config_path = optarg;
                 break;
+            case 'I':
+                cfg.enable_influx = true;
+                break;
+            case 'U':
+                cfg.influx_url = optarg;
+                break;
+            case 'K':
+                cfg.influx_token = optarg;
+                break;
+            case 'O':
+                cfg.influx_org = optarg;
+                break;
+            case 'B':
+                cfg.influx_bucket = optarg;
+                break;
+            case 'N':
+                cfg.influx_interval_s = std::atof(optarg) / 1000.0;
+                if (cfg.influx_interval_s <= 0) {
+                    fprintf(stderr, "Error: Invalid InfluxDB interval: %s\n", optarg);
+                    return 1;
+                }
+                break;
             case 'h':
             default:
                 print_usage(argv[0]);
@@ -239,21 +294,26 @@ int main(int argc, char** argv) {
         }
     }
     
-    // Positional argument: scenario JSON file (only used if NOT in CAN RX mode)
     if (!cfg.enable_can_rx && optind < argc) {
         cfg.scenario_json_path = argv[optind];
     }
     
-    // Validation: Warn if CAN RX without CAN TX
+    // ========================================================================
+    // Validation
+    // ========================================================================
     if (cfg.enable_can_rx && !cfg.enable_can_tx) {
         fprintf(stderr, "Warning: CAN RX enabled without CAN TX - controller won't receive sensor data!\n");
     }
+    
+    if (cfg.enable_influx && !cfg.real_time_mode) {
+        fprintf(stderr, "Warning: InfluxDB logging requires --real-time mode. Disabling InfluxDB.\n");
+        cfg.enable_influx = false;
+    }
 
-    // Configure logging
     utils::set_level(utils::LogLevel::Info);
 
     // ========================================================================
-    // Load timing parameters from JSON scenario file (if not in CAN RX mode)
+    // Load timing and vehicle configuration
     // ========================================================================
     if (!cfg.enable_can_rx) {
         load_timing_from_json(cfg.scenario_json_path, cfg);
@@ -262,10 +322,6 @@ int main(int argc, char** argv) {
                  cfg.real_time_mode ? "true" : "false");
     }
 
-    // ========================================================================
-    // Load vehicle configuration
-    // Priority: 1) Command-line arg, 2) JSON field, 3) Defaults
-    // ========================================================================
     config::VehicleConfig vehicle;
     
     if (!vehicle_config_path.empty()) {
@@ -312,6 +368,18 @@ int main(int argc, char** argv) {
     printf("║ Duration:   %-48s║\n", duration_str);
     printf("║ Real-time:  %-48s║\n", cfg.real_time_mode ? "yes (1:1 wall clock)" : "no (fast-forward)");
     printf("║ Vehicle:    %-48s║\n", vehicle.name.c_str());
+    
+    if (cfg.enable_influx) {
+        char influx_str[100];
+        snprintf(influx_str, sizeof(influx_str), "%s/%s (%.0fms)", 
+                 cfg.influx_org.c_str(), 
+                 cfg.influx_bucket.c_str(),
+                 cfg.influx_interval_s * 1000.0);
+        printf("║ InfluxDB:   %-48s║\n", influx_str);
+    } else {
+        printf("║ InfluxDB:   %-48s║\n", "disabled");
+    }
+    
     printf("╚════════════════════════════════════════════════════════════╝\n");
     printf("\n");
     
@@ -319,6 +387,20 @@ int main(int argc, char** argv) {
         printf("⚠️  CLOSED-LOOP MODE: Waiting for CAN commands on %s\n", cfg.can_interface.c_str());
         printf("    Frame: %s (ID: 0x100)\n", cfg.actuator_cmd_frame_name.c_str());
         printf("    Start your controller now!\n\n");
+    }
+    
+    if (cfg.enable_influx) {
+        printf("📊 InfluxDB: Logging to %s → %s/%s\n", 
+               cfg.influx_url.c_str(),
+               cfg.influx_org.c_str(),
+               cfg.influx_bucket.c_str());
+        if (!cfg.influx_token.empty()) {
+            printf("    Using authentication token: %s...\n", 
+                   cfg.influx_token.substr(0, 8).c_str());
+        } else {
+            printf("    No authentication (local mode)\n");
+        }
+        printf("\n");
     }
 
     // ========================================================================

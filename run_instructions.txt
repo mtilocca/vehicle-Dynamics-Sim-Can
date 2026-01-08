@@ -52,3 +52,16 @@ python3 plot_sim.py heavy_truck_test.csv
 
 
  ./build/src/sim/sim_main --real-time --can-rx --duration 600 --vehicle config/vehicles/heavy_truck.yaml
+
+
+
+ ./build/src/sim/sim_main \
+  --can-rx \
+  --real-time \
+  --duration 600 \
+  --vehicle config/vehicles/heavy_truck.yaml \
+  --influx \
+  --influx-url http://192.168.1.100:8086 \
+  --influx-token "your-secret-token" \
+  --influx-org "Autonomy" \
+  --influx-bucket "heavy-truck-sim"

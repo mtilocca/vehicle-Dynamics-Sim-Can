@@ -48,7 +48,8 @@ else()
 endif()
 
 # ---- Link libraries ----
-# Link plant, utils, and config library
+# Link plant, utils (includes InfluxDB with CURL), and config library
+# Note: utils now includes influx.cpp which requires libcurl
 target_link_libraries(sim_main PRIVATE plant utils config)
 
 # ---- CAN support ----
