@@ -120,7 +120,7 @@ vehicle:
     drivetrain_eff: 0.95
   
   battery:
-    capacity_kWh: 100.0
+    capacity_kwh: 100.0
     nominal_voltage: 400.0
     initial_soc: 0.80
     max_power_kw: 150.0
@@ -221,7 +221,7 @@ vehicle:
   drivetrain:
     motor_power_max_w: 200000.0
   battery:
-    capacity_kWh: 100.0
+    capacity_kwh: 100.0
 )";
     yaml_file.close();
     
