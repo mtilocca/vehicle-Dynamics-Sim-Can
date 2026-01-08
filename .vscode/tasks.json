@@ -1,0 +1,228 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "CMake: Configure",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-B",
+                "${workspaceFolder}/build",
+                "-DCMAKE_BUILD_TYPE=Debug",
+                "-DBUILD_TESTING=ON",
+                "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+                "-S",
+                "${workspaceFolder}"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "CMake: Build All",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build",
+                "--config",
+                "Debug",
+                "-j",
+                "$(nproc)"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "dependsOn": [
+                "CMake: Configure"
+            ]
+        },
+        {
+            "label": "CMake: Build (Release)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-B",
+                "${workspaceFolder}/build",
+                "-DCMAKE_BUILD_TYPE=Release",
+                "-DBUILD_TESTING=ON",
+                "&&",
+                "cmake",
+                "--build",
+                "${workspaceFolder}/build",
+                "--config",
+                "Release",
+                "-j",
+                "$(nproc)"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "CMake: Clean",
+            "type": "shell",
+            "command": "rm",
+            "args": [
+                "-rf",
+                "${workspaceFolder}/build"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "CMake: Rebuild",
+            "dependsOn": [
+                "CMake: Clean",
+                "CMake: Build All"
+            ],
+            "dependsOrder": "sequence",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "CTest: Run All Tests",
+            "type": "shell",
+            "command": "cd ${workspaceFolder}/build && ctest --output-on-failure --verbose",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": [],
+            "dependsOn": [
+                "CMake: Build All"
+            ]
+        },
+        {
+            "label": "CTest: Run Specific Test",
+            "type": "shell",
+            "command": "cd ${workspaceFolder}/build && ctest -R ${input:testName} --output-on-failure --verbose",
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Run: sim_main",
+            "type": "shell",
+            "command": "${workspaceFolder}/build/src/sim/sim_main",
+            "args": [
+                "${input:scenarioPath}"
+            ],
+            "group": "none",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            },
+            "problemMatcher": [],
+            "dependsOn": [
+                "CMake: Build All"
+            ]
+        },
+        {
+            "label": "Run: vcan_listener",
+            "type": "shell",
+            "command": "${workspaceFolder}/build/src/can/vcan_listener",
+            "args": [
+                "vcan0",
+                "${workspaceFolder}/config/can_map.csv",
+                "--decode-tx",
+                "--live"
+            ],
+            "group": "none",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated"
+            },
+            "problemMatcher": [],
+            "dependsOn": [
+                "CMake: Build All"
+            ]
+        },
+        {
+            "label": "Debug: Current Test File",
+            "type": "shell",
+            "command": "${workspaceFolder}/build/test/${fileBasenameNoExtension}",
+            "args": [],
+            "group": "none",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            },
+            "problemMatcher": [],
+            "dependsOn": [
+                "CMake: Build All"
+            ]
+        }
+    ],
+    "inputs": [
+        {
+            "id": "testName",
+            "type": "pickString",
+            "description": "Select test to run",
+            "options": [
+                "plant_state_packer",
+                "subsystem_manager",
+                "vehicle_config",
+                "can_codec",
+                "sensor_packer"
+            ],
+            "default": "plant_state_packer"
+        },
+        {
+            "id": "scenarioPath",
+            "type": "pickString",
+            "description": "Select scenario to run",
+            "options": [
+                "config/scenarios/brake_test.json",
+                "config/scenarios/acceleration_test.json",
+                "config/scenarios/step_steer_test.json"
+            ],
+            "default": "config/scenarios/brake_test.json"
+        }
+    ]
+}
