@@ -80,6 +80,25 @@ target_link_libraries(test_sensor_packer PRIVATE utils)
 # Note: sensor_state_packer.hpp is header-only, no .cpp needed
 
 # ============================================================================
+# Test 6: Influx client connection - logging testing 
+# ============================================================================
+
+add_executable(test_influx_client
+    test_influx_client.cpp
+)
+
+target_include_directories(test_influx_client PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(test_influx_client PRIVATE
+    utils
+    plant
+    config
+)
+
+# ============================================================================
 # Register all tests with CTest
 # ============================================================================
 
@@ -112,3 +131,8 @@ add_test(NAME sensor_packer
     COMMAND test_sensor_packer
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/test
 )
+
+# Test 6: Influx client 
+add_test(NAME test_influx_client
+         COMMAND test_influx_client
+         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
