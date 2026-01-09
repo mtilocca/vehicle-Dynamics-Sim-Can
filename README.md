@@ -674,11 +674,6 @@ Internal R&D project
 
 ---
 
-## Contact
-
-**Mario Tilocca**  
-
-
----
+*This simulation framework demonstrates expertise in vehicle dynamics, sensor fusion, real-time systems, and autonomous vehicle development.*
 
 *This simulation framework demonstrates expertise in vehicle dynamics, sensor fusion, real-time systems, time-series data management, and autonomous vehicle development.*
