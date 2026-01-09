@@ -1,11 +1,9 @@
 name: CMake (Ubuntu)
-
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-
   # Manual trigger with a boolean flag
   workflow_dispatch:
     inputs:
@@ -18,10 +16,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
+      
       - name: Install dependencies (Ubuntu)
         shell: bash
         run: |
@@ -29,8 +26,9 @@ jobs:
           sudo apt-get install -y \
             pkg-config \
             libyaml-cpp-dev \
-            liblua5.4-dev
-
+            liblua5.4-dev \
+            libcurl4-openssl-dev
+      
       - name: Configure CMake
         shell: bash
         run: |
@@ -38,34 +36,31 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=ON \
             -S "${{ github.workspace }}"
-
+      
       - name: Debug CTest setup
         shell: bash
         run: |
           echo "=== BUILD_TESTING in cache ==="
           grep -E '^BUILD_TESTING:' "${{ github.workspace }}/build/CMakeCache.txt" || true
-
           echo "=== Where are CTestTestfile.cmake files? ==="
           find "${{ github.workspace }}/build" -name CTestTestfile.cmake -print || true
-
           echo "=== Does test/ exist in the repo? ==="
           ls -la "${{ github.workspace }}"
           ls -la "${{ github.workspace }}/test" || true
-
           echo "=== List test (ctest -N) ==="
           ctest --test-dir "${{ github.workspace }}/build" -N || true
-
+      
       - name: Build
         shell: bash
         run: |
           cmake --build "${{ github.workspace }}/build" --config Release
-
+      
       - name: Test
         shell: bash
         run: |
           ctest --test-dir "${{ github.workspace }}/build" \
                 --output-on-failure
-
+      
       # Package binaries (adjust paths/names to match your actual outputs)
       - name: Package binaries
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_prerelease }}
@@ -73,28 +68,33 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p dist
-
-          # Example binaries based on your build output earlier:
-          # build/src/sim/sim_main
-          # build/src/can/vcan_listener
-          # build/src/can/vcan_random_sender
-          #
-          # Copy what exists (won't fail if one is missing)
-          for f in \
-            "${{ github.workspace }}/build/src/sim/sim_main" \
-            "${{ github.workspace }}/build/src/can/vcan_listener" \
-            "${{ github.workspace }}/build/src/can/vcan_random_sender"
-          do
-            if [ -f "$f" ]; then
-              cp -v "$f" dist/
-            fi
-          done
-
-          # Include any runtime files you need (optional)
-          # cp -v configs/*.yaml dist/ || true
-
+          
+          # Main simulation binary
+          if [ -f "${{ github.workspace }}/build/src/sim/sim_main" ]; then
+            cp -v "${{ github.workspace }}/build/src/sim/sim_main" dist/
+          fi
+          
+          # CAN utilities
+          if [ -f "${{ github.workspace }}/build/src/can/vcan_listener" ]; then
+            cp -v "${{ github.workspace }}/build/src/can/vcan_listener" dist/
+          fi
+          
+          if [ -f "${{ github.workspace }}/build/src/can/vcan_random_sender" ]; then
+            cp -v "${{ github.workspace }}/build/src/can/vcan_random_sender" dist/
+          fi
+          
+          # Include config files if they exist
+          if [ -d "config" ]; then
+            cp -rv config dist/ || true
+          fi
+          
+          # Create tarball
           tar -czf "vehicle-dynamics-sim-linux-${{ github.sha }}.tar.gz" -C dist .
-
+          
+          # Verify tarball contents
+          echo "=== Tarball contents ==="
+          tar -tzf "vehicle-dynamics-sim-linux-${{ github.sha }}.tar.gz"
+      
       - name: Upload binaries artifact
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_prerelease }}
         uses: actions/upload-artifact@v4
