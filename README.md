@@ -1,13 +1,13 @@
 # Electric Vehicle Dynamics Simulation Framework
 
 **Author:** Mario Tilocca  
-**Purpose:** High-fidelity vehicle dynamics simulation for Electric Autonomous Vehicles
+**Purpose:** High-fidelity vehicle dynamics simulation for Electric Autonomous Vehicles with real-time telemetry
 
 ---
 
 ## Overview
 
-This repository implements a comprehensive **Software-in-the-Loop (SIL)** simulation framework for electric vehicle dynamics, designed to support autonomous mining vehicle development. The system features deterministic physics models, realistic sensor simulation with validated noise characteristics, and industry-standard CAN bus integration.
+This repository implements a comprehensive **Software-in-the-Loop (SIL)** simulation framework for electric vehicle dynamics, designed to support autonomous mining vehicle development. The system features deterministic physics models, realistic sensor simulation with validated noise characteristics, industry-standard CAN bus integration, and **real-time InfluxDB telemetry** for live monitoring and analysis.
 
 ### Key Capabilities
 
@@ -17,6 +17,7 @@ This repository implements a comprehensive **Software-in-the-Loop (SIL)** simula
 - ✅ **5 sensor types** with realistic noise models (Battery, Wheel Speed, IMU, GNSS, Radar)
 - ✅ **CAN bus integration** broadcasting 7 frames at 10-100 Hz update rates
 - ✅ **Closed-loop control** via CAN RX for hardware-in-the-loop (HIL) readiness
+- ✅ **Real-time InfluxDB telemetry** - Time-series data logging with wall-clock timestamps
 - ✅ **Visitor pattern architecture** enabling scalable subsystem development
 - ✅ **ML-ready sensor data** with CSV logging for algorithm training
 
@@ -26,6 +27,7 @@ This repository implements a comprehensive **Software-in-the-Loop (SIL)** simula
 2. **Control System Validation** - Closed-loop testing with external controllers
 3. **Mining Vehicle Simulation** - XCMG electric dump trucks in WA desert environments
 4. **Hardware-in-the-Loop (HIL)** preparation - CAN-based actuator/sensor interfaces
+5. **Real-time Fleet Monitoring** - InfluxDB + Grafana dashboards for live telemetry
 
 ---
 
@@ -38,6 +40,7 @@ flowchart TB
     subgraph Input["Input Layer"]
         JSON[JSON Scenario]
         CANRX[CAN RX Commands]
+        YAML[Vehicle Config YAML]
     end
     
     subgraph Core["Simulation Core"]
@@ -49,18 +52,25 @@ flowchart TB
     subgraph Output["Output Layer"]
         CANTX[CAN TX Frames]
         CSV[CSV Data Log]
+        INFLUX[InfluxDB Time-Series]
+        GRAFANA[Grafana Dashboards]
     end
     
     JSON --> LUA
+    YAML --> PLANT
     CANRX -.-> PLANT
     LUA --> PLANT
     PLANT --> SENSORS
     SENSORS --> CANTX
     SENSORS --> CSV
+    SENSORS --> INFLUX
+    INFLUX --> GRAFANA
     
     style PLANT fill:#4CAF50
     style SENSORS fill:#2196F3
     style CANTX fill:#FF9800
+    style INFLUX fill:#9C27B0
+    style GRAFANA fill:#E91E63
 ```
 
 ### Subsystem Architecture
@@ -95,6 +105,23 @@ flowchart LR
 
 ## Quick Start
 
+### Prerequisites
+
+```bash
+# Install dependencies (Ubuntu/Debian)
+sudo apt-get update
+sudo apt-get install -y \
+    build-essential \
+    cmake \
+    pkg-config \
+    libyaml-cpp-dev \
+    liblua5.4-dev \
+    libcurl4-openssl-dev
+
+# Optional: InfluxDB for real-time telemetry
+# See https://docs.influxdata.com/influxdb/v2/install/
+```
+
 ### Build
 
 ```bash
@@ -102,31 +129,91 @@ flowchart LR
 ./build.sh
 
 # Setup virtual CAN interface (required for CAN TX/RX)
-sudo ./config/set-upvcan0.sh
+sudo ./config/setup-vcan0.sh
 ```
 
 ### Run Open-Loop Simulation
 
 ```bash
-# Run with scenario file
+# Basic simulation with scenario file
 ./build/src/sim/sim_main config/scenarios/slalom.json
 
-# Visualize vehicle dynamics
-python3 sim_plotter.py sim_out.csv
+# With specific vehicle configuration
+./build/src/sim/sim_main \
+  --vehicle config/vehicles/heavy_truck.yaml \
+  config/scenarios/slalom.json
 
-# Analyze sensor performance
-python3 sensor_analysis.py sim_out.csv
+# Fast-forward mode (no real-time pacing)
+./build/src/sim/sim_main --fast config/scenarios/brake_test.json
+
+# Real-time mode with InfluxDB logging
+./build/src/sim/sim_main \
+  --real-time \
+  --influx \
+  --influx-token "YOUR_INFLUXDB_TOKEN" \
+  config/scenarios/slalom.json
 ```
 
 ### Run Closed-Loop Simulation
 
+#### Option 1: Manual (Two Terminals)
+
 ```bash
 # Terminal 1: Start simulator (waits for CAN commands)
-./build/src/sim/sim_main --can-rx --duration 60 --real-time
+./build/src/sim/sim_main \
+  --can-rx \
+  --real-time \
+  --duration 600 \
+  --vehicle config/vehicles/heavy_truck.yaml
 
 # Terminal 2: Start external controller (Go-based)
 cd closed_loop
-go run . --scenario slalom --interface vcan0
+go run . scenarios/pid_velocity_tracking.json
+```
+
+#### Option 2: Interactive Script (Recommended)
+
+```bash
+# One-command setup with InfluxDB integration
+./run_closed_loop_influx.sh
+
+# The script will prompt for:
+# - Duration (default: 600s)
+# - InfluxDB URL (default: http://localhost:8086)
+# - InfluxDB Token (required for authentication)
+# - Organization (default: Autonomy)
+# - Bucket (default: vehicle-sim)
+# - Write interval (default: 250ms)
+```
+
+**Example interactive session:**
+```
+Duration (seconds) [600]: 1200
+InfluxDB URL [http://localhost:8086]: 
+InfluxDB Token (required): ************
+✓ Token validated
+Organization [Autonomy]: 
+Bucket [vehicle-sim]: heavy-truck-test
+Write interval in ms [500]: 250
+
+Starting simulation (duration: 1200s)...
+Remember to start your controller in another terminal!
+```
+
+### Visualize Results
+
+```bash
+# Plot vehicle dynamics from CSV
+python3 sim_plotter.py sim_out.csv
+
+# Analyze sensor performance
+python3 sensor_analysis.py sim_out.csv
+
+# View InfluxDB data (if using telemetry)
+firefox http://localhost:8086
+
+# Verify InfluxDB data
+./verify_influx_data.sh
 ```
 
 ### Monitor CAN Traffic
@@ -136,7 +223,8 @@ go run . --scenario slalom --interface vcan0
 ./build/src/can/vcan_listener vcan0 config/can_map.csv --decode-tx
 
 # Filter specific frames
-./build/src/can/vcan_listener vcan0 config/can_map.csv --decode-tx --filter=0x200,0x210
+./build/src/can/vcan_listener vcan0 config/can_map.csv \
+  --decode-tx --filter=0x200,0x210
 
 # Raw hex dump
 candump vcan0
@@ -144,17 +232,82 @@ candump vcan0
 
 ---
 
+## InfluxDB Integration
+
+### Overview
+
+Real-time time-series logging to InfluxDB enables:
+- **Live monitoring** of vehicle dynamics during simulation
+- **Historical analysis** with microsecond-precision timestamps
+- **Grafana dashboards** for visual telemetry
+- **Performance benchmarking** across multiple simulation runs
+
+
+**Run simulation with InfluxDB**:
+```bash
+# Using the interactive script (easiest)
+./run_closed_loop_influx.sh
+
+# Or manually
+./build/src/sim/sim_main \
+  --real-time \
+  --influx \
+  --influx-token "YOUR_TOKEN" \
+  --duration 600
+```
+
+### Data Schema
+
+Six measurements logged at configurable intervals (default: 250ms = 4Hz):
+
+| Measurement | Fields (40+) | Description |
+|-------------|--------------|-------------|
+| `vehicle_truth` | x_m, y_m, yaw_deg, v_mps, steer_deg, motor_power_kW, brake_force_kN | Vehicle dynamics ground truth |
+| `battery_sensors` | batt_soc_truth/meas, batt_v_truth/meas, batt_i_truth/meas, batt_temp_meas | Battery state with truth comparison |
+| `wheel_sensors` | wheel_fl/fr/rl/rr_rps_truth/meas | Individual wheel speeds with encoder noise |
+| `imu_sensors` | imu_gx/gy/gz_rps, imu_ax/ay/az_mps2, imu_temp_c | 6-DOF inertial measurements |
+| `gnss_sensors` | gnss_lat/lon_deg, gnss_alt_m, gnss_vn/ve_mps, gnss_fix_type | GPS position and velocity |
+| `radar_sensors` | radar_target_range_m, radar_target_rel_vel_mps, radar_target_angle_deg | Radar target tracking |
+
+### Command-Line Options
+
+```bash
+--influx                          # Enable InfluxDB logging
+--influx-url URL                  # Server URL (default: http://localhost:8086)
+--influx-token TOKEN              # Authentication token (required)
+--influx-org ORG                  # Organization (default: Autonomy)
+--influx-bucket BUCKET            # Bucket name (default: vehicle-sim)
+--influx-interval MS              # Write interval in milliseconds (default: 250)
+```
+
+### Example Queries
+
+```flux
+// Vehicle velocity over last hour
+from(bucket: "vehicle-sim")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r._measurement == "vehicle_truth")
+  |> filter(fn: (r) => r._field == "v_mps")
+
+// Battery SOC comparison (truth vs measured)
+from(bucket: "vehicle-sim")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r._measurement == "battery_sensors")
+  |> filter(fn: (r) => r._field == "batt_soc_truth" or r._field == "batt_soc_meas")
+  |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+```
+
 ## Vehicle Configurations
 
 The framework supports multiple vehicle profiles via YAML configuration:
 
 ### Available Configurations
 
-| Vehicle | Mass | Power | Top Speed | Use Case |
-|---------|------|-------|-----------|----------|
-| **Performance EV** | 2,200 kg | 750 kW | 322 km/h | High-performance testing |
-| **Default EV** | 1,800 kg | 300 kW | 216 km/h | Standard passenger vehicle |
-| **Mining Truck** | 180,000 kg | 2.6 MW | 72 km/h | XCMG heavy-duty operations |
+| Vehicle | Mass | Power | Top Speed | Battery | Use Case |
+|---------|------|-------|-----------|---------|----------|
+| **XCMG XDE360** | 220,000 kg | 3.2 MW | 67 km/h | 1,650 kWh | Heavy-duty mining truck |
+| **Performance EV** | 2,200 kg | 750 kW | 322 km/h | 100 kWh | High-performance testing |
+| **Default EV** | 1,800 kg | 300 kW | 216 km/h | 75 kWh | Standard passenger vehicle |
 
 ### Usage
 
@@ -163,10 +316,18 @@ The framework supports multiple vehicle profiles via YAML configuration:
 ./build/src/sim/sim_main config/scenarios/brake_test.json
 
 # Override with specific vehicle
-./build/src/sim/sim_main config/scenarios/brake_test.json --vehicle config/vehicles/heavy_truck.yaml
+./build/src/sim/sim_main \
+  --vehicle config/vehicles/heavy_truck.yaml \
+  config/scenarios/brake_test.json
 
-# Closed-loop with mining truck
-./build/src/sim/sim_main --can-rx --vehicle config/vehicles/heavy_truck.yaml --duration 600
+# Closed-loop with mining truck + InfluxDB
+./build/src/sim/sim_main \
+  --can-rx \
+  --real-time \
+  --vehicle config/vehicles/heavy_truck.yaml \
+  --influx \
+  --influx-token "YOUR_TOKEN" \
+  --duration 600
 ```
 
 ---
@@ -192,7 +353,14 @@ The framework supports multiple vehicle profiles via YAML configuration:
   <img src="plots/Heavy_truck_mpc_slalom.png" width="100%">
 </p>
 
-*180-ton mining truck with Model Predictive Control during slalom maneuver - validates heavy vehicle dynamics and advanced control algorithms*
+*220-ton mining truck with Model Predictive Control during slalom maneuver - validates heavy vehicle dynamics and advanced control algorithms*
+
+### Real-Time InfluxDB Dashboard
+<p align="center">
+  <img src="plots/influxdb_dashboard_example.png" width="100%">
+</p>
+
+*Live telemetry visualization showing vehicle position, velocity, battery state, and sensor measurements updating in real-time during simulation*
 
 ---
 
@@ -268,31 +436,32 @@ The simulation includes 5 sensor types with noise models validated against indus
 
 ## Machine Learning Readiness
 
-### CSV Data Export for ML Training
+### Dual Export: CSV + InfluxDB
 
-The simulation logs **40+ signals** to CSV format, providing ground truth data for algorithm development:
+The simulation provides **two complementary data export formats**:
+
+1. **CSV** - Perfect for offline ML training, batch processing
+2. **InfluxDB** - Ideal for real-time monitoring, online learning
 
 ```python
 # Example: Load IMU data for EKF training
 import pandas as pd
+from influxdb_client import InfluxDBClient
 
+# Option 1: CSV (offline training)
 data = pd.read_csv('sim_out.csv')
-
-# Ground truth (from plant model)
 true_velocity = data['v_mps'].values
-true_yaw_rate = data['yaw_rate_radps'].values
-
-# IMU measurements (with realistic noise)
 imu_accel_x = data['imu_ax_mps2'].values
-imu_gyro_z = data['imu_gz_rps'].values
 
-# GNSS measurements
-gnss_velocity_n = data['gnss_vn_mps'].values
-gnss_velocity_e = data['gnss_ve_mps'].values
-
-# Train sensor fusion model
-# X_train = [imu_accel_x, imu_gyro_z, gnss_velocity_n, gnss_velocity_e]
-# y_train = [true_velocity, true_yaw_rate]
+# Option 2: InfluxDB (time-series analysis)
+client = InfluxDBClient(url="http://localhost:8086", token="YOUR_TOKEN", org="Autonomy")
+query = '''
+from(bucket: "vehicle-sim")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r._measurement == "imu_sensors")
+  |> filter(fn: (r) => r._field == "imu_ax_mps2")
+'''
+result = client.query_api().query(query)
 ```
 
 ### Supported ML Use Cases
@@ -301,6 +470,7 @@ gnss_velocity_e = data['gnss_ve_mps'].values
 2. **Neural Network Sensor Fusion** - Learn optimal sensor weights
 3. **Anomaly Detection** - Identify sensor failures or degradation
 4. **Predictive Maintenance** - Battery SOC estimation error analysis
+5. **Reinforcement Learning** - Train autonomous driving policies with InfluxDB episodic data
 
 **Key Advantage:** Perfect ground truth available for supervised learning - every measurement has a corresponding truth value.
 
@@ -329,6 +499,7 @@ sequenceDiagram
     participant Controller as Go Controller
     participant CAN as vcan0
     participant Sim as C++ Simulator
+    participant InfluxDB as InfluxDB Server
     
     Note over Sim: Initialize plant, sensors
     
@@ -340,71 +511,42 @@ sequenceDiagram
         CAN->>Sim: Receive actuator command
         Sim->>Sim: Step plant model
     end
+    
+    loop Every 250ms (4 Hz)
+        Sim->>InfluxDB: Write telemetry (all sensors + truth)
+        InfluxDB->>InfluxDB: Store time-series data
+    end
 ```
 
 ---
 
-## Repository Structure
 
+## CI/CD Pipeline
+
+GitHub Actions automatically builds and tests on every push:
+
+```yaml
+# .github/workflows/cmake-ubuntu.yml
+- name: Install dependencies
+  run: |
+    sudo apt-get install -y \
+      libyaml-cpp-dev \
+      liblua5.4-dev \
+      libcurl4-openssl-dev  # ← InfluxDB support
+      
+- name: Build
+  run: cmake --build build
+
+- name: Test
+  run: ctest --test-dir build --output-on-failure
 ```
-plant-sensor-can-sim/
-├── src/
-│   ├── plant/                    # Vehicle dynamics (truth)
-│   │   ├── physics_subsystem.hpp    # Visitor pattern base
-│   │   ├── subsystem_manager.hpp    # Subsystem orchestration
-│   │   ├── steer_subsystem.cpp      # Steering dynamics
-│   │   ├── drive_subsystem.cpp      # Motor/brake dynamics
-│   │   ├── battery_subsystem.cpp    # Energy management
-│   │   └── vehicle_bicycle_ackermann.cpp
-│   ├── sensors/                  # Sensor simulation
-│   │   ├── battery_sensor.cpp       # V, I, SOC, temp
-│   │   ├── wheel_sensor.cpp         # 4-wheel encoders
-│   │   ├── imu_sensor.cpp           # 6-DOF gyro + accel
-│   │   ├── gnss_sensor.cpp          # GPS (WGS84 + NED)
-│   │   └── radar_sensor.cpp         # Range-Doppler-Angle
-│   ├── can/                      # CAN integration
-│   │   ├── actuator_cmd_decoder.cpp # RX decoder (0x100)
-│   │   ├── sensor_state_packer.cpp  # TX encoder (0x200-0x240)
-│   │   ├── tx_scheduler.cpp         # Multi-rate transmission
-│   │   └── socketcan_iface.cpp      # Linux SocketCAN
-│   ├── sim/                      # Simulation runtime
-│   │   ├── sim_app.cpp              # Main loop (open/closed)
-│   │   ├── lua_runtime.cpp          # JSON scenario system
-│   │   └── plant_state_packer.cpp   # Visitor-based packing
-│   └── config/                   # Configuration system
-│       └── vehicle_config.cpp       # YAML vehicle loader
-├── config/
-│   ├── scenarios/                # JSON test scenarios
-│   │   ├── slalom.json
-│   │   ├── brake_test.json
-│   │   └── obstacle_avoidance.json
-│   ├── vehicles/                 # YAML vehicle profiles
-│   │   ├── performance_ev.yaml      # 750 kW tri-motor
-│   │   ├── heavy_truck.yaml         # 180-ton mining truck
-│   │   └── default_ev.yaml
-│   └── can_map.csv               # DBC-style CAN database
-├── closed_loop/                  # Go-based controller
-│   ├── runner.go                    # CAN TX/RX controller
-│   ├── pid_controller.go            # Velocity PID example
-│   └── scenarios/                   # Controller test scenarios
-├── docs/
-│   ├── VEHICLE_DYNAMICS.md       # Theoretical vehicle dynamics
-│   ├── SENSOR_SYSTEM.md          # Sensor architecture & ML
-│   └── ARCHITECTURE.md           # Plant subsystem design
-├── test/
-│   ├── test_subsystem_manager.cpp   # Subsystem validation
-│   └── test_plant_state_packer.cpp  # Visitor pattern tests
-├── plots/                        # Validation results
-│   ├── slalom_vehicle_dynamics.png
-│   ├── battery_wheel_sensors.png
-│   ├── imu_sensor.png
-│   ├── gnss_sensor.png
-│   ├── radar_sensor.png
-│   └── sensor_noise_spectrum.png
-├── sensor_analysis.py            # Python sensor validation
-├── sim_plotter.py                # Python visualization
-└── build.sh                      # Build script
-```
+
+Tests include:
+- ✅ Plant subsystem unit tests
+- ✅ CAN codec validation
+- ✅ Sensor packer tests
+- ✅ InfluxDB client tests (12 test cases)
+- ✅ Vehicle config loader
 
 ---
 
@@ -416,6 +558,7 @@ plant-sensor-can-sim/
 2. **Modularity** - Independent subsystems (steering, drive, battery, sensors)
 3. **Scalability** - Visitor pattern enables adding subsystems without touching existing code
 4. **Industry Standards** - DBC-compliant CAN, WGS84 GNSS, ISO coordinate systems
+5. **Observability** - Real-time telemetry via InfluxDB for debugging and analysis
 
 ### Architecture Highlights
 
@@ -433,6 +576,7 @@ visitor.visit("new_signal", new_signal);
 // Automatically available in:
 // - CAN frames (if in can_map.csv)
 // - CSV logging
+// - InfluxDB telemetry
 // - Debugging output
 ```
 
@@ -455,6 +599,8 @@ mgr.step_all(state, cmd, dt);  // Automatic ordering!
 
 ### Short-Term (Q1 2025)
 - [x] CAN RX integration for closed-loop control
+- [x] InfluxDB real-time telemetry
+- [ ] Grafana dashboard templates
 - [ ] Extended Kalman Filter (EKF) sensor fusion
 - [ ] DDS embedded bus bridge
 - [x] Real-time scheduling (SCHED_FIFO)
@@ -464,12 +610,14 @@ mgr.step_all(state, cmd, dt);  // Automatic ordering!
 - [ ] Camera sensor simulation (lane detection)
 - [ ] Tire slip model (Pacejka Magic Formula)
 - [ ] Thermal management subsystem
+- [ ] MQTT bridge for IoT integration
 
 ### Long-Term (2025-2026)
 - [ ] Hardware-in-the-Loop (HIL) with real CAN hardware
 - [ ] Full 6-DOF vehicle dynamics
 - [ ] ROS2 integration for sensor fusion nodes
 - [ ] Multi-vehicle simulation (convoy operations)
+- [ ] Cloud-based simulation orchestration
 
 ---
 
@@ -483,6 +631,22 @@ Comprehensive documentation is available in the `docs/` directory:
 
 ---
 
+## Performance Metrics
+
+### Simulation Performance
+- **Real-time capability:** 1:1 wall-clock time with 1ms timestep
+- **CAN throughput:** ~1,500 frames/second (7 frames × 10-100 Hz)
+- **InfluxDB write rate:** 4Hz (250ms interval), 6 measurements per write
+- **CPU usage:** ~15-20% on Intel i7 (single-threaded)
+- **Memory footprint:** ~50 MB
+
+### Data Output Rates
+- **CSV logging:** 40+ signals at simulation timestep (10ms)
+- **InfluxDB telemetry:** 240+ fields across 6 measurements (250ms)
+- **CAN frames:** 7 frame types at 10-100 Hz
+
+---
+
 ## References
 
 ### Academic
@@ -493,18 +657,28 @@ Comprehensive documentation is available in the `docs/` directory:
 - ISO 11898-1:2015 - CAN protocol specification
 - DBC file format - Vector Informatik CAN database
 - WGS84 - World Geodetic System (NIMA TR8350.2)
+- InfluxDB Line Protocol - Time-series data format
 
 ### Tools
 - SocketCAN - Linux CAN bus implementation
 - YAML-CPP - Configuration file parsing
 - Lua 5.3 - Scenario scripting runtime
+- libcurl - HTTP client for InfluxDB
+- InfluxDB 2.x - Time-series database
 
 ---
 
 ## License
 
-Internal R&D project
+Internal R&D project 
 
 ---
 
-*This simulation framework demonstrates expertise in vehicle dynamics, sensor fusion, real-time systems, and autonomous vehicle development.*
+## Contact
+
+**Mario Tilocca**  
+
+
+---
+
+*This simulation framework demonstrates expertise in vehicle dynamics, sensor fusion, real-time systems, time-series data management, and autonomous vehicle development.*
