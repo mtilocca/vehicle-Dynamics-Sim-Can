@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cmath>
-#include "battery_plant.hpp"  // Include BatteryPlant class for energy management
+#include "plant/battery_subsystem/battery_plant.hpp"  // Include BatteryPlant class for energy management
 
 namespace plant {
 

@@ -1,11 +1,11 @@
 // src/plant/plant_model.hpp
 #pragma once
 
-#include "plant/plant_state.hpp"
-#include "plant/subsystem_manager.hpp"
-#include "plant/steer_plant.hpp"
-#include "plant/drive_plant.hpp"
-#include "plant/battery_plant.hpp"
+#include "plant/plant_main/plant_state.hpp"
+#include "plant/subsystem_manager/subsystem_manager.hpp"
+#include "plant/steer_subsystem/steer_plant.hpp"
+#include "plant/drive_subsystem/drive_plant.hpp"
+#include "plant/battery_subsystem/battery_plant.hpp"
 
 namespace sim { struct ActuatorCmd; }
 

@@ -1,7 +1,7 @@
 // src/sensors/sensor_base.hpp
 #pragma once
 
-#include "plant/plant_state.hpp"
+#include "plant/plant_main/plant_state.hpp"
 #include "sensors/sensor_out.hpp"
 #include <string>
 

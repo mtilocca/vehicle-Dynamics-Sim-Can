@@ -5,7 +5,7 @@
 #include <optional>
 
 #include "sim/lua_runtime.hpp"
-#include "plant/plant_state.hpp"
+#include "plant/plant_main/plant_state.hpp"
 #include "plant/plant_model.hpp"
 
 namespace sim {

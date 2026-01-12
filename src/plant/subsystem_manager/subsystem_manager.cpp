@@ -1,5 +1,5 @@
 // src/plant/subsystem_manager.cpp
-#include "plant/subsystem_manager.hpp"
+#include "plant/subsystem_manager/subsystem_manager.hpp"
 #include "utils/logging.hpp"
 #include <cstring>
 

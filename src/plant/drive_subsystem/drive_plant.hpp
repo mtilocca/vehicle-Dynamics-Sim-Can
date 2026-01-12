@@ -2,8 +2,8 @@
 #pragma once
 
 #include <algorithm>
-#include "plant/plant_state.hpp"
-#include "battery_plant.hpp"
+#include "plant/plant_main/plant_state.hpp"
+#include "plant/battery_subsystem/battery_plant.hpp"
 
 namespace sim { struct ActuatorCmd; }
 

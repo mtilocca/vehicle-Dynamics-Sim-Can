@@ -17,8 +17,8 @@
  *   - No crashes, no missing fields
  */
 
-#include "plant/plant_state.hpp"
-#include "plant/plant_state_visitor.hpp"
+#include "plant/plant_main/plant_state.hpp"
+#include "plant/plant_main/plant_state_visitor.hpp"
 #include "sim/plant_state_packer.hpp"
 #include "can/can_map.hpp"
 

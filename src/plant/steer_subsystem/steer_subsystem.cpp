@@ -1,5 +1,5 @@
 // src/plant/steer_subsystem.cpp
-#include "plant/steer_subsystem.hpp"
+#include "plant/steer_subsystem/steer_subsystem.hpp"
 #include "utils/logging.hpp"
 
 namespace plant {

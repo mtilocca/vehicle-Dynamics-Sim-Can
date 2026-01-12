@@ -9,7 +9,7 @@ extern "C" {
 }
 
 #include "sim/actuator_cmd.hpp"
-#include "plant/plant_state.hpp"
+#include "plant/plant_main/plant_state.hpp"
 
 namespace sim {
 

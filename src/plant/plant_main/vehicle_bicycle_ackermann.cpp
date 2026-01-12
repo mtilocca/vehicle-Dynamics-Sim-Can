@@ -1,5 +1,5 @@
 #include "vehicle_bicycle_ackermann.hpp"
-#include "battery_plant.hpp"  // Include BatteryPlant for energy interaction
+#include "battery_subsystem/battery_plant.hpp"  // Include BatteryPlant for energy interaction
 #include <algorithm>
 
 namespace plant {

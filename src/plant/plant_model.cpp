@@ -1,9 +1,9 @@
 // src/plant/plant_model.cpp
 #include "plant/plant_model.hpp"
-#include "plant/vehicle_bicycle_ackermann.hpp"
-#include "plant/battery_subsystem.hpp"
-#include "plant/drive_subsystem.hpp"
-#include "plant/steer_subsystem.hpp"
+#include "plant/plant_main/vehicle_bicycle_ackermann.hpp"
+#include "plant/battery_subsystem/battery_subsystem.hpp"
+#include "plant/drive_subsystem/drive_subsystem.hpp"
+#include "plant/steer_subsystem/steer_subsystem.hpp"
 #include "sim/actuator_cmd.hpp"
 #include "utils/logging.hpp"
 

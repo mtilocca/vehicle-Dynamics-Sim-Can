@@ -1,7 +1,7 @@
 // src/plant/plant_state_visitor.hpp
 #pragma once
 
-#include "plant/plant_state.hpp"
+#include "plant_state.hpp"
 #include <functional>
 #include <string>
 

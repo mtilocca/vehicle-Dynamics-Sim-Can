@@ -1,5 +1,5 @@
 // src/plant/battery_subsystem.cpp
-#include "plant/battery_subsystem.hpp"
+#include "plant/battery_subsystem/battery_subsystem.hpp"
 #include "utils/logging.hpp"
 
 namespace plant {

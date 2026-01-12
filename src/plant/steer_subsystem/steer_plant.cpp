@@ -1,6 +1,6 @@
 #include "steer_plant.hpp"
 #include "sim/actuator_cmd.hpp"
-#include "plant/vehicle_bicycle_ackermann.hpp"
+#include "plant_main/vehicle_bicycle_ackermann.hpp"
 
 #include <algorithm>
 #include <cmath>
