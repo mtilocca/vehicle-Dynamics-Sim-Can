@@ -2,7 +2,7 @@
 // Unit tests for InfluxDB client integration
 
 #include "utils/influx.hpp"
-#include "plant/plant_state.hpp"
+#include "plant/plant_main/plant_state.hpp"
 #include "sensors/sensor_out.hpp"
 #include "sim/actuator_cmd.hpp"
 #include <iostream>

@@ -1,8 +1,8 @@
 // test/test_subsystem_manager.cpp
-#include "plant/subsystem_manager.hpp"
-#include "plant/steer_subsystem.hpp"
-#include "plant/drive_subsystem.hpp"
-#include "plant/battery_subsystem.hpp"
+#include "plant/subsystem_manager/subsystem_manager.hpp"
+#include "plant/steer_subsystem/steer_subsystem.hpp"
+#include "plant/drive_subsystem/drive_subsystem.hpp"
+#include "plant/battery_subsystem/battery_subsystem.hpp"
 #include <iostream>
 #include <iomanip>
 #include <cmath>

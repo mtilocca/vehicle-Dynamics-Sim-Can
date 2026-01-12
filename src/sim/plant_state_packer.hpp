@@ -3,8 +3,8 @@
 
 #include "can/can_map.hpp"
 #include "can/can_codec.hpp"
-#include "plant/plant_state.hpp"
-#include "plant/plant_state_visitor.hpp"
+#include "plant/plant_main/plant_state.hpp"
+#include "plant/plant_main/plant_state_visitor.hpp"
 #include <string>
 #include <cmath>
 

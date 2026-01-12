@@ -1,8 +1,8 @@
 // src/plant/steer_subsystem.hpp
 #pragma once
 
-#include "plant/physics_subsystem.hpp"
-#include "plant/steer_plant.hpp"
+#include "plant/plant_main/physics_subsystem.hpp"
+#include "plant/steer_subsystem/steer_plant.hpp"
 
 namespace plant {
 

@@ -1,7 +1,7 @@
 // src/plant/physics_subsystem.hpp
 #pragma once
 
-#include "plant/plant_state.hpp"
+#include "plant/plant_main/plant_state.hpp"
 #include "sim/actuator_cmd.hpp"
 
 namespace plant {

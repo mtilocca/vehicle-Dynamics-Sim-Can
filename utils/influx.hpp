@@ -4,7 +4,7 @@
 #include <string>
 #include <memory>
 #include <cstdint>
-#include "plant/plant_state.hpp"
+#include "plant/plant_main/plant_state.hpp"
 #include "sensors/sensor_out.hpp"
 #include "sim/actuator_cmd.hpp"
 

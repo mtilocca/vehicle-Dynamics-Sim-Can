@@ -1,5 +1,5 @@
 // src/plant/drive_subsystem.cpp
-#include "plant/drive_subsystem.hpp"
+#include "plant/drive_subsystem/drive_subsystem.hpp"
 #include "utils/logging.hpp"
 
 namespace plant {

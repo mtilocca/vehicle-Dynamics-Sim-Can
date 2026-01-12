@@ -1,7 +1,7 @@
 // src/plant/subsystem_manager.hpp
 #pragma once
 
-#include "plant/physics_subsystem.hpp"
+#include "plant/plant_main/physics_subsystem.hpp"
 #include <memory>
 #include <vector>
 #include <algorithm>

@@ -1,9 +1,9 @@
 # XCMG XDE360 Electric Dump Truck Configuration
-# 360-ton electric mining haul truck optimized for Western Australian desert operations
+# 360-ton electric mining haul truck
 
 vehicle:
   name: "XCMG XDE360 Electric"
-  description: "360-ton electric dump truck with dual-motor rear-drive for Pilbara iron ore mining"
+  description: "360-ton electric dump truck with dual-motor rear-drive"
   manufacturer: "XCMG"
   year: 2025
 
