@@ -1,54 +1,156 @@
-# XCMG XDE360 Electric Dump Truck Configuration
-# 360-ton electric mining haul truck
+# XCMG XDE320 Electric Dump Truck Configuration
+# 320-ton payload electric mining haul truck (Pilbara, Western Australia)
+# Note: Real XDE320 is diesel-electric. This config simulates equivalent pure-electric performance.
 
 vehicle:
-  name: "XCMG XDE360 Electric"
-  description: "360-ton electric dump truck with dual-motor rear-drive"
+  name: "XCMG XDE320 Electric"
+  description: "320-ton electric dump truck - diesel-electric simulated as pure-electric"
   manufacturer: "XCMG"
   year: 2025
 
   # Physical dimensions and mass
   geometry:
-    mass_kg: 220000.0                  # 220 tons empty weight (larger than Komatsu 980E)
-    wheelbase_m: 6.35                  # Extra-long wheelbase for stability under extreme loads
-    track_width_m: 7.20                # Very wide for desert haul roads
-    wheel_radius_m: 1.95               # ~3.9m diameter tires (37.00R57 typical)
+    mass_kg: 218000.0                  # 218 tons empty weight
+    wheelbase_m: 6.30                  # 6.3m wheelbase
+    track_width_m: 7.20                # 7.2m track width
+    wheel_radius_m: 1.93               # ~3.86m diameter tires (40.00R57)
+    cg_height_m: 3.20                  # Center of gravity height (estimated)
+    cg_to_front_axle_m: 2.52           # CoG distance to front axle (40% of wheelbase)
+    cg_to_rear_axle_m: 3.78            # CoG distance to rear axle (60% of wheelbase)
 
-  # Electric drivetrain configuration (dual rear AC motors)
+  # Electric drivetrain configuration
   drivetrain:
-    motor_torque_max_nm: 145000.0      # Combined torque from dual rear motors
-    motor_power_max_w: 3200000.0       # 3.2 MW (4,290 hp) total power (higher for desert heat)
+    motor_torque_max_nm: 145000.0      # Combined rear axle torque
+    motor_power_max_w: 2013000.0       # 2.013 MW (2,700 hp equivalent)
     gear_ratio: 28.0                   # Large reduction for loaded climbing
-    efficiency: 0.93                   # Slightly lower due to dual-motor coordination
+    efficiency: 0.92                   # Drivetrain efficiency
 
   # Braking system (dynamic + mechanical)
   brakes:
     brake_torque_max_nm: 180000.0      # Massive braking for loaded descents
-    regen_efficiency_active: 0.68      # Good regen in WA heat (thermal limited)
-    regen_efficiency_coast: 0.03       # Minimal coasting regen (hot ambient reduces effectiveness)
+    regen_efficiency_active: 0.65      # Dynamic braking efficiency
+    regen_efficiency_coast: 0.02       # Minimal coasting regen
 
-  # Battery pack specifications (thermal-optimized for 45-50°C ambient)
+  # Battery pack specifications
   battery:
-    capacity_kwh: 1650.0               # 1.65 MWh pack (larger for longer hauls in Pilbara)
-    nominal_voltage_v: 1200.0          # Higher voltage system (1200V) for efficiency
-    max_charge_power_kw: 600.0         # 600 kW fast charging (limited by desert heat)
-    max_discharge_power_kw: 2400.0     # 2.4 MW peak discharge (thermal derating considered)
-    efficiency_charge: 0.91            # Lower due to extreme cooling requirements
-    efficiency_discharge: 0.93         # Lower due to thermal management overhead
-    min_soc: 0.18                      # Conservative for battery longevity in heat
-    max_soc: 0.88                      # Conservative max to prevent thermal issues
+    capacity_kwh: 1650.0               # 1.65 MWh pack
+    nominal_voltage_v: 1200.0          # 1200V high-voltage system
+    max_charge_power_kw: 600.0         # 600 kW fast charging
+    max_discharge_power_kw: 2400.0     # 2.4 MW peak discharge
+    efficiency_charge: 0.91
+    efficiency_discharge: 0.93
+    min_soc: 0.18                      # Conservative for battery longevity
+    max_soc: 0.88                      # Conservative max
 
   # Resistive forces (desert conditions)
   resistance:
-    drag_coefficient: 1.95             # Worse aero than Komatsu (Chinese design philosophy)
-    rolling_resistance: 9500.0         # Higher due to red iron ore dust, soft top layer (9.5 kN)
+    drag_coefficient: 1.85             # Box-like aerodynamics
+    rolling_resistance: 9500.0         # Baseline rolling resistance force [N]
 
-  # Operational limits (Western Australian mining environment)
+  # Operational limits
   limits:
-    v_max_mps: 18.5                    # 66.6 km/h (slightly lower for safety on dusty roads)
-    v_stop_eps: 0.6                    # Coarser stop detection for ultra-heavy vehicle
+    v_max_mps: 17.78                   # 64 km/h (real XCMG spec)
+    v_stop_eps: 0.5                    # Stopped threshold [m/s]
 
-# XCMG-Specific Notes:
-# - Dual rear AC motors with differential coordination (not modeled yet, treated as single unit)
-# - Rigid frame rear-drive (all propulsion through rear axle)
-# - Front axle: passive load-bearing only, no drive
+# ==============================================================================
+# TIRE MODEL PARAMETERS (Dugoff Model)
+# ==============================================================================
+# To change surface conditions, uncomment ONE of the surface options below
+# ==============================================================================
+
+tires:
+  model: "dugoff"
+  
+  # Tire geometry
+  radius_m: 1.93                       # Effective rolling radius (40.00R57)
+  width_m: 1.016                       # Tire width (40 inches)
+  
+  # Slip stiffness coefficients
+  slip_stiffness:
+    Cx_base: 280000.0                  # Longitudinal slip stiffness [N] at Fz_ref
+    Cy_base: 220000.0                  # Lateral slip stiffness [N] at Fz_ref
+    Fz_ref: 800000.0                   # Reference normal load [N]
+    load_exponent: 0.50                # Load scaling exponent
+  
+  # ==========================================================================
+  # SURFACE FRICTION SELECTION (uncomment ONE option)
+  # ==========================================================================
+  
+  # OPTION 1: Gravel Compact (BASELINE - most common haul road surface)
+  surface:
+    name: "gravel_compact"
+    description: "Compacted gravel haul road (well-maintained)"
+    mu_peak: 0.72                      # Peak friction coefficient
+    mu_slide: 0.65                     # Sliding friction coefficient
+  
+  # OPTION 2: Dry Pavement (smooth haul road, freshly graded)
+  # surface:
+  #   name: "dry_pavement"
+  #   description: "Smooth haul road (freshly graded)"
+  #   mu_peak: 0.85
+  #   mu_slide: 0.75
+  
+  # OPTION 3: Gravel Loose (after grading, before compaction)
+  # surface:
+  #   name: "gravel_loose"
+  #   description: "Loose gravel (after grading)"
+  #   mu_peak: 0.55
+  #   mu_slide: 0.48
+  
+  # OPTION 4: Iron Ore Dust - Dry (Pilbara red dust, typical)
+  # surface:
+  #   name: "iron_ore_dust_dry"
+  #   description: "Red iron ore dust (dry, Pilbara typical)"
+  #   mu_peak: 0.45
+  #   mu_slide: 0.38
+  
+  # OPTION 5: Iron Ore Dust - Wet (after water truck for dust suppression)
+  # surface:
+  #   name: "iron_ore_dust_wet"
+  #   description: "Red iron ore dust (wet, after water trucks)"
+  #   mu_peak: 0.30
+  #   mu_slide: 0.25
+  
+  # OPTION 6: Mud (wet season, rare in Pilbara)
+  # surface:
+  #   name: "mud"
+  #   description: "Mud (wet season conditions)"
+  #   mu_peak: 0.25
+  #   mu_slide: 0.20
+  
+  # OPTION 7: Sand Loose (dune crossings, uncommon)
+  # surface:
+  #   name: "sand_loose"
+  #   description: "Loose sand (dune crossings)"
+  #   mu_peak: 0.40
+  #   mu_slide: 0.35
+  
+  # OPTION 8: Ice (not applicable in Pilbara, for testing only)
+  # surface:
+  #   name: "ice"
+  #   description: "Ice (testing only)"
+  #   mu_peak: 0.15
+  #   mu_slide: 0.10
+  
+  # ==========================================================================
+  
+  # Velocity-dependent friction fade (optional)
+  velocity_fade:
+    enabled: false                     # Set to true to enable velocity fade
+    fade_factor: 0.003                 # Friction reduces ~0.3% per m/s
+    min_friction_ratio: 0.70           # Don't reduce below 70% of peak mu
+  
+  # Slip ratio limits (for numerical stability)
+  slip_limits:
+    sigma_x_max: 0.95                  # Max longitudinal slip (95%)
+    sigma_y_max: 0.50                  # Max lateral slip
+    v_min_for_slip_calc: 0.5           # Min velocity to compute slip [m/s]
+
+# ==============================================================================
+# USAGE NOTES
+# ==============================================================================
+# 1. Select surface by uncommenting ONE option in the "surface:" section above
+# 2. Default surface is "gravel_compact" (most common in Pilbara operations)
+# 3. For dust suppression scenarios, use "iron_ore_dust_wet"
+# 4. For worst-case emergency braking, use "mud" or "ice"
+# 5. Velocity fade is disabled by default (set enabled: true to activate)

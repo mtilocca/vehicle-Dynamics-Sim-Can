@@ -8,10 +8,48 @@
 namespace config {
 
 /**
+ * Tire surface friction parameters
+ */
+struct TireSurfaceParams {
+    std::string name;
+    std::string description;
+    double mu_peak = 0.72;      // Peak friction coefficient
+    double mu_slide = 0.65;     // Sliding friction coefficient
+};
+
+/**
+ * Tire model parameters (Dugoff model)
+ */
+struct TireParams {
+    std::string model = "dugoff";
+    double radius_m = 1.93;
+    double width_m = 1.016;
+    
+    // Slip stiffness
+    double Cx_base = 280000.0;
+    double Cy_base = 220000.0;
+    double Fz_ref = 800000.0;
+    double load_exponent = 0.50;
+    
+    // Surface friction
+    TireSurfaceParams surface;
+    
+    // Velocity fade (optional)
+    bool velocity_fade_enabled = false;
+    double fade_factor = 0.003;
+    double min_friction_ratio = 0.70;
+    
+    // Slip limits
+    double sigma_x_max = 0.95;
+    double sigma_y_max = 0.50;
+    double v_min_for_slip_calc = 0.5;
+};
+
+/**
  * VehicleConfig - Loads vehicle parameters from YAML files
  * 
  * Usage:
- *   auto config = VehicleConfig::load("config/vehicles/performance_ev.yaml");
+ *   auto config = VehicleConfig::load("config/vehicles/heavy_truck.yaml");
  *   PlantModel plant(config.params);
  * 
  * Falls back to hardcoded defaults if file not found.
@@ -25,6 +63,9 @@ public:
     
     // Plant parameters loaded from YAML
     plant::PlantModelParams params;
+    
+    // Tire parameters (NEW)
+    TireParams tire_params;
     
     /**
      * Load vehicle config from YAML file
@@ -52,7 +93,6 @@ public:
      * Print summary of configuration to console
      */
     void print_summary() const;
-
 
     VehicleConfig() = default;
 };

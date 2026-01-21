@@ -44,6 +44,21 @@ VehicleConfig VehicleConfig::load(const std::string& yaml_path) {
             vehicle.params.wheelbase_m = geo["wheelbase_m"].as<double>(2.8);
             vehicle.params.track_width_m = geo["track_width_m"].as<double>(1.6);
             vehicle.params.drive.wheel_radius_m = geo["wheel_radius_m"].as<double>(0.33);
+            
+            // NEW: CoG parameters (optional)
+            if (geo["cg_height_m"]) {
+                // Store in params if needed (TODO: extend PlantModelParams)
+                double cg_height = geo["cg_height_m"].as<double>(0.5);
+                LOG_DEBUG("[VehicleConfig] CoG height: %.2f m", cg_height);
+            }
+            if (geo["cg_to_front_axle_m"]) {
+                double cg_to_front = geo["cg_to_front_axle_m"].as<double>(1.4);
+                LOG_DEBUG("[VehicleConfig] CoG to front axle: %.2f m", cg_to_front);
+            }
+            if (geo["cg_to_rear_axle_m"]) {
+                double cg_to_rear = geo["cg_to_rear_axle_m"].as<double>(1.4);
+                LOG_DEBUG("[VehicleConfig] CoG to rear axle: %.2f m", cg_to_rear);
+            }
         }
         
         // ====================================================================
@@ -102,6 +117,54 @@ VehicleConfig VehicleConfig::load(const std::string& yaml_path) {
             auto lim = config["vehicle"]["limits"];
             vehicle.params.drive.v_max_mps = lim["v_max_mps"].as<double>(60.0);
             vehicle.params.drive.v_stop_eps = lim["v_stop_eps"].as<double>(0.3);
+        }
+        
+        // ====================================================================
+        // Parse tire parameters (NEW)
+        // ====================================================================
+        if (config["tires"]) {
+            auto tires = config["tires"];
+            
+            // Tire model type
+            vehicle.tire_params.model = tires["model"].as<std::string>("dugoff");
+            
+            // Tire geometry
+            vehicle.tire_params.radius_m = tires["radius_m"].as<double>(1.93);
+            vehicle.tire_params.width_m = tires["width_m"].as<double>(1.016);
+            
+            // Slip stiffness
+            if (tires["slip_stiffness"]) {
+                auto stiff = tires["slip_stiffness"];
+                vehicle.tire_params.Cx_base = stiff["Cx_base"].as<double>(280000.0);
+                vehicle.tire_params.Cy_base = stiff["Cy_base"].as<double>(220000.0);
+                vehicle.tire_params.Fz_ref = stiff["Fz_ref"].as<double>(800000.0);
+                vehicle.tire_params.load_exponent = stiff["load_exponent"].as<double>(0.50);
+            }
+            
+            // Surface friction
+            if (tires["surface"]) {
+                auto surf = tires["surface"];
+                vehicle.tire_params.surface.name = surf["name"].as<std::string>("gravel_compact");
+                vehicle.tire_params.surface.description = surf["description"].as<std::string>("");
+                vehicle.tire_params.surface.mu_peak = surf["mu_peak"].as<double>(0.72);
+                vehicle.tire_params.surface.mu_slide = surf["mu_slide"].as<double>(0.65);
+            }
+            
+            // Velocity fade (optional)
+            if (tires["velocity_fade"]) {
+                auto fade = tires["velocity_fade"];
+                vehicle.tire_params.velocity_fade_enabled = fade["enabled"].as<bool>(false);
+                vehicle.tire_params.fade_factor = fade["fade_factor"].as<double>(0.003);
+                vehicle.tire_params.min_friction_ratio = fade["min_friction_ratio"].as<double>(0.70);
+            }
+            
+            // Slip limits
+            if (tires["slip_limits"]) {
+                auto limits = tires["slip_limits"];
+                vehicle.tire_params.sigma_x_max = limits["sigma_x_max"].as<double>(0.95);
+                vehicle.tire_params.sigma_y_max = limits["sigma_y_max"].as<double>(0.50);
+                vehicle.tire_params.v_min_for_slip_calc = limits["v_min_for_slip_calc"].as<double>(0.5);
+            }
         }
         
         // Validate loaded config
@@ -168,6 +231,14 @@ VehicleConfig VehicleConfig::get_default() {
     vehicle.params.drive.v_max_mps = 60.0;
     vehicle.params.drive.v_stop_eps = 0.3;
     
+    // Tire defaults (NEW)
+    vehicle.tire_params.model = "dugoff";
+    vehicle.tire_params.radius_m = 0.33;
+    vehicle.tire_params.width_m = 0.22;
+    vehicle.tire_params.surface.name = "dry_pavement";
+    vehicle.tire_params.surface.mu_peak = 0.85;
+    vehicle.tire_params.surface.mu_slide = 0.75;
+    
     return vehicle;
 }
 
@@ -213,6 +284,20 @@ void VehicleConfig::validate() const {
         throw std::runtime_error("Invalid v_max_mps: must be > 0");
     }
     
+    // Tire validation (NEW)
+    if (tire_params.radius_m <= 0.0) {
+        throw std::runtime_error("Invalid tire radius_m: must be > 0");
+    }
+    if (tire_params.Cx_base <= 0.0 || tire_params.Cy_base <= 0.0) {
+        throw std::runtime_error("Invalid slip stiffness: Cx, Cy must be > 0");
+    }
+    if (tire_params.surface.mu_peak <= 0.0 || tire_params.surface.mu_peak > 2.0) {
+        throw std::runtime_error("Invalid mu_peak: must be 0 < mu <= 2.0");
+    }
+    if (tire_params.surface.mu_slide <= 0.0 || tire_params.surface.mu_slide > tire_params.surface.mu_peak) {
+        throw std::runtime_error("Invalid mu_slide: must be 0 < mu_slide <= mu_peak");
+    }
+    
     LOG_DEBUG("[VehicleConfig] Validation passed");
 }
 
@@ -234,6 +319,12 @@ void VehicleConfig::print_summary() const {
     LOG_INFO("Max Speed: %.1f m/s (%.0f km/h)", 
              params.drive.v_max_mps,
              params.drive.v_max_mps * 3.6);
+    LOG_INFO("----------------------------------------");
+    LOG_INFO("Tire Model: %s", tire_params.model.c_str());
+    LOG_INFO("Surface: %s (μ_peak=%.2f, μ_slide=%.2f)", 
+             tire_params.surface.name.c_str(),
+             tire_params.surface.mu_peak,
+             tire_params.surface.mu_slide);
     LOG_INFO("========================================");
 }
 
