@@ -262,18 +262,17 @@ double TyreSubsystem::compute_lateral_velocity_front(
     PlantState& s,
     double steering_angle
 ) const {
-    // Lateral velocity at front axle center
-    double Vy_center = s.v_mps * std::sin(s.yaw_rad);  // Simplified
+    // Yaw rate from bicycle model
+    double yaw_rate = s.steer_rate_radps;  // Or compute: (v/L)*tan(delta)
     
-    // Add contribution from yaw rate
-    // v_y = v_lateral + yaw_rate * distance_from_cg
-    double distance_to_front = cg_to_front_m_;
-    double yaw_rate = (s.v_mps / wheelbase_m_) * std::tan(s.steer_virtual_rad);
+    // Lateral velocity at front axle due to yaw rotation
+    double Vy_yaw = yaw_rate * cg_to_front_m_;
     
-    double Vy = Vy_center + yaw_rate * distance_to_front;
+    // Add component from steering angle (body frame)
+    double Vy_steer = s.v_mps * std::tan(steering_angle);  // Small angle: tan≈sin
     
-    // Adjust for steering angle (simplified - assumes small angles)
-    Vy += s.v_mps * std::sin(steering_angle);
+    // Total lateral velocity (body frame)
+    double Vy = Vy_yaw + Vy_steer;
     
     return Vy;
 }
