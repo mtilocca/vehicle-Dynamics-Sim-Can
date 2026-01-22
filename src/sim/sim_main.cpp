@@ -1,5 +1,5 @@
 // src/sim/sim_main.cpp
-// UPDATED: Added CAN RX support and InfluxDB logging with command-line flags
+// UPDATED: Added CAN RX, InfluxDB, and Dynamic Model command-line flags
 #include "sim/sim_app.hpp"
 #include "config/vehicle_config.hpp"
 #include "utils/logging.hpp"
@@ -123,6 +123,14 @@ void print_usage(const char* prog_name) {
     printf("  --vehicle PATH        Vehicle config YAML (default: from JSON or built-in)\n");
     printf("  --help, -h            Show this help\n");
     
+    printf("\nDynamic Model Options (NEW):\n");
+    printf("  --dynamic-model       Enable Dugoff tire model (force-based dynamics)\n");
+    printf("  --kinematic           Use kinematic bicycle model (default, no slip)\n");
+    printf("  --surface-mu MU       Surface friction coefficient (default: 0.72)\n");
+    printf("                        Common values: 0.85 (pavement), 0.72 (gravel),\n");
+    printf("                        0.45 (iron ore dust), 0.30 (wet dust), 0.25 (mud)\n");
+    printf("  --no-tire-log         Don't log tire dynamics columns to CSV\n");
+    
     printf("\nInfluxDB Options:\n");
     printf("  --influx              Enable InfluxDB time-series logging\n");
     printf("  --influx-url URL      InfluxDB server URL (default: http://localhost:8086)\n");
@@ -136,24 +144,18 @@ void print_usage(const char* prog_name) {
     printf("  # Open-loop with scenario file:\n");
     printf("  %s config/scenarios/slalom.json\n\n", prog_name);
     
-    printf("  # Real-time with InfluxDB logging:\n");
-    printf("  %s --real-time --influx config/scenarios/slalom.json\n\n", prog_name);
+    printf("  # Dynamic model with wet surface:\n");
+    printf("  %s --dynamic-model --surface-mu 0.30 config/scenarios/brake_test.json\n\n", prog_name);
     
-    printf("  # Custom InfluxDB server with authentication:\n");
-    printf("  %s --real-time --influx --influx-url http://192.168.1.100:8086 \\\n", prog_name);
-    printf("    --influx-token \"mytoken123\" config/scenarios/slalom.json\n\n");
+    printf("  # Closed-loop with dynamic model:\n");
+    printf("  %s --can-rx --dynamic-model --real-time --duration 60\n\n", prog_name);
     
-    printf("  # High-frequency InfluxDB logging (10Hz):\n");
-    printf("  %s --real-time --influx --influx-interval 100 config/scenarios/slalom.json\n\n", prog_name);
+    printf("  # Real-time with InfluxDB and dynamic model:\n");
+    printf("  %s --real-time --influx --dynamic-model config/scenarios/slalom.json\n\n", prog_name);
     
-    printf("  # Closed-loop with InfluxDB:\n");
-    printf("  %s --can-rx --real-time --influx --duration 60\n\n", prog_name);
-    
-    printf("  # Closed-loop with faster timestep:\n");
-    printf("  %s --can-rx --dt 0.001 --duration 30\n\n", prog_name);
-    
-    printf("  # Open-loop, fast-forward mode (no real-time):\n");
-    printf("  %s --fast config/scenarios/brake_test.json\n\n", prog_name);
+    printf("  # Compare kinematic vs dynamic (same scenario):\n");
+    printf("  %s --fast config/scenarios/accel.json  # kinematic\n", prog_name);
+    printf("  %s --fast --dynamic-model config/scenarios/accel.json  # dynamic\n\n", prog_name);
 }
 
 int main(int argc, char** argv) {
@@ -183,10 +185,15 @@ int main(int argc, char** argv) {
     cfg.actuator_cmd_frame_name = "ACTUATOR_CMD_1";
     cfg.can_rx_timeout_s = 0.5;
     
+    // Dynamic model defaults (NEW)
+    cfg.enable_dynamic_model = false;  // Kinematic by default
+    cfg.surface_friction = 0.72;       // Gravel compact
+    cfg.log_tire_dynamics = true;      // Always log tire columns
+    
     // InfluxDB defaults
     cfg.enable_influx = false;
     cfg.influx_url = "http://localhost:8086";
-    cfg.influx_token = "";  // 
+    cfg.influx_token = "";
     cfg.influx_org = "Autonomy";
     cfg.influx_bucket = "vehicle-sim";
     cfg.influx_interval_s = 0.25;  // 250ms = 4Hz
@@ -207,6 +214,12 @@ int main(int argc, char** argv) {
         {"dt",              required_argument, 0, 'd'},
         {"duration",        required_argument, 0, 'D'},
         {"vehicle",         required_argument, 0, 'v'},
+        // Dynamic model options (NEW)
+        {"dynamic-model",   no_argument,       0, 'M'},
+        {"kinematic",       no_argument,       0, 'k'},
+        {"surface-mu",      required_argument, 0, 'm'},
+        {"no-tire-log",     no_argument,       0, 'L'},
+        // InfluxDB options
         {"influx",          no_argument,       0, 'I'},
         {"influx-url",      required_argument, 0, 'U'},
         {"influx-token",    required_argument, 0, 'K'},
@@ -265,6 +278,24 @@ int main(int argc, char** argv) {
             case 'v':
                 vehicle_config_path = optarg;
                 break;
+            // Dynamic model options (NEW)
+            case 'M':
+                cfg.enable_dynamic_model = true;
+                break;
+            case 'k':
+                cfg.enable_dynamic_model = false;
+                break;
+            case 'm':
+                cfg.surface_friction = std::atof(optarg);
+                if (cfg.surface_friction <= 0 || cfg.surface_friction > 1.5) {
+                    fprintf(stderr, "Error: Invalid surface friction: %s (must be 0 < mu <= 1.5)\n", optarg);
+                    return 1;
+                }
+                break;
+            case 'L':
+                cfg.log_tire_dynamics = false;
+                break;
+            // InfluxDB options
             case 'I':
                 cfg.enable_influx = true;
                 break;
@@ -369,6 +400,15 @@ int main(int argc, char** argv) {
     printf("║ Real-time:  %-48s║\n", cfg.real_time_mode ? "yes (1:1 wall clock)" : "no (fast-forward)");
     printf("║ Vehicle:    %-48s║\n", vehicle.name.c_str());
     
+    // Dynamic model info (NEW)
+    char tire_model_str[60];
+    if (cfg.enable_dynamic_model) {
+        snprintf(tire_model_str, sizeof(tire_model_str), "DYNAMIC (Dugoff, mu=%.2f)", cfg.surface_friction);
+    } else {
+        snprintf(tire_model_str, sizeof(tire_model_str), "KINEMATIC (no slip)");
+    }
+    printf("║ Tire Model: %-48s║\n", tire_model_str);
+    
     if (cfg.enable_influx) {
         char influx_str[100];
         snprintf(influx_str, sizeof(influx_str), "%s/%s (%.0fms)", 
@@ -387,6 +427,18 @@ int main(int argc, char** argv) {
         printf("⚠️  CLOSED-LOOP MODE: Waiting for CAN commands on %s\n", cfg.can_interface.c_str());
         printf("    Frame: %s (ID: 0x100)\n", cfg.actuator_cmd_frame_name.c_str());
         printf("    Start your controller now!\n\n");
+    }
+    
+    if (cfg.enable_dynamic_model) {
+        printf("🚗 Dynamic Model: Dugoff tire forces enabled\n");
+        printf("   Surface: mu = %.2f", cfg.surface_friction);
+        if (cfg.surface_friction >= 0.80) printf(" (dry pavement)\n");
+        else if (cfg.surface_friction >= 0.65) printf(" (compact gravel)\n");
+        else if (cfg.surface_friction >= 0.50) printf(" (loose gravel)\n");
+        else if (cfg.surface_friction >= 0.40) printf(" (iron ore dust - dry)\n");
+        else if (cfg.surface_friction >= 0.28) printf(" (iron ore dust - wet)\n");
+        else printf(" (mud/slippery)\n");
+        printf("\n");
     }
     
     if (cfg.enable_influx) {
@@ -412,6 +464,7 @@ int main(int argc, char** argv) {
         LOG_INFO("Scenario: %s", cfg.scenario_json_path.c_str());
     }
     LOG_INFO("Vehicle: %s", vehicle.name.c_str());
+    LOG_INFO("Tire Model: %s", cfg.enable_dynamic_model ? "DYNAMIC (Dugoff)" : "KINEMATIC");
     LOG_INFO("========================================");
 
     sim::SimApp app(cfg);

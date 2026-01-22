@@ -40,8 +40,8 @@ set(PLANT_SOURCES
     subsystem_manager/subsystem_manager.cpp
     
     # Future subsystems (add when implemented):
-    # tyre_subsystem/tyre_dugoff.cpp
-    # tyre_subsystem/tyre_subsystem.cpp
+    tyre_subsystem/tyre_dugoff.cpp
+    tyre_subsystem/tyre_subsystem.cpp
     # thermal_subsystem/thermal_plant.cpp
     # thermal_subsystem/thermal_subsystem.cpp
 )
