@@ -77,6 +77,49 @@ public:
      * Get current tire model parameters
      */
     const TyreDugoffParams& get_params() const { return tyre_model_.get_params(); }
+    
+    // ========================================================================
+    // NEW: Geometry Configuration Interface (for dynamic model)
+    // ========================================================================
+    
+    /**
+     * set_geometry() - Update vehicle geometry parameters at runtime
+     * 
+     * Called by PlantModel when vehicle config changes.
+     * Required for accurate load transfer calculations.
+     */
+    void set_geometry(
+        double wheelbase_m,
+        double track_width_m,
+        double mass_kg,
+        double cg_height_m,
+        double cg_to_front_m,
+        double cg_to_rear_m
+    );
+    
+    /**
+     * set_tire_radius() - Update tire effective radius
+     */
+    void set_tire_radius(double radius_m) { tire_radius_m_ = radius_m; }
+    double get_tire_radius() const { return tire_radius_m_; }
+    
+    /**
+     * set_surface_friction() - Update surface friction coefficient
+     * 
+     * Common values (Pilbara mining conditions):
+     *   - Dry pavement: 0.85
+     *   - Gravel compact: 0.72 (baseline)
+     *   - Gravel loose: 0.55
+     *   - Iron ore dust (dry): 0.45
+     *   - Iron ore dust (wet): 0.30
+     *   - Mud: 0.25
+     */
+    void set_surface_friction(double mu_peak);
+    
+    /**
+     * get_dugoff_params() - Alias for get_params() (compatibility)
+     */
+    TyreDugoffParams get_dugoff_params() const { return tyre_model_.get_params(); }
 
 private:
     // Tire model

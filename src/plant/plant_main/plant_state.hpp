@@ -1,4 +1,4 @@
-// src/plant/plant_state.hpp
+// src/plant/plant_main/plant_state.hpp
 #pragma once
 
 #include <cstdint>
@@ -50,6 +50,63 @@ struct PlantState {
 
     // --- Fault/status bits you may want to expose later
     uint32_t status_flags = 0;
+
+    // ========================================================================
+    // DYNAMIC MODEL / DUGOFF TIRE FIELDS (V2 Enhancement)
+    // ========================================================================
+    // These fields are populated by TyreSubsystem when dynamic_model_enabled=true
+    // When kinematic mode is used, these remain at their default values.
+    
+    // --- Dynamic Model Control Flag ---
+    bool dynamic_model_enabled = false;  // false=kinematic, true=force-based dynamics
+    
+    // --- Tire Longitudinal Forces (N) - Output from Dugoff model ---
+    // Positive = driving force, Negative = braking force
+    double Fx_fl = 0.0;  // Front-left longitudinal force
+    double Fx_fr = 0.0;  // Front-right longitudinal force
+    double Fx_rl = 0.0;  // Rear-left longitudinal force (driven wheel)
+    double Fx_rr = 0.0;  // Rear-right longitudinal force (driven wheel)
+    
+    // --- Tire Lateral Forces (N) - Output from Dugoff model ---
+    // Positive = force to the left (vehicle frame)
+    double Fy_fl = 0.0;  // Front-left lateral force
+    double Fy_fr = 0.0;  // Front-right lateral force
+    double Fy_rl = 0.0;  // Rear-left lateral force
+    double Fy_rr = 0.0;  // Rear-right lateral force
+    
+    // --- Normal Loads (N) - Vertical tire force including load transfer ---
+    // Always positive (tire pushing down on ground)
+    double Fz_fl = 0.0;  // Front-left normal load
+    double Fz_fr = 0.0;  // Front-right normal load
+    double Fz_rl = 0.0;  // Rear-left normal load
+    double Fz_rr = 0.0;  // Rear-right normal load
+    
+    // --- Longitudinal Slip Ratios (dimensionless) ---
+    // sigma_x = (omega*R - Vx) / Vx
+    // Positive = driving slip, Negative = braking slip
+    double sigma_x_fl = 0.0;
+    double sigma_x_fr = 0.0;
+    double sigma_x_rl = 0.0;
+    double sigma_x_rr = 0.0;
+    
+    // --- Lateral Slip Ratios (dimensionless) ---
+    // sigma_y = Vy / Vx ≈ slip angle for small angles
+    double sigma_y_fl = 0.0;
+    double sigma_y_fr = 0.0;
+    double sigma_y_rl = 0.0;
+    double sigma_y_rr = 0.0;
+    
+    // --- Friction Utilization (dimensionless) ---
+    // lambda = (mu*Fz) / (2*sqrt(Cx²σx² + Cy²σy²))
+    // lambda >= 1: linear regime (no saturation)
+    // lambda < 1: nonlinear regime (friction-limited)
+    double lambda_fl = 1.0;
+    double lambda_fr = 1.0;
+    double lambda_rl = 1.0;
+    double lambda_rr = 1.0;
+    
+    // --- Surface Friction (for diagnostics/logging) ---
+    double surface_mu = 0.72;  // Current surface friction coefficient
 
     // ========================================================================
     // VISITOR PATTERN - Field Enumeration for Automation
@@ -128,6 +185,49 @@ struct PlantState {
         visitor.visit("wheel_fr_rps", wheel_fr_rps);
         visitor.visit("wheel_rl_rps", wheel_rl_rps);
         visitor.visit("wheel_rr_rps", wheel_rr_rps);
+        
+        // ====================================================================
+        // TIRE DYNAMICS (NEW - for dynamic model diagnostics)
+        // ====================================================================
+        // These are only meaningful when dynamic_model_enabled = true
+        
+        // Tire forces (N)
+        visitor.visit("Fx_fl", Fx_fl);
+        visitor.visit("Fx_fr", Fx_fr);
+        visitor.visit("Fx_rl", Fx_rl);
+        visitor.visit("Fx_rr", Fx_rr);
+        visitor.visit("Fy_fl", Fy_fl);
+        visitor.visit("Fy_fr", Fy_fr);
+        visitor.visit("Fy_rl", Fy_rl);
+        visitor.visit("Fy_rr", Fy_rr);
+        
+        // Normal loads (N)
+        visitor.visit("Fz_fl", Fz_fl);
+        visitor.visit("Fz_fr", Fz_fr);
+        visitor.visit("Fz_rl", Fz_rl);
+        visitor.visit("Fz_rr", Fz_rr);
+        
+        // Slip ratios (dimensionless)
+        visitor.visit("sigma_x_fl", sigma_x_fl);
+        visitor.visit("sigma_x_fr", sigma_x_fr);
+        visitor.visit("sigma_x_rl", sigma_x_rl);
+        visitor.visit("sigma_x_rr", sigma_x_rr);
+        visitor.visit("sigma_y_fl", sigma_y_fl);
+        visitor.visit("sigma_y_fr", sigma_y_fr);
+        visitor.visit("sigma_y_rl", sigma_y_rl);
+        visitor.visit("sigma_y_rr", sigma_y_rr);
+        
+        // Friction utilization (dimensionless)
+        visitor.visit("lambda_fl", lambda_fl);
+        visitor.visit("lambda_fr", lambda_fr);
+        visitor.visit("lambda_rl", lambda_rl);
+        visitor.visit("lambda_rr", lambda_rr);
+        
+        // Surface friction
+        visitor.visit("surface_mu", surface_mu);
+        
+        // Dynamic model flag
+        visitor.visit("dynamic_model_enabled", static_cast<double>(dynamic_model_enabled));
     }
 };
 
