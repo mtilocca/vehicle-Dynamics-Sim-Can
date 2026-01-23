@@ -105,7 +105,7 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s)
             // Case 1: Driving (power consumption)
             if (power_demand_kW > 0) {
                 double energy_J = power_demand_kW * dt_s * 1000.0;
-                battery_plant_->consume_energy(energy_J);
+                battery_plant_->consume_energy(energy_J);  // Single argument
 
                 s.motor_power_kW = power_demand_kW;
 

@@ -115,7 +115,7 @@ BicycleStepResult VehicleBicycleAckermann::step(
         // ====================================================================
         // DYNAMIC MODE: Force-based acceleration from Dugoff tire model
         // ====================================================================
-        // From your PDF Equation 50: a_k = (Fx_rl + Fx_rr - F_drag - F_roll) / m
+        // From PDF Equation 50: a_k = (Fx_rl + Fx_rr - F_drag - F_roll) / m
         
         // Get tire forces from PlantState (computed by TyreSubsystem)
         // Only rear wheels are driven (rear-wheel drive configuration)
