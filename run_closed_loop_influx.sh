@@ -51,6 +51,7 @@ echo ""
 CMD="./build/src/sim/sim_main \
   --can-rx \
   --real-time \
+  --dynamic-model \
   --duration $DURATION \
   --vehicle config/vehicles/heavy_truck.yaml \
   --influx \
