@@ -54,7 +54,7 @@ flowchart TB
         CANTX[CAN TX Frames]
         CSV[CSV Data Log]
         INFLUX[InfluxDB Time-Series]
-        GRAFANA[Grafana Dashboards]AEZ_
+        GRAFANA[Grafana Dashboards]
     end
     
     JSON --> LUA
