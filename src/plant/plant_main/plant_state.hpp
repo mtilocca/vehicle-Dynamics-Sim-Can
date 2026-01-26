@@ -33,6 +33,28 @@ struct PlantState {
     double wheel_rl_rps = 0.0;
     double wheel_rr_rps = 0.0;
 
+    // ========================================================================
+    // WHEEL ANGULAR VELOCITIES (rad/s) - NEW for WheelSubsystem
+    // Independent wheel speeds for hybrid tire model with wheel dynamics
+    // ========================================================================
+    double omega_fl_radps = 0.0;    // Front-left wheel angular velocity
+    double omega_fr_radps = 0.0;    // Front-right wheel angular velocity
+    double omega_rl_radps = 0.0;    // Rear-left wheel angular velocity
+    double omega_rr_radps = 0.0;    // Rear-right wheel angular velocity
+
+
+    
+    // Drive torques (from motor, positive = forward)
+    double tau_drive_rl_nm = 0.0;   // Drive torque rear-left (Nm)
+    double tau_drive_rr_nm = 0.0;   // Drive torque rear-right (Nm)
+    // Note: Front wheels are non-driven for rear-wheel-drive vehicle
+    
+    // Brake torques (always positive, opposes motion)
+    double tau_brake_fl_nm = 0.0;   // Brake torque front-left (Nm)
+    double tau_brake_fr_nm = 0.0;   // Brake torque front-right (Nm)
+    double tau_brake_rl_nm = 0.0;   // Brake torque rear-left (Nm)
+    double tau_brake_rr_nm = 0.0;   // Brake torque rear-right (Nm)
+
     // --- Battery "truth" (simple V1)
     double batt_soc_pct = 50.0;      // 0..100
     double batt_v = 400.0;           // pack voltage
@@ -107,6 +129,7 @@ struct PlantState {
     
     // --- Surface Friction (for diagnostics/logging) ---
     double surface_mu = 0.72;  // Current surface friction coefficient
+    double surface_mu_slide = 0.60; // Sliding friction coefficient
 
     // ========================================================================
     // VISITOR PATTERN - Field Enumeration for Automation
@@ -185,10 +208,22 @@ struct PlantState {
         visitor.visit("wheel_fr_rps", wheel_fr_rps);
         visitor.visit("wheel_rl_rps", wheel_rl_rps);
         visitor.visit("wheel_rr_rps", wheel_rr_rps);
-        
-        // ====================================================================
-        // TIRE DYNAMICS (NEW - for dynamic model diagnostics)
-        // ====================================================================
+
+        // === WHEEL DYNAMICS - Angular Velocities  ===
+        visitor.visit("omega_fl_radps", omega_fl_radps);
+        visitor.visit("omega_fr_radps", omega_fr_radps);
+        visitor.visit("omega_rl_radps", omega_rl_radps);
+        visitor.visit("omega_rr_radps", omega_rr_radps);
+
+        // === WHEEL TORQUES ===
+        visitor.visit("tau_drive_rl_nm", tau_drive_rl_nm);
+        visitor.visit("tau_drive_rr_nm", tau_drive_rr_nm);
+        visitor.visit("tau_brake_fl_nm", tau_brake_fl_nm);
+        visitor.visit("tau_brake_fr_nm", tau_brake_fr_nm);
+        visitor.visit("tau_brake_rl_nm", tau_brake_rl_nm);
+        visitor.visit("tau_brake_rr_nm", tau_brake_rr_nm);
+
+  
         // These are only meaningful when dynamic_model_enabled = true
         
         // Tire forces (N)

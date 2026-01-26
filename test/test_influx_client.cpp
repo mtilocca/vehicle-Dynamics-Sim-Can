@@ -139,7 +139,7 @@ bool test_client_creation_enabled() {
     utils::InfluxClient::Config config;
     config.enabled = true;
     config.url = "http://localhost:8086";
-    config.org = "test-org";
+    config.org = "Autonomy";
     config.bucket = "test-bucket";
     config.write_interval_s = 0.1;
     
@@ -173,10 +173,10 @@ bool test_rate_limiting() {
     utils::InfluxClient::Config config;
     config.enabled = true;
     config.url = "http://localhost:8086";
-    config.org = "test-org";
+    config.org = "Autonomy";
     config.bucket = "test-bucket";
     config.write_interval_s = 1.0;  // 1 second interval
-    config.token = "fake-token";  // Won't actually connect
+    config.token = "2WIF69lJcJeOUdQQdL9A3z0Z1uBfWL9dWlUWh94qO_BtmXEKBI--bMMBRh5DUq4DBKAdi-ucfJQKRrUkDzTyFA==";  // Won't actually connect
     
     utils::InfluxClient client(config);
     
@@ -241,10 +241,10 @@ bool test_multiple_writes() {
     utils::InfluxClient::Config config;
     config.enabled = true;
     config.url = "http://localhost:8086";
-    config.org = "test-org";
+    config.org = "Autonomy";
     config.bucket = "test-bucket";
     config.write_interval_s = 0.25;  // 250ms
-    config.token = "fake-token";
+    config.token = "2WIF69lJcJeOUdQQdL9A3z0Z1uBfWL9dWlUWh94qO_BtmXEKBI--bMMBRh5DUq4DBKAdi-ucfJQKRrUkDzTyFA==";
     
     utils::InfluxClient client(config);
     
@@ -254,7 +254,6 @@ bool test_multiple_writes() {
     
     // Simulate writes at different times
     double times[] = {0.0, 0.1, 0.25, 0.3, 0.5, 0.75, 1.0};
-    bool expected[] = {true, false, true, false, true, true, true};
     
     for (size_t i = 0; i < 7; i++) {
         client.write_data_point(state, sensors, cmd, times[i]);
@@ -270,9 +269,9 @@ bool test_flush() {
     utils::InfluxClient::Config config;
     config.enabled = true;
     config.url = "http://localhost:8086";
-    config.org = "test-org";
+    config.org = "Autonomy";
     config.bucket = "test-bucket";
-    config.token = "fake-token";
+    config.token = "2WIF69lJcJeOUdQQdL9A3z0Z1uBfWL9dWlUWh94qO_BtmXEKBI--bMMBRh5DUq4DBKAdi-ucfJQKRrUkDzTyFA==";
     
     utils::InfluxClient client(config);
     
@@ -295,10 +294,10 @@ bool test_state_changes() {
     utils::InfluxClient::Config config;
     config.enabled = true;
     config.url = "http://localhost:8086";
-    config.org = "test-org";
+    config.org = "Autonomy";
     config.bucket = "test-bucket";
     config.write_interval_s = 0.1;
-    config.token = "fake-token";
+    config.token = "2WIF69lJcJeOUdQQdL9A3z0Z1uBfWL9dWlUWh94qO_BtmXEKBI--bMMBRh5DUq4DBKAdi-ucfJQKRrUkDzTyFA==";
     
     utils::InfluxClient client(config);
     
@@ -325,10 +324,10 @@ bool test_sensor_validity() {
     utils::InfluxClient::Config config;
     config.enabled = true;
     config.url = "http://localhost:8086";
-    config.org = "test-org";
+    config.org = "Autonomy";
     config.bucket = "test-bucket";
     config.write_interval_s = 0.1;
-    config.token = "fake-token";
+    config.token = "2WIF69lJcJeOUdQQdL9A3z0Z1uBfWL9dWlUWh94qO_BtmXEKBI--bMMBRh5DUq4DBKAdi-ucfJQKRrUkDzTyFA==";
     
     utils::InfluxClient client(config);
     
@@ -362,10 +361,10 @@ bool test_extreme_values() {
     utils::InfluxClient::Config config;
     config.enabled = true;
     config.url = "http://localhost:8086";
-    config.org = "test-org";
+    config.org = "Autonomy";
     config.bucket = "test-bucket";
     config.write_interval_s = 0.1;
-    config.token = "fake-token";
+    config.token = "2WIF69lJcJeOUdQQdL9A3z0Z1uBfWL9dWlUWh94qO_BtmXEKBI--bMMBRh5DUq4DBKAdi-ucfJQKRrUkDzTyFA==";
     
     utils::InfluxClient client(config);
     
@@ -389,10 +388,10 @@ bool test_high_frequency_writes() {
     utils::InfluxClient::Config config;
     config.enabled = true;
     config.url = "http://localhost:8086";
-    config.org = "test-org";
+    config.org = "Autonomy";
     config.bucket = "test-bucket";
     config.write_interval_s = 0.01;  // 10ms = 100Hz
-    config.token = "fake-token";
+    config.token = "2WIF69lJcJeOUdQQdL9A3z0Z1uBfWL9dWlUWh94qO_BtmXEKBI--bMMBRh5DUq4DBKAdi-ucfJQKRrUkDzTyFA==";
     
     utils::InfluxClient client(config);
     
