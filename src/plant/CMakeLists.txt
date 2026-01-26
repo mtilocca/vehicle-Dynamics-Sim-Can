@@ -8,7 +8,8 @@ cmake_minimum_required(VERSION 3.16)
 #   battery_subsystem/ - Battery physics and energy management
 #   drive_subsystem/   - Drivetrain and longitudinal dynamics
 #   steer_subsystem/   - Steering kinematics and Ackermann geometry
-#   tyre_subsystem/    - Tire models (future: Dugoff, Pacejka)
+#   wheel_subsystem/   - Wheel dynamics and tire slip model
+#   tyre_subsystem/    - Tire force models (Dugoff)
 #   thermal_subsystem/ - Thermal management (future)
 #   subsystem_manager/ - Subsystem orchestration and lifecycle
 # ============================================================================
@@ -39,9 +40,15 @@ set(PLANT_SOURCES
     # Subsystem manager
     subsystem_manager/subsystem_manager.cpp
     
-    # Future subsystems (add when implemented):
+    # Tyre subsystem - Dugoff tire model
     tyre_subsystem/tyre_dugoff.cpp
     tyre_subsystem/tyre_subsystem.cpp
+
+    # Wheel subsystem - wheel dynamics and slip
+    wheel_subsystem/wheel_dynamics.cpp
+    wheel_subsystem/wheel_subsystem.cpp
+    
+    # Future subsystems (add when implemented):
     # thermal_subsystem/thermal_plant.cpp
     # thermal_subsystem/thermal_subsystem.cpp
 )
@@ -86,6 +93,6 @@ target_compile_features(plant PUBLIC cxx_std_17)
 # ----------------------------------------------------------------------------
 
 message(STATUS "Plant library configured:")
-message(STATUS "  - Subsystems: Battery, Drive, Steer")
-message(STATUS "  - Future: Tyre, Thermal")
+message(STATUS "  - Subsystems: Battery, Drive, Steer, Wheel, Tyre")
+message(STATUS "  - Future: Thermal")
 message(STATUS "  - Source files: ${PLANT_SOURCES}")

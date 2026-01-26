@@ -146,6 +146,23 @@ add_test(NAME influx_client
 )
 
 # ============================================================================
+# Test 7: WheelDynamics - Wheel rotational dynamics validation
+# ============================================================================
+# Tests wheel slip ratio calculation, rotational dynamics integration,
+# stability criterion, and WheelSubsystem initialization.
+# Requires: plant library (for WheelDynamics and WheelSubsystem)
+# ============================================================================
+
+add_simulation_test(test_wheel_dynamics
+    LIBRARIES plant utils
+)
+
+add_test(NAME wheel_dynamics
+    COMMAND test_wheel_dynamics
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/test
+)
+
+# ============================================================================
 # Future Tests (Placeholders)
 # ============================================================================
 # Uncomment and implement as subsystems are added:
@@ -174,4 +191,5 @@ message(STATUS "  - Vehicle config (YAML parsing)")
 message(STATUS "  - CAN codec (bit packing)")
 message(STATUS "  - Sensor packer (sensor CAN)")
 message(STATUS "  - InfluxDB client (telemetry)")
+message(STATUS "  - Wheel dynamics (slip and integration)")
 message(STATUS "Run tests with: ctest --test-dir ${CMAKE_BINARY_DIR}")
