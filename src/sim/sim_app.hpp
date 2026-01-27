@@ -32,7 +32,7 @@ struct SimAppConfig {
 
     // Output files
     std::string csv_log_path = "sim_out.csv";
-    std::string debug_log_path = "sim_debug.log";
+    std::string debug_log_path = "sim_debug.log"; 
     
     // Logging control
     bool enable_debug_log_file = true;
@@ -120,7 +120,7 @@ struct SimAppConfig {
      * 
      * Default: true (helps with debugging and comparison)
      */
-    bool log_tire_dynamics = true;
+    bool log_tire_dynamics = true; // to be adapted and removed as kinematic will be removed 
     
     // ========== InfluxDB Configuration ==========
     
@@ -146,7 +146,7 @@ struct SimAppConfig {
     
     /**
      * InfluxDB authentication token
-     * Leave empty for local instances without authentication
+     * Leave empty for safety reasons
      */
     std::string influx_token = "";
     
@@ -176,7 +176,7 @@ class SimApp {
 public:
     explicit SimApp(SimAppConfig cfg);
 
-    int run_plant_only();
+    int run_plant();
 
 private:
     SimAppConfig cfg_;

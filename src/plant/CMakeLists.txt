@@ -42,7 +42,6 @@ set(PLANT_SOURCES
     
     # Tyre subsystem - Dugoff tire model
     tyre_subsystem/tyre_dugoff.cpp
-    tyre_subsystem/tyre_subsystem.cpp
 
     # Wheel subsystem - wheel dynamics and slip
     wheel_subsystem/wheel_dynamics.cpp

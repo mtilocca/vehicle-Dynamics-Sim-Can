@@ -29,7 +29,7 @@ SimApp::SimApp(SimAppConfig cfg) : cfg_(cfg), lua_() {
     }
 }
 
-int SimApp::run_plant_only() {
+int SimApp::run_plant() {
     const double dt = cfg_.dt_s;
     
     // ========================================================================
@@ -52,7 +52,7 @@ int SimApp::run_plant_only() {
         pmp = cfg_.vehicle_params.value();
         LOG_INFO("[SimApp] Using vehicle params from YAML config");
     } else {
-        // Use hardcoded defaults
+        // Use hardcoded defaults if no YAML provided 
         pmp.wheelbase_m = 2.8;
         pmp.track_width_m = 1.6;
         pmp.steer.delta_max_deg = 35.0;
@@ -81,13 +81,13 @@ int SimApp::run_plant_only() {
         pmp.drive.v_stop_eps = 0.3;
         pmp.drive.v_max_mps = 60.0;
         
-        LOG_INFO("[SimApp] Using hardcoded default vehicle params");
+        LOG_INFO("[SimApp] no YAML provided - Using default vehicle params");
     }
     
     // ========================================================================
-    // Dynamic model configuration (NEW)
+    // Dynamic model configuration 
     // ========================================================================
-    pmp.dynamic_config.enabled = cfg_.enable_dynamic_model;
+    pmp.dynamic_config.enabled = cfg_.enable_dynamic_model; // remove this and also from input -- dynamic model only. 
     pmp.dynamic_config.surface_mu = cfg_.surface_friction;
     
     if (cfg_.enable_dynamic_model) {
@@ -208,7 +208,7 @@ int SimApp::run_plant_only() {
         << "radar_target_range_m,radar_target_rel_vel_mps,radar_target_angle_deg,radar_status,"
         << "loop_time_us,wall_time_s,time_drift_ms";
     
-    // Add tire dynamics columns if enabled
+    // Add tire dynamics columns if enabled --> To be integrated as default once kinematic removed 
     if (log_tyre) {
         csv << ","
             // Tire forces (N)
@@ -489,7 +489,7 @@ int SimApp::run_plant_only() {
                 << timer.get_wall_time() << ","
                 << (timer.get_time_drift() * 1000.0);
             
-            // Tire dynamics columns (if enabled)
+            // Tire dynamics columns (if enabled) // standard once kinematic is gone 
             if (log_tyre) {
                 csv << ","
                     // Tire forces (N)

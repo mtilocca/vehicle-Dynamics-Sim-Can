@@ -39,7 +39,7 @@ INFLUX_ORG=${INFLUX_ORG:-Autonomy}
 read -p "Bucket [vehicle-sim]: " INFLUX_BUCKET
 INFLUX_BUCKET=${INFLUX_BUCKET:-vehicle-sim}
 
-read -p "Write interval in ms [500]: " INFLUX_INTERVAL
+read -p "Write interval in ms [250]: " INFLUX_INTERVAL
 INFLUX_INTERVAL=${INFLUX_INTERVAL:-500}
 
 echo ""
