@@ -41,11 +41,11 @@ struct VehicleGeometry {
 };
 
 // ============================================================================
-// Dynamic Model Configuration (NEW)
+// Dynamic Model Configuration 
 // ============================================================================
 // Controls whether to use kinematic or force-based dynamics
 struct DynamicModelConfig {
-    bool enabled = false;           // false=kinematic, true=dynamic (Dugoff)
+    bool enabled = false;           // false=kinematic, true=dynamic (Dugoff) // REMOVE IT AS KINEMATIC WILL BE GONE 
     double surface_mu = 0.72;       // Default surface friction coefficient
     bool traction_limiting = true;  // Enable tire traction limiting
 };

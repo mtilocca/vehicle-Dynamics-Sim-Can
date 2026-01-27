@@ -82,7 +82,7 @@ bool load_timing_from_json(const std::string& scenario_path, sim::SimAppConfig& 
     return true;
 }
 
-// Parse vehicle_config field from JSON (if present)
+// Parse vehicle_config field from JSON (if present) --> clean up as we are using yaml ??
 std::string load_vehicle_config_path_from_json(const std::string& scenario_path) {
     std::ifstream file(scenario_path);
     if (!file.is_open()) {
@@ -124,8 +124,8 @@ void print_usage(const char* prog_name) {
     printf("  --help, -h            Show this help\n");
     
     printf("\nDynamic Model Options (NEW):\n");
-    printf("  --dynamic-model       Enable Dugoff tire model (force-based dynamics)\n");
-    printf("  --kinematic           Use kinematic bicycle model (default, no slip)\n");
+    printf("  --dynamic-model       Enable Dugoff tire model (force-based dynamics)\n"); // to be removed once kinematic is gone 
+    printf("  --kinematic           Use kinematic bicycle model (default, no slip)\n"); // kinematic gone 
     printf("  --surface-mu MU       Surface friction coefficient (default: 0.72)\n");
     printf("                        Common values: 0.85 (pavement), 0.72 (gravel),\n");
     printf("                        0.45 (iron ore dust), 0.30 (wet dust), 0.25 (mud)\n");
@@ -172,7 +172,7 @@ int main(int argc, char** argv) {
     
     cfg.use_lua_scenario = true;
     cfg.lua_script_path = "config/lua/scenario.lua";
-    cfg.scenario_json_path = "config/scenarios/brake_test.json";
+    cfg.scenario_json_path = "config/scenarios/brake_test.json"; // default config once 
     
     cfg.csv_log_path = "sim_out.csv";
     cfg.debug_log_path = "sim_debug.log";
@@ -180,15 +180,15 @@ int main(int argc, char** argv) {
 
     cfg.enable_can_tx = true;
     cfg.enable_can_rx = false;
-    cfg.can_interface = "vcan0";
-    cfg.can_map_path = "config/can_map.csv";
+    cfg.can_interface = "vcan0"; // can be replaced with real CAN 
+    cfg.can_map_path = "config/can_map.csv"; // can be adapted 
     cfg.actuator_cmd_frame_name = "ACTUATOR_CMD_1";
     cfg.can_rx_timeout_s = 0.5;
     
     // Dynamic model defaults (NEW)
-    cfg.enable_dynamic_model = false;  // Kinematic by default
+    cfg.enable_dynamic_model = false;  // Kinematic by default -- to be removed 
     cfg.surface_friction = 0.72;       // Gravel compact
-    cfg.log_tire_dynamics = true;      // Always log tire columns
+    cfg.log_tire_dynamics = true;      // Always log tire columns -- to be removed 
     
     // InfluxDB defaults
     cfg.enable_influx = false;
@@ -215,7 +215,7 @@ int main(int argc, char** argv) {
         {"duration",        required_argument, 0, 'D'},
         {"vehicle",         required_argument, 0, 'v'},
         // Dynamic model options (NEW)
-        {"dynamic-model",   no_argument,       0, 'M'},
+        {"dynamic-model",   no_argument,       0, 'M'}, // to be adjusted and removed 
         {"kinematic",       no_argument,       0, 'k'},
         {"surface-mu",      required_argument, 0, 'm'},
         {"no-tire-log",     no_argument,       0, 'L'},
@@ -468,5 +468,5 @@ int main(int argc, char** argv) {
     LOG_INFO("========================================");
 
     sim::SimApp app(cfg);
-    return app.run_plant_only();
+    return app.run_plant();
 }

@@ -4,7 +4,7 @@
 #include "plant/battery_subsystem/battery_subsystem.hpp"
 #include "plant/drive_subsystem/drive_subsystem.hpp"
 #include "plant/steer_subsystem/steer_subsystem.hpp"
-#include "plant/tyre_subsystem/tyre_subsystem.hpp"  // NEW
+#include "plant/tyre_subsystem/tyre_subsystem.hpp"  // TODO --> replace wheel_subsystem and set new priority to 106
 #include "sim/actuator_cmd.hpp"
 #include "utils/logging.hpp"
 
@@ -51,7 +51,7 @@ PlantModel::PlantModel(PlantModelParams p)
     subsystem_mgr_.register_subsystem(std::move(drive));
     
     // ========================================================================
-    // 4. TyreSubsystem (Priority 105 - Tire Forces) [NEW]
+    // 4. TyreSubsystem (Priority 105 - Tire Forces) --> REPLACE WITH WHEEL_SUBSYSTEM
     // ========================================================================
     // Register with vehicle geometry parameters
     auto tyre = std::make_unique<TyreSubsystem>(
@@ -184,13 +184,13 @@ void PlantModel::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {
 }
 
 // ============================================================================
-// Dynamic Model Control (NEW)
+// Dynamic Model Control 
 // ============================================================================
 
 void PlantModel::set_dynamic_model_enabled(bool enabled) {
     p_.dynamic_config.enabled = enabled;
     
-    // Update TyreSubsystem
+    // Update TyreSubsystem --. REPLACE WITH WHEEL 
     auto* tyre = subsystem_mgr_.find_subsystem("Tyre");
     if (tyre) {
         static_cast<TyreSubsystem*>(tyre)->set_dynamic_model_enabled(enabled);

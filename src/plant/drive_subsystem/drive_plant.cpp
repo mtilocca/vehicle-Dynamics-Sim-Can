@@ -36,7 +36,7 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s)
     double motor_tq_cmd = clamp(cmd.drive_torque_cmd_nm, -p_.motor_torque_max_nm, +p_.motor_torque_max_nm);
 
     // Wheel torque from motor (apply drivetrain efficiency)
-    double wheel_tq_from_motor = motor_tq_cmd * p_.gear_ratio * p_.drivetrain_eff;
+    double wheel_tq_from_motor = motor_tq_cmd * p_.gear_ratio * p_.drivetrain_eff; 
 
     // Power limiting: apply max power limits based on vehicle speed
     const double denom_v = std::max(std::abs(v), p_.v_stop_eps);
