@@ -1,4 +1,13 @@
-// src/plant/drive_subsystem.hpp
+// src/plant/drive_subsystem/drive_subsystem.hpp
+//
+// DriveSubsystem - Powertrain subsystem wrapper
+//
+// This is a PhysicsSubsystem wrapper around DrivePlant.
+// It follows the established pattern: BatterySubsystem wraps BatteryPlant.
+//
+// Priority: 100 (Dynamics category)
+// Executes BEFORE WheelSubsystem (105) so tau_* are available
+
 #pragma once
 
 #include "plant/plant_main/physics_subsystem.hpp"
@@ -7,19 +16,6 @@
 
 namespace plant {
 
-/**
- * DriveSubsystem - Longitudinal dynamics and energy flow
- * 
- * Responsibilities:
- * - Motor torque → wheel force conversion
- * - Brake force application
- * - Resistive forces (drag, rolling resistance)
- * - Speed integration
- * - Power/energy management with BatterySubsystem
- * 
- * Dependencies:
- * - BatterySubsystem (for power requests and regen storage)
- */
 class DriveSubsystem : public PhysicsSubsystem {
 public:
     explicit DriveSubsystem(
@@ -36,36 +32,29 @@ public:
     void pre_step(PlantState& s, const sim::ActuatorCmd& cmd, double dt) override;
     void step(PlantState& s, const sim::ActuatorCmd& cmd, double dt) override;
     void post_step(PlantState& s, const sim::ActuatorCmd& cmd, double dt) override;
+    
     const char* name() const override { return "Drive"; }
-    int priority() const override { return 100; } // Dynamics: 100-149
+    int priority() const override { return 100; }  // Before WheelSubsystem (105)
 
     // ========================================================================
-    // Drive-Specific Interface
+    // Configuration Interface
     // ========================================================================
 
-    /**
-     * set_battery_subsystem() - Inject battery dependency
-     * 
-     * Must be called before first step() if battery integration is needed.
-     */
+    /// Inject battery dependency (must call before first step)
     void set_battery_subsystem(BatterySubsystem* battery);
 
-    /**
-     * get_params() - Get current drive parameters
-     */
+    /// Get current drive parameters
     const DriveParams& get_params() const { return drive_.params(); }
 
-    /**
-     * set_params() - Update drive parameters at runtime
-     */
+    /// Update drive parameters at runtime
     void set_params(const DriveParams& params);
 
 private:
     DrivePlant drive_;
     BatterySubsystem* battery_subsystem_;
 
-    // Cached values from pre_step
-    double available_power_kW_;
+    // Cached from pre_step
+    double available_power_kW_ = 0.0;
 };
 
 } // namespace plant

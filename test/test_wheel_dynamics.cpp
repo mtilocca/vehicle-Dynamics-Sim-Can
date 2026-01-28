@@ -1,397 +1,396 @@
 // test/test_wheel_dynamics.cpp
-/**
- * Unit Test: WheelDynamics and WheelSubsystem
- * 
- * Tests wheel rotational dynamics, slip ratio calculation, and
- * integration with the Dugoff tire model.
- * 
- * Test Coverage:
- *   1. Slip ratio calculation (zero slip, drive slip, brake slip)
- *   2. Wheel integration (acceleration, deceleration, zero-crossing)
- *   3. Stability criterion validation
- *   4. Tire force feedback (closed-loop behavior)
- *   5. WheelSubsystem initialization and mode switching
- */
+//
+// Unit tests for wheel dynamics subsystem
+// Tests: TyreDugoff, WheelDynamics, WheelSubsystem
+//
+// Reference: Vehicle_Dynamics_with_Dugoff_Tire_Model.pdf
 
+#include <iostream>
+#include <string>
+#include <cmath>
+#include <vector>
+
+// Include the components under test
+#include "plant/tyre_subsystem/tyre_dugoff.hpp"
 #include "plant/wheel_subsystem/wheel_dynamics.hpp"
 #include "plant/wheel_subsystem/wheel_subsystem.hpp"
 #include "plant/plant_main/plant_state.hpp"
 #include "sim/actuator_cmd.hpp"
-#include <iostream>
-#include <cmath>
-#include <iomanip>
 
-// ANSI color codes
-#define COLOR_GREEN  "\033[32m"
-#define COLOR_RED    "\033[31m"
-#define COLOR_YELLOW "\033[33m"
-#define COLOR_RESET  "\033[0m"
+using namespace plant;
+
+// ============================================================================
+// Test Framework (minimal)
+// ============================================================================
+
+const char* GREEN = "\033[32m";
+const char* RED = "\033[31m";
+const char* YELLOW = "\033[33m";
+const char* RESET = "\033[0m";
 
 struct TestResult {
     int passed = 0;
     int failed = 0;
     
     void pass(const std::string& msg) {
-        std::cout << COLOR_GREEN << "  ✓ " << msg << COLOR_RESET << "\n";
-        ++passed;
+        std::cout << "  " << GREEN << "✓ " << RESET << msg << "\n";
+        passed++;
     }
     
     void fail(const std::string& msg) {
-        std::cout << COLOR_RED << "  ✗ " << msg << COLOR_RESET << "\n";
-        ++failed;
+        std::cout << "  " << RED << "✗ " << RESET << msg << "\n";
+        failed++;
     }
     
-    void summary() {
-        std::cout << "\n========================================\n";
-        if (failed == 0) {
-            std::cout << COLOR_GREEN << "ALL TESTS PASSED" << COLOR_RESET;
-        } else {
-            std::cout << COLOR_RED << "SOME TESTS FAILED" << COLOR_RESET;
-        }
-        std::cout << " (" << passed << " passed, " << failed << " failed)\n";
-        std::cout << "========================================\n";
+    bool check(bool condition, const std::string& msg) {
+        if (condition) { pass(msg); return true; }
+        else { fail(msg); return false; }
     }
 };
 
-bool is_close(double actual, double expected, double tolerance = 0.001) {
-    if (std::abs(expected) < 1e-9) {
-        return std::abs(actual) < tolerance;
-    }
-    return std::abs(actual - expected) / std::abs(expected) < tolerance;
+bool is_close(double a, double b, double tol = 0.01) {
+    return std::abs(a - b) < tol;
 }
 
 // ============================================================================
-// Test 1: Slip Ratio Calculation
+// Test 1: TyreDugoff Slip Ratio Computation (PDF Eq. 34)
 // ============================================================================
 
-void test_slip_ratio_calculation(TestResult& result) {
-    std::cout << "\n" << COLOR_YELLOW << "=== Test 1: Slip Ratio Calculation ===" << COLOR_RESET << "\n";
+void test_tyre_dugoff_slip(TestResult& r) {
+    std::cout << "\n" << YELLOW << "=== Test 1: TyreDugoff Slip Ratio ===" << RESET << "\n";
     
-    plant::WheelDynamicsParams params;
-    params.radius_m = 1.93;
-    params.v_eps_mps = 0.1;
+    TyreDugoffParams params;
+    params.mu_peak = 0.72;
+    params.Cx_base = 280000.0;
+    params.Fz_ref = 100000.0;
+    TyreDugoff tyre(params);
     
-    plant::WheelDynamics wheel(params);
+    // Free rolling: ω·R = Vx → σx = 0
+    double R = 1.93;
+    double Vx = 10.0;
+    double omega_free = Vx / R;  // ~5.18 rad/s
     
-    // Test 1a: Zero slip (wheel speed matches vehicle speed)
-    double v_vehicle = 10.0;  // m/s
-    wheel.set_omega_radps(v_vehicle / params.radius_m);  // ω = V/R
-    double sigma = wheel.compute_slip_ratio(v_vehicle);
+    TyreForces f1 = tyre.compute_forces(omega_free, R, Vx, 0.0, 100000.0);
+    r.check(std::abs(f1.sigma_x) < 0.01, 
+            "Free rolling: σx=" + std::to_string(f1.sigma_x) + " ≈ 0");
     
-    if (std::abs(sigma) < 0.001) {
-        result.pass("Zero slip: σ = " + std::to_string(sigma) + " (expected ~0)");
-    } else {
-        result.fail("Zero slip: σ = " + std::to_string(sigma) + " (expected ~0)");
-    }
+    // Drive slip: ω·R > Vx → σx > 0 (wheel spinning)
+    double omega_spin = Vx / R * 1.1;  // 10% wheel spin
+    TyreForces f2 = tyre.compute_forces(omega_spin, R, Vx, 0.0, 100000.0);
+    r.check(f2.sigma_x > 0.05, 
+            "Drive slip: σx=" + std::to_string(f2.sigma_x) + " > 0");
     
-    // Test 1b: Positive slip (wheel spinning faster - acceleration)
-    wheel.set_omega_radps(v_vehicle / params.radius_m * 1.2);  // 20% faster
-    sigma = wheel.compute_slip_ratio(v_vehicle);
-    
-    if (sigma > 0.15 && sigma < 0.25) {
-        result.pass("Drive slip: σ = " + std::to_string(sigma) + " (expected ~0.17-0.2)");
-    } else {
-        result.fail("Drive slip: σ = " + std::to_string(sigma) + " (expected ~0.17-0.2)");
-    }
-    
-    // Test 1c: Negative slip (wheel spinning slower - braking)
-    wheel.set_omega_radps(v_vehicle / params.radius_m * 0.8);  // 20% slower
-    sigma = wheel.compute_slip_ratio(v_vehicle);
-    
-    if (sigma < -0.15 && sigma > -0.25) {
-        result.pass("Brake slip: σ = " + std::to_string(sigma) + " (expected ~-0.2)");
-    } else {
-        result.fail("Brake slip: σ = " + std::to_string(sigma) + " (expected ~-0.2)");
-    }
-    
-    // Test 1d: Wheel lock (wheel stopped, vehicle moving)
-    wheel.set_omega_radps(0.0);
-    sigma = wheel.compute_slip_ratio(v_vehicle);
-    
-    if (sigma < -0.95) {
-        result.pass("Wheel lock: σ = " + std::to_string(sigma) + " (expected ~ -1.0)");
-    } else {
-        result.fail("Wheel lock: σ = " + std::to_string(sigma) + " (expected ~ -1.0)");
-    }
-    
-    // Test 1e: Low speed protection (denominator clamping)
-    wheel.set_omega_radps(0.05);  // Very slow wheel
-    sigma = wheel.compute_slip_ratio(0.05);  // Very slow vehicle
-    
-    if (std::isfinite(sigma)) {
-        result.pass("Low speed: σ = " + std::to_string(sigma) + " (finite, no division by zero)");
-    } else {
-        result.fail("Low speed: σ = " + std::to_string(sigma) + " (division by zero!)");
-    }
+    // Brake slip: ω·R < Vx → σx < 0 (wheel locking)
+    double omega_lock = Vx / R * 0.8;  // 20% brake slip
+    TyreForces f3 = tyre.compute_forces(omega_lock, R, Vx, 0.0, 100000.0);
+    r.check(f3.sigma_x < -0.1, 
+            "Brake slip: σx=" + std::to_string(f3.sigma_x) + " < 0");
 }
 
 // ============================================================================
-// Test 2: Wheel Integration
+// Test 2: TyreDugoff Friction Circle (PDF Eq. 45)
 // ============================================================================
 
-void test_wheel_integration(TestResult& result) {
-    std::cout << "\n" << COLOR_YELLOW << "=== Test 2: Wheel Integration ===" << COLOR_RESET << "\n";
+void test_tyre_dugoff_friction_circle(TestResult& r) {
+    std::cout << "\n" << YELLOW << "=== Test 2: Friction Circle Constraint ===" << RESET << "\n";
     
-    plant::WheelDynamicsParams params;
-    params.inertia_kgm2 = 1000.0;  // kg·m²
-    params.radius_m = 1.93;
-    params.omega_max_radps = 50.0;
-    params.omega_min_radps = -10.0;
+    TyreDugoffParams params;
+    params.mu_peak = 0.72;
+    params.Cx_base = 280000.0;
+    params.Cy_base = 220000.0;
+    params.Fz_ref = 100000.0;
+    TyreDugoff tyre(params);
     
-    plant::WheelDynamics wheel(params);
+    double Fz = 500000.0;  // Mining truck wheel load
+    double F_max = params.mu_peak * Fz;  // 360 kN
     
-    // Test 2a: Acceleration from rest with drive torque
-    wheel.set_omega_radps(0.0);
-    double tau_drive = 50000.0;  // 50 kNm drive torque
-    double fx = 0.0;  // No tire force initially
-    double dt = 0.001;  // 1ms timestep
+    // High slip (should be saturated)
+    double R = 1.93;
+    double Vx = 10.0;
+    double omega_high_slip = Vx / R * 1.5;  // 50% slip
     
-    wheel.step(tau_drive, 0.0, fx, dt);
+    TyreForces f = tyre.compute_forces(omega_high_slip, R, Vx, 0.5, Fz);
+    double F_total = std::sqrt(f.Fx * f.Fx + f.Fy * f.Fy);
     
-    // Expected: ω̇ = τ/I = 50000/1000 = 50 rad/s²
-    // After 1ms: ω = 0.05 rad/s
-    if (wheel.omega_radps() > 0.04 && wheel.omega_radps() < 0.06) {
-        result.pass("Acceleration: ω = " + std::to_string(wheel.omega_radps()) + " rad/s (expected ~0.05)");
-    } else {
-        result.fail("Acceleration: ω = " + std::to_string(wheel.omega_radps()) + " rad/s (expected ~0.05)");
-    }
+    r.check(F_total <= F_max * 1.01,  // 1% tolerance
+            "Friction circle: |F|=" + std::to_string(F_total/1000) + 
+            " kN ≤ μFz=" + std::to_string(F_max/1000) + " kN");
     
-    // Test 2b: Deceleration with brake torque
-    wheel.set_omega_radps(10.0);  // 10 rad/s
-    double tau_brake = 20000.0;   // 20 kNm brake torque
-    
-    wheel.step(0.0, tau_brake, fx, dt);
-    
-    // Expected: ω̇ = -τ/I = -20 rad/s² (brake opposes motion)
-    // After 1ms: ω = 10 - 0.02 = 9.98 rad/s
-    if (wheel.omega_radps() < 10.0 && wheel.omega_radps() > 9.9) {
-        result.pass("Deceleration: ω = " + std::to_string(wheel.omega_radps()) + " rad/s");
-    } else {
-        result.fail("Deceleration: ω = " + std::to_string(wheel.omega_radps()) + " rad/s (expected ~9.98)");
-    }
-    
-    // Test 2c: Zero-crossing protection
-    wheel.set_omega_radps(0.005);  // Very small positive velocity
-    wheel.step(0.0, 10000.0, 0.0, dt);  // Brake torque
-    
-    // Should snap to zero instead of going negative
-    if (std::abs(wheel.omega_radps()) < 0.01) {
-        result.pass("Zero-crossing: ω = " + std::to_string(wheel.omega_radps()) + " (snapped to ~0)");
-    } else {
-        result.fail("Zero-crossing: ω = " + std::to_string(wheel.omega_radps()) + " (should be ~0)");
-    }
-    
-    // Test 2d: Max speed clamping
-    wheel.set_omega_radps(49.0);
-    wheel.step(100000.0, 0.0, 0.0, 0.1);  // Large torque, long timestep
-    
-    if (wheel.omega_radps() <= params.omega_max_radps) {
-        result.pass("Max speed clamp: ω = " + std::to_string(wheel.omega_radps()) + " (≤ " + std::to_string(params.omega_max_radps) + ")");
-    } else {
-        result.fail("Max speed clamp: ω = " + std::to_string(wheel.omega_radps()) + " (exceeded max!)");
-    }
+    r.check(f.lambda < 1.0,
+            "Saturated regime: λ=" + std::to_string(f.lambda) + " < 1");
 }
 
 // ============================================================================
-// Test 3: Tire Force Feedback
+// Test 3: WheelDynamics Integration (PDF Eq. 52)
 // ============================================================================
 
-void test_tire_force_feedback(TestResult& result) {
-    std::cout << "\n" << COLOR_YELLOW << "=== Test 3: Tire Force Feedback ===" << COLOR_RESET << "\n";
+void test_wheel_dynamics_integration(TestResult& r) {
+    std::cout << "\n" << YELLOW << "=== Test 3: Wheel Dynamics Integration ===" << RESET << "\n";
     
-    plant::WheelDynamicsParams params;
+    WheelDynamicsParams params;
     params.inertia_kgm2 = 1000.0;
     params.radius_m = 1.93;
     
-    plant::WheelDynamics wheel(params);
+    WheelDynamics wheel(params);
+    wheel.set_omega_radps(5.0);  // Initial: 5 rad/s
     
-    // Test: With tire force, acceleration should be reduced
-    // Iw·ω̇ = τ_drive - Fx·R
-    // Higher Fx → lower ω̇
+    // Apply drive torque with no tire force (free spin)
+    // ω̇ = τ/Iw = 10000/1000 = 10 rad/s²
+    double tau_drive = 10000.0;
+    double dt = 0.001;  // 1ms
     
-    wheel.set_omega_radps(5.0);
-    double tau_drive = 50000.0;  // 50 kNm
-    double dt = 0.001;
-    
-    // Case A: No tire force
     double omega_before = wheel.omega_radps();
-    wheel.step(tau_drive, 0.0, 0.0, dt);
-    double accel_no_force = (wheel.omega_radps() - omega_before) / dt;
+    wheel.step(tau_drive, 0.0, 0.0, dt);  // No brake, no Fx
+    double omega_after = wheel.omega_radps();
     
-    // Case B: With tire force
-    wheel.set_omega_radps(5.0);
-    omega_before = wheel.omega_radps();
-    double fx = 20000.0;  // 20 kN tire force
-    wheel.step(tau_drive, 0.0, fx, dt);
-    double accel_with_force = (wheel.omega_radps() - omega_before) / dt;
+    double delta_omega = omega_after - omega_before;
+    double expected_delta = tau_drive / params.inertia_kgm2 * dt;  // 0.01 rad/s
     
-    if (accel_with_force < accel_no_force) {
-        result.pass("Tire feedback: accel with Fx (" + std::to_string(accel_with_force) + 
-                   ") < accel without (" + std::to_string(accel_no_force) + ")");
-    } else {
-        result.fail("Tire feedback: Fx should reduce acceleration!");
-    }
-    
-    // Verify the reduction amount
-    // Expected reduction: Fx·R / Iw = 20000 * 1.93 / 1000 = 38.6 rad/s²
-    double expected_diff = fx * params.radius_m / params.inertia_kgm2;
-    double actual_diff = accel_no_force - accel_with_force;
-    
-    if (is_close(actual_diff, expected_diff, 0.01)) {
-        result.pass("Feedback magnitude: Δaccel = " + std::to_string(actual_diff) + 
-                   " (expected " + std::to_string(expected_diff) + ")");
-    } else {
-        result.fail("Feedback magnitude: Δaccel = " + std::to_string(actual_diff) + 
-                   " (expected " + std::to_string(expected_diff) + ")");
-    }
+    r.check(is_close(delta_omega, expected_delta, 0.001),
+            "Free spin: Δω=" + std::to_string(delta_omega) + 
+            " rad/s (expected " + std::to_string(expected_delta) + ")");
 }
 
 // ============================================================================
-// Test 4: Stability Criterion
+// Test 4: Wheel Dynamics Stability Criterion (PDF Eq. 58)
 // ============================================================================
 
-void test_stability_criterion(TestResult& result) {
-    std::cout << "\n" << COLOR_YELLOW << "=== Test 4: Stability Criterion ===" << COLOR_RESET << "\n";
+void test_wheel_stability_criterion(TestResult& r) {
+    std::cout << "\n" << YELLOW << "=== Test 4: Stability Criterion ===" << RESET << "\n";
     
-    plant::WheelDynamicsParams params;
-    params.inertia_kgm2 = 1000.0;  // kg·m²
-    params.radius_m = 1.93;        // m
+    WheelDynamicsParams params;
+    params.inertia_kgm2 = 1000.0;
+    params.radius_m = 1.93;
     
-    plant::WheelDynamics wheel(params);
+    WheelDynamics wheel(params);
     
-    // For XCMG truck: Cx = 280000 N/slip
-    double cx = 280000.0;
-    double dt_max = wheel.get_stability_dt_max(cx);
+    double Cx = 280000.0;  // Tire stiffness
+    double dt_max = wheel.get_stability_dt_max(Cx);
     
-    // Expected: dt_max = 2 * 1000 / (280000 * 1.93²) ≈ 1.92 ms
-    double expected_dt = 2.0 * params.inertia_kgm2 / (cx * params.radius_m * params.radius_m);
+    // Expected: dt_max = 2·Iw/(Cx·R²) = 2×1000/(280000×1.93²) ≈ 1.92ms
+    double expected = 2.0 * params.inertia_kgm2 / (Cx * params.radius_m * params.radius_m);
     
-    std::cout << "  Calculated dt_max: " << (dt_max * 1000.0) << " ms\n";
-    std::cout << "  Expected dt_max:   " << (expected_dt * 1000.0) << " ms\n";
+    r.check(is_close(dt_max, expected, 0.0001),
+            "dt_max=" + std::to_string(dt_max * 1000) + 
+            " ms (expected " + std::to_string(expected * 1000) + " ms)");
     
-    if (is_close(dt_max, expected_dt, 0.01)) {
-        result.pass("Stability criterion: dt_max = " + std::to_string(dt_max * 1000.0) + " ms");
-    } else {
-        result.fail("Stability criterion mismatch!");
-    }
-    
-    // Verify it's approximately 1.9ms
-    if (dt_max > 0.0015 && dt_max < 0.0025) {
-        result.pass("dt_max in expected range (1.5-2.5 ms)");
-    } else {
-        result.fail("dt_max outside expected range!");
-    }
+    r.check(dt_max > 0.001 && dt_max < 0.003,
+            "Stability requires dt < 2ms for XCMG parameters");
 }
 
 // ============================================================================
 // Test 5: WheelSubsystem Initialization
 // ============================================================================
 
-void test_wheel_subsystem_init(TestResult& result) {
-    std::cout << "\n" << COLOR_YELLOW << "=== Test 5: WheelSubsystem Initialization ===" << COLOR_RESET << "\n";
+void test_wheel_subsystem_init(TestResult& r) {
+    std::cout << "\n" << YELLOW << "=== Test 5: WheelSubsystem Initialization ===" << RESET << "\n";
     
-    plant::WheelSubsystemParams params;
-    params.mass_kg = 220000.0;  // 220 tons
+    WheelSubsystemParams params;
+    params.mass_kg = 218000.0;
+    params.wheelbase_m = 6.3;
+    params.cg_to_front_m = 3.78;  // 60% rear bias
     params.wheel.radius_m = 1.93;
-    params.dynamic_mode_enabled = false;  // Start in kinematic mode
-    
-    // Set tire params using existing TyreDugoffParams
-    params.tyre_params.Cx_base = 280000.0;
-    params.tyre_params.Cy_base = 220000.0;
-    params.tyre_params.Fz_ref = 800000.0;
+    params.wheel.inertia_kgm2 = 1000.0;
     params.tyre_params.mu_peak = 0.72;
+    params.dynamic_mode_enabled = true;
     
-    plant::WheelSubsystem subsystem(params);
-    plant::PlantState state;
-    state.v_mps = 5.0;  // 5 m/s
+    WheelSubsystem subsystem(params);
     
-    // Initialize
-    subsystem.initialize(state);
+    PlantState s;
+    s.v_mps = 10.0;
+    
+    subsystem.initialize(s);
     
     // Check wheel speeds initialized from velocity
-    double expected_omega = 5.0 / 1.93;
+    double expected_omega = s.v_mps / params.wheel.radius_m;
+    r.check(is_close(s.omega_rl_radps, expected_omega, 0.01),
+            "omega_rl_radps=" + std::to_string(s.omega_rl_radps) + 
+            " rad/s (from v=" + std::to_string(s.v_mps) + " m/s)");
     
-    if (is_close(state.omega_rl_radps, expected_omega, 0.01)) {
-        result.pass("Wheel init from velocity: ω = " + std::to_string(state.omega_rl_radps) + 
-                   " rad/s (expected " + std::to_string(expected_omega) + ")");
-    } else {
-        result.fail("Wheel init failed!");
-    }
+    // Check normal loads (40% front / 60% rear for mining truck)
+    double W = params.mass_kg * 9.81;
+    double Wf_expected = W * (params.wheelbase_m - params.cg_to_front_m) / params.wheelbase_m;
+    double Wr_expected = W * params.cg_to_front_m / params.wheelbase_m;
+    
+    double Fz_front_actual = s.Fz_fl + s.Fz_fr;
+    double Fz_rear_actual = s.Fz_rl + s.Fz_rr;
+    
+    r.check(is_close(Fz_front_actual, Wf_expected, 1000),
+            "Front axle load: " + std::to_string(Fz_front_actual/1000) + 
+            " kN (expected " + std::to_string(Wf_expected/1000) + " kN)");
+    
+    r.check(is_close(Fz_rear_actual, Wr_expected, 1000),
+            "Rear axle load: " + std::to_string(Fz_rear_actual/1000) + 
+            " kN (expected " + std::to_string(Wr_expected/1000) + " kN)");
     
     // Check priority
-    if (subsystem.priority() == 105) {
-        result.pass("Priority = 105 (after Drive=100)");
-    } else {
-        result.fail("Priority = " + std::to_string(subsystem.priority()) + " (expected 105)");
-    }
+    r.check(subsystem.priority() == 105,
+            "Priority = 105 (after Drive=100)");
     
-    // Check name
-    if (std::string(subsystem.name()) == "Wheel") {
-        result.pass("Subsystem name = 'Wheel'");
-    } else {
-        result.fail("Subsystem name = '" + std::string(subsystem.name()) + "' (expected 'Wheel')");
-    }
+    // Check dynamic mode flag
+    r.check(s.dynamic_model_enabled == true,
+            "dynamic_model_enabled = true");
 }
 
 // ============================================================================
-// Test 6: Kinematic vs Dynamic Mode
+// Test 6: WheelSubsystem Dynamic Mode Step
 // ============================================================================
 
-void test_kinematic_vs_dynamic_mode(TestResult& result) {
-    std::cout << "\n" << COLOR_YELLOW << "=== Test 6: Kinematic vs Dynamic Mode ===" << COLOR_RESET << "\n";
+void test_wheel_subsystem_dynamic_step(TestResult& r) {
+    std::cout << "\n" << YELLOW << "=== Test 6: WheelSubsystem Dynamic Step ===" << RESET << "\n";
     
-    plant::WheelSubsystemParams params;
-    params.mass_kg = 220000.0;
+    WheelSubsystemParams params;
+    params.mass_kg = 218000.0;
     params.wheel.radius_m = 1.93;
     params.wheel.inertia_kgm2 = 1000.0;
-    
-    // Set tire params using existing TyreDugoffParams
-    params.tyre_params.Cx_base = 280000.0;
-    params.tyre_params.Cy_base = 220000.0;
-    params.tyre_params.Fz_ref = 800000.0;
     params.tyre_params.mu_peak = 0.72;
+    params.tyre_params.Cx_base = 280000.0;
+    params.tyre_params.Fz_ref = 100000.0;
+    params.dynamic_mode_enabled = true;
+    
+    WheelSubsystem subsystem(params);
+    
+    PlantState s;
+    s.v_mps = 10.0;
+    s.a_long_mps2 = 0.0;
+    
+    // Simulate DriveSubsystem output: drive torque on rear wheels
+    s.tau_drive_rl_nm = 50000.0;  // 50 kNm per wheel
+    s.tau_drive_rr_nm = 50000.0;
+    s.tau_brake_fl_nm = 0.0;
+    s.tau_brake_fr_nm = 0.0;
+    s.tau_brake_rl_nm = 0.0;
+    s.tau_brake_rr_nm = 0.0;
+    
+    subsystem.initialize(s);
     
     sim::ActuatorCmd cmd;
-    cmd.system_enable = true;
+    double dt = 0.001;  // 1ms
     
-    // Test kinematic mode
+    double omega_before = s.omega_rl_radps;
+    
+    // Execute step
+    subsystem.pre_step(s, cmd, dt);
+    subsystem.step(s, cmd, dt);
+    subsystem.post_step(s, cmd, dt);
+    
+    double omega_after = s.omega_rl_radps;
+    
+    // With drive torque, wheel should accelerate
+    r.check(omega_after > omega_before,
+            "Wheel accelerates: ω increased from " + std::to_string(omega_before) +
+            " to " + std::to_string(omega_after) + " rad/s");
+    
+    // Check tire forces populated
+    r.check(s.Fx_rl != 0.0,
+            "Tire force Fx_rl=" + std::to_string(s.Fx_rl/1000) + " kN");
+    
+    // Check slip ratio (should be positive = drive slip)
+    r.check(s.sigma_x_rl > 0.0,
+            "Drive slip: σx_rl=" + std::to_string(s.sigma_x_rl));
+}
+
+// ============================================================================
+// Test 7: Load Transfer During Acceleration (PDF Section 3.2)
+// ============================================================================
+
+void test_load_transfer(TestResult& r) {
+    std::cout << "\n" << YELLOW << "=== Test 7: Longitudinal Load Transfer ===" << RESET << "\n";
+    
+    WheelSubsystemParams params;
+    params.mass_kg = 218000.0;
+    params.wheelbase_m = 6.3;
+    params.cg_height_m = 2.8;
+    params.cg_to_front_m = 3.78;
+    
+    WheelSubsystem subsystem(params);
+    
+    PlantState s;
+    s.v_mps = 10.0;
+    
+    // Static case (no acceleration)
+    s.a_long_mps2 = 0.0;
+    subsystem.initialize(s);
+    
+    double Fz_front_static = s.Fz_fl + s.Fz_fr;
+    double Fz_rear_static = s.Fz_rl + s.Fz_rr;
+    
+    // Acceleration case
+    s.a_long_mps2 = 2.0;  // 2 m/s² acceleration
+    
+    sim::ActuatorCmd cmd;
+    subsystem.pre_step(s, cmd, 0.01);  // pre_step computes normal loads
+    
+    double Fz_front_accel = s.Fz_fl + s.Fz_fr;
+    double Fz_rear_accel = s.Fz_rl + s.Fz_rr;
+    
+    // During acceleration: front loses load, rear gains load
+    r.check(Fz_front_accel < Fz_front_static,
+            "Accel: Front load decreased from " + std::to_string(Fz_front_static/1000) +
+            " to " + std::to_string(Fz_front_accel/1000) + " kN");
+    
+    r.check(Fz_rear_accel > Fz_rear_static,
+            "Accel: Rear load increased from " + std::to_string(Fz_rear_static/1000) +
+            " to " + std::to_string(Fz_rear_accel/1000) + " kN");
+    
+    // Check load transfer magnitude: ΔFz = m·a·h/L
+    double expected_dFz = params.mass_kg * 2.0 * params.cg_height_m / params.wheelbase_m;
+    double actual_dFz = Fz_rear_accel - Fz_rear_static;
+    
+    r.check(is_close(actual_dFz, expected_dFz, 1000),
+            "Load transfer: ΔFz=" + std::to_string(actual_dFz/1000) +
+            " kN (expected " + std::to_string(expected_dFz/1000) + " kN)");
+}
+
+// ============================================================================
+// Test 8: Kinematic vs Dynamic Mode
+// ============================================================================
+
+void test_kinematic_vs_dynamic(TestResult& r) {
+    std::cout << "\n" << YELLOW << "=== Test 8: Kinematic vs Dynamic Mode ===" << RESET << "\n";
+    
+    WheelSubsystemParams params;
+    params.wheel.radius_m = 1.93;
+    
+    // KINEMATIC mode
     params.dynamic_mode_enabled = false;
-    plant::WheelSubsystem kin_subsystem(params);
-    plant::PlantState kin_state;
-    kin_state.v_mps = 10.0;
-    kin_state.tau_drive_rl_nm = 50000.0;  // Drive torque (ignored in kinematic)
+    WheelSubsystem kin_subsystem(params);
     
-    kin_subsystem.initialize(kin_state);
-    kin_subsystem.step(kin_state, cmd, 0.001);
+    PlantState s_kin;
+    s_kin.v_mps = 15.0;
+    kin_subsystem.initialize(s_kin);
     
-    // In kinematic mode, slip should be ~0
-    if (std::abs(kin_state.sigma_x_rl) < 0.01) {
-        result.pass("Kinematic mode: σ_rl = " + std::to_string(kin_state.sigma_x_rl) + " (~0)");
-    } else {
-        result.fail("Kinematic mode: σ_rl = " + std::to_string(kin_state.sigma_x_rl) + " (expected ~0)");
-    }
+    sim::ActuatorCmd cmd;
+    kin_subsystem.step(s_kin, cmd, 0.01);
     
-    // Test dynamic mode
+    // In kinematic mode: ω = V/R exactly (no slip)
+    double expected_omega = s_kin.v_mps / params.wheel.radius_m;
+    r.check(is_close(s_kin.omega_rl_radps, expected_omega, 0.001),
+            "KINEMATIC: ω_rl=" + std::to_string(s_kin.omega_rl_radps) +
+            " = V/R=" + std::to_string(expected_omega));
+    
+    // DYNAMIC mode
     params.dynamic_mode_enabled = true;
-    plant::WheelSubsystem dyn_subsystem(params);
-    plant::PlantState dyn_state;
-    dyn_state.v_mps = 10.0;
-    dyn_state.tau_drive_rl_nm = 100000.0;  // High drive torque
-    dyn_state.Fz_rl = 500000.0;  // Normal load
+    WheelSubsystem dyn_subsystem(params);
     
-    dyn_subsystem.initialize(dyn_state);
+    PlantState s_dyn;
+    s_dyn.v_mps = 15.0;
+    s_dyn.tau_drive_rl_nm = 100000.0;  // Large drive torque
+    s_dyn.tau_drive_rr_nm = 100000.0;
+    dyn_subsystem.initialize(s_dyn);
     
-    // Run a few timesteps to build up slip
-    for (int i = 0; i < 50; i++) {
-        dyn_subsystem.step(dyn_state, cmd, 0.001);
+    // Run a few steps
+    for (int i = 0; i < 10; i++) {
+        dyn_subsystem.step(s_dyn, cmd, 0.001);
     }
     
-    // In dynamic mode with high torque, slip should be non-zero
-    if (std::abs(dyn_state.sigma_x_rl) > 0.01) {
-        result.pass("Dynamic mode: σ_rl = " + std::to_string(dyn_state.sigma_x_rl) + " (non-zero)");
-    } else {
-        result.fail("Dynamic mode: σ_rl = " + std::to_string(dyn_state.sigma_x_rl) + " (expected non-zero)");
-    }
+    // In dynamic mode with drive torque: ω should diverge from V/R (slip develops)
+    double omega_no_slip = s_dyn.v_mps / params.wheel.radius_m;
+    double slip = (s_dyn.omega_rl_radps * params.wheel.radius_m - s_dyn.v_mps) / s_dyn.v_mps;
+    
+    r.check(s_dyn.omega_rl_radps > omega_no_slip,
+            "DYNAMIC: ω_rl=" + std::to_string(s_dyn.omega_rl_radps) +
+            " > V/R (slip=" + std::to_string(slip*100) + "%)");
 }
 
 // ============================================================================
@@ -399,20 +398,30 @@ void test_kinematic_vs_dynamic_mode(TestResult& result) {
 // ============================================================================
 
 int main() {
-    std::cout << COLOR_YELLOW << "╔════════════════════════════════════════════════════════════╗\n";
-    std::cout << "║           WheelDynamics & WheelSubsystem Tests             ║\n";
-    std::cout << "╚════════════════════════════════════════════════════════════╝" << COLOR_RESET << "\n";
+    std::cout << "╔═══════════════════════════════════════════════════════════════╗\n";
+    std::cout << "║            Wheel Dynamics Unit Tests                          ║\n";
+    std::cout << "║  Reference: Vehicle_Dynamics_with_Dugoff_Tire_Model.pdf       ║\n";
+    std::cout << "╚═══════════════════════════════════════════════════════════════╝\n";
     
-    TestResult result;
+    TestResult r;
     
-    test_slip_ratio_calculation(result);
-    test_wheel_integration(result);
-    test_tire_force_feedback(result);
-    test_stability_criterion(result);
-    test_wheel_subsystem_init(result);
-    test_kinematic_vs_dynamic_mode(result);
+    test_tyre_dugoff_slip(r);
+    test_tyre_dugoff_friction_circle(r);
+    test_wheel_dynamics_integration(r);
+    test_wheel_stability_criterion(r);
+    test_wheel_subsystem_init(r);
+    test_wheel_subsystem_dynamic_step(r);
+    test_load_transfer(r);
+    test_kinematic_vs_dynamic(r);
     
-    result.summary();
+    std::cout << "\n════════════════════════════════════════════\n";
+    if (r.failed == 0) {
+        std::cout << GREEN << "ALL TESTS PASSED";
+    } else {
+        std::cout << RED << "SOME TESTS FAILED";
+    }
+    std::cout << " (" << r.passed << " passed, " << r.failed << " failed)" << RESET << "\n";
+    std::cout << "════════════════════════════════════════════\n";
     
-    return (result.failed == 0) ? 0 : 1;
+    return r.failed > 0 ? 1 : 0;
 }

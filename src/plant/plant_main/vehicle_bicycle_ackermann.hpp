@@ -1,45 +1,74 @@
 // src/plant/plant_main/vehicle_bicycle_ackermann.hpp
+//
+// VehicleBicycleAckermann - Vehicle position and velocity integration
+//
+// In the hybrid model architecture:
+//   - DriveSubsystem: Computes tau_drive_*, tau_brake_*
+//   - WheelSubsystem: Integrates wheel dynamics, computes Fx_*, Fy_*
+//   - VehicleBicycleAckermann: Integrates position and velocity from ΣFx
+//
+// DYNAMIC MODE (dynamic_model_enabled=true):
+//   - Position integration (x, y, yaw)
+//   - Velocity integration from ΣFx (friction-limited)
+//   - Enables realistic traction limiting, slip effects
+//
+// Reference: Vehicle_Dynamics_with_Dugoff_Tire_Model.pdf (Section 6, Eq. 4)
+
 #pragma once
 
 #include <cmath>
-#include "plant/battery_subsystem/battery_plant.hpp"  // Include BatteryPlant class for energy management
+#include "plant/battery_subsystem/battery_plant.hpp"
 
 namespace plant {
 
-// Forward declaration to avoid circular include
+// Forward declaration
 struct PlantState;
 
-struct BicycleAckermannParams {
-    // --- Existing geometry parameters ---
-    double L_m = 2.8;           // Wheelbase
-    double W_m = 1.6;           // Track width
-    double delta_max_rad = 0.6; // Max steering angle
+// ============================================================================
+// BicycleAckermannParams - Configuration for vehicle model
+// ============================================================================
 
-    // --- Existing realism knob ---
-    double mu_lat = 0.9;        // Lateral friction coefficient
-    double g = 9.81;            // Gravitational acceleration
+struct BicycleAckermannParams {
+    // ========================================================================
+    // Geometry (XCMG XDE320 Table 4)
+    // ========================================================================
+    double L_m = 6.3;               // Wheelbase [m]
+    double W_m = 4.0;               // Track width [m]
+    double delta_max_rad = 0.52;    // Max steering angle [rad] (~30°)
+
+    // ========================================================================
+    // Lateral Dynamics
+    // ========================================================================
+    double mu_lat = 0.72;           // Lateral friction coefficient
+    double g = 9.81;                // Gravity [m/s²]
     
     // ========================================================================
-    // NEW: Dynamic Model Parameters (for force-based dynamics)
+    // Longitudinal Dynamics (for DYNAMIC mode)
     // ========================================================================
     bool dynamic_model_enabled = false;  // false=kinematic, true=force-based
     
-    // Vehicle dynamics (only used when dynamic_model_enabled=true)
-    double mass_kg = 1800.0;    // Vehicle mass for F=ma
-    double drag_c = 0.35;       // Aerodynamic drag coefficient (N/(m/s)²)
-    double roll_c = 40.0;       // Rolling resistance (N)
+    double mass_kg = 218000.0;      // Vehicle mass [kg]
+    double drag_c = 2.5;            // Aerodynamic drag [N/(m/s)²]
+    double roll_c = 1500.0;         // Rolling resistance [N]
     
-    // Tire force scaling (for traction limiting)
-    // When enabled, acceleration is limited by available tire forces
+    // Traction limiting (only used when dynamic_model_enabled=true)
     bool traction_limiting = true;
 };
+
+// ============================================================================
+// BicycleState2D - Vehicle pose
+// ============================================================================
 
 struct BicycleState2D {
     double x_m = 0.0;
     double y_m = 0.0;
     double yaw_rad = 0.0;
-    double speed_mps = 0.0;  // Add speed for energy calculation and dynamic mode
+    double speed_mps = 0.0;
 };
+
+// ============================================================================
+// BicycleStepResult - Output from step()
+// ============================================================================
 
 struct BicycleStepResult {
     BicycleState2D next;
@@ -47,19 +76,22 @@ struct BicycleStepResult {
     double delta_fl_rad = 0.0;
     double delta_fr_rad = 0.0;
     
-    // --- NEW: Dynamic model outputs ---
-    double a_long_mps2 = 0.0;   // Longitudinal acceleration (from tire forces)
-    double Fx_total = 0.0;     // Total longitudinal tire force used
-    double Fx_available = 0.0; // Available traction (friction limited)
+    // Dynamic mode outputs
+    double a_long_mps2 = 0.0;       // Longitudinal acceleration
+    double Fx_total = 0.0;          // Total longitudinal tire force used
+    double Fx_available = 0.0;      // Maximum available traction
 };
+
+// ============================================================================
+// VehicleBicycleAckermann - Vehicle dynamics
+// ============================================================================
 
 class VehicleBicycleAckermann {
 public:
     /**
-     * ackermann_map() - Map virtual steering angle to individual wheel angles
+     * ackermann_map() - Compute individual wheel angles from virtual steering
      * 
-     * Computes Ackermann geometry for inner/outer wheel angles.
-     * This function is unchanged from V1.
+     * Uses Ackermann geometry to compute inner/outer wheel angles.
      */
     static void ackermann_map(
         double steer_virtual_rad,
@@ -70,28 +102,24 @@ public:
     );
 
     /**
-     * step() - Update vehicle position and orientation
+     * step() - Update vehicle position and velocity
      * 
-     * KINEMATIC MODE (dynamic_model_enabled=false):
-     *   - Pure kinematic bicycle model
-     *   - Position update: x += v*cos(ψ)*dt, y += v*sin(ψ)*dt
+     * KINEMATIC MODE:
+     *   - Position update: x += v·cos(ψ)·dt, y += v·sin(ψ)·dt, ψ += ψ̇·dt
      *   - Velocity is set externally by DriveSubsystem
-     *   - No slip, unlimited traction
      * 
-     * DYNAMIC MODE (dynamic_model_enabled=true):
-     *   - Force-based acceleration from Dugoff tire model
-     *   - a = (Fx_tire - F_drag - F_roll) / m
-     *   - v_next = v + a*dt
-     *   - Traction limited by available tire forces from PlantState
+     * DYNAMIC MODE (PDF Eq. 4):
+     *   - m·dv/dt = ΣFx - F_drag - F_roll
+     *   - Uses Fx_* from all 4 wheels (set by WheelSubsystem)
+     *   - Enables friction-limited acceleration
      * 
-     * @param s Current pose (x, y, yaw)
-     * @param v_mps Current longitudinal velocity
-     * @param steer_virtual_rad Virtual (bicycle) steering angle
-     * @param p Model parameters
-     * @param dt_s Timestep
-     * @param battery_plant Reference for energy tracking (legacy)
-     * @param state PlantState with tire forces (for dynamic mode)
-     * @return Updated pose and diagnostic outputs
+     * @param s             Current pose
+     * @param v_mps         Current velocity [m/s]
+     * @param steer_virtual Virtual steering angle [rad]
+     * @param p             Model parameters
+     * @param dt_s          Timestep [s]
+     * @param battery_plant Battery for energy tracking (legacy)
+     * @param state         PlantState with tire forces (for dynamic mode)
      */
     static BicycleStepResult step(
         const BicycleState2D& s,
@@ -100,11 +128,12 @@ public:
         const BicycleAckermannParams& p,
         double dt_s,
         BatteryPlant& battery_plant,
-        const PlantState& state  // NEW: for tire forces in dynamic mode
+        const PlantState& state
     );
     
-    // --- LEGACY OVERLOAD (backward compatibility) ---
-    // Calls new step() with default PlantState
+    /**
+     * Legacy overload for backward compatibility (uses kinematic mode)
+     */
     static BicycleStepResult step(
         const BicycleState2D& s,
         double v_mps,
