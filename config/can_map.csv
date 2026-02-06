@@ -3,7 +3,7 @@ rx,0x100,ACTUATOR_CMD_1,10,8,system_enable,actuator_cmd,0,1,little,FALSE,1,0,0,1
 rx,0x100,ACTUATOR_CMD_1,10,8,mode,actuator_cmd,1,3,little,FALSE,1,0,0,7,0,enum,,,Operating mode (reserved)
 rx,0x100,ACTUATOR_CMD_1,10,8,steer_cmd_deg,actuator_cmd,8,16,little,TRUE,0.1,0,-500,500,0,deg,,,Steering command
 rx,0x100,ACTUATOR_CMD_1,10,8,drive_torque_cmd_nm,actuator_cmd,24,16,little,TRUE,10,0,-300000,300000,0,Nm,,,Motor torque command (heavy vehicle)
-rx,0x100,ACTUATOR_CMD_1,10,8,brake_cmd_pct,actuator_cmd,40,8,little,FALSE,0.5,0,0,100,0,%,,,Brake pedal percentage
+rx,0x100,ACTUATOR_CMD_1,10,8,brake_cmd_pct,actuator_cmd,40,8,little,FALSE,0,0,0,100,0,%,,,Brake pedal percentage
 tx,0x200,IMU_ACC,5,8,imu_ax_mps2,sensor_out,0,16,little,TRUE,0.01,0,-50,50,0,m/s2,,,Longitudinal acceleration
 tx,0x200,IMU_ACC,5,8,imu_ay_mps2,sensor_out,16,16,little,TRUE,0.01,0,-50,50,0,m/s2,,,Lateral acceleration
 tx,0x200,IMU_ACC,5,8,imu_az_mps2,sensor_out,32,16,little,TRUE,0.01,0,-50,50,0,m/s2,,,Vertical acceleration

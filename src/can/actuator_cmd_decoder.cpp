@@ -99,6 +99,9 @@ bool ActuatorCmdDecoder::decode(const struct can_frame& frame,
     // Update timestamp
     out_cmd.last_update_t_s = sim_time;
     
+    static int cnt = 0;
+
+    if(cnt++ % 10 ==0){
     LOG_DEBUG("CAN RX decoded 0x%03X: enable=%d mode=%d torque=%.1fNm brake=%.1f%% steer=%.1f°",
               frame.can_id,
               out_cmd.system_enable, 
@@ -106,7 +109,7 @@ bool ActuatorCmdDecoder::decode(const struct can_frame& frame,
               out_cmd.drive_torque_cmd_nm,
               out_cmd.brake_cmd_pct,
               out_cmd.steer_cmd_deg);
-    
+    }
     return true;
 }
 

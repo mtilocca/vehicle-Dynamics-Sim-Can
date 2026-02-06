@@ -15,7 +15,7 @@ DriveSubsystem::DriveSubsystem(
 }
 
 void DriveSubsystem::initialize(PlantState& s) {
-    LOG_INFO("[DriveSubsystem] Initializing: mass=%.0f kg, max_torque=%.0f Nm, max_power=%.0f kW",
+    LOG_INFO("[DriveSubsystem] Initializing: mass=%.0f kg, max_torque=%.0f Nm, max_power=%.0f kW, Resistance: drag_c=%.2f, roll_c=%.1f", 
              drive_.params().mass_kg,
              drive_.params().motor_torque_max_nm,
              drive_.params().motor_power_max_w / 1000.0,

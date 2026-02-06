@@ -2,6 +2,7 @@
 #include "vehicle_bicycle_ackermann.hpp"
 #include "plant_state.hpp"  // Include for tire forces
 #include "plant/battery_subsystem/battery_plant.hpp"
+#include "utils/logging.hpp"
 #include <algorithm>
 #include <cmath>
 
@@ -133,6 +134,12 @@ BicycleStepResult VehicleBicycleAckermann::step(
         double F_net = Fx_tire - F_drag - F_roll;
         a_long = F_net / p.mass_kg;
         
+
+        static int cnt = 0;
+        if (cnt++ % 100 == 0) {
+        LOG_DEBUG("[Ackermann] Fx_tire=%.0f F_res=%.0f F_net=%.0f a=%.4f v=%.3f",
+                 Fx_tire, F_drag + F_roll, F_net, F_net / p.mass_kg, v);
+        }
         // Velocity update (Eq. 51): v_k+1 = v_k + dt * a_k
         v_next = v + dt * a_long;
         
@@ -149,6 +156,13 @@ BicycleStepResult VehicleBicycleAckermann::step(
         
         out.a_long_mps2 = a_long;
         out.next.speed_mps = v_next;
+
+        static int cnt1 = 0;
+        if (cnt1++ % 100 == 0) {
+         LOG_DEBUG("[Ackermann] v=%.2f Fx_tire=%.0f F_drag=%.1f F_roll=%.1f mass=%.0f  Motor Torque =%.1f",
+              v, Fx_tire, F_drag, F_roll, p.mass_kg, state.motor_torque_nm);}
+        
+        
         
     } else {
         // ====================================================================
@@ -188,14 +202,6 @@ BicycleStepResult VehicleBicycleAckermann::step(
         nullptr
     );
 
-    // ========================================================================
-    // STEP 5: Battery energy tracking (legacy behavior)
-    // ========================================================================
-    // Note: In the new subsystem architecture, BatterySubsystem handles this
-    // This call is kept for backward compatibility but could be removed
-    if (std::abs(v) > 1e-3) {
-        battery_plant.step(v * battery_plant.get_current(), 0.0, dt);
-    }
 
     return out;
 }
