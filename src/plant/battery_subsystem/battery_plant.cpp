@@ -9,8 +9,8 @@ namespace plant {
 BatteryPlant::BatteryPlant(const BatteryPlantParams& params, const MotorParams& motor_params)
     : params_(params),
       motor_params_(motor_params),
-      soc_(0.5),  // Start at 50% SOC
-      voltage_(400.0),  // Initial voltage (will be updated in step())
+      soc_(params.initial_soc),  // ← Use params
+      voltage_(params.nominal_voltage_v * (0.85 + 0.30 * params.initial_soc)),
       current_(0.0),
       power_(0.0),
       regen_power_kW_(0.0) {}
@@ -40,7 +40,7 @@ void BatteryPlant::update_state(double power_demand_kW, double brake_force_kN, d
     // At SOC=0%: V = 400 * 0.85 = 340V
     // At SOC=50%: V = 400 * (0.85 + 0.15) = 400V
     // At SOC=100%: V = 400 * 1.15 = 460V
-    const double nominal_voltage = 400.0;
+    const double nominal_voltage = params_.nominal_voltage_v;
     voltage_ = nominal_voltage * (0.85 + 0.30 * soc_);
     
     // Convert power from kW to W for calculations
@@ -81,12 +81,16 @@ void BatteryPlant::update_state(double power_demand_kW, double brake_force_kN, d
               soc_, soc_ * 100.0, voltage_, current_, power_);
 }
 
-void BatteryPlant::consume_energy(double energy_consumed_J) {
+void BatteryPlant::consume_energy(double energy_consumed_J, double power_kW) {
     // Convert Joules (W*s) to Wh
+    voltage_ = params_.nominal_voltage_v * (0.85 + 0.30 * soc_);
     const double energy_Wh = energy_consumed_J / 3600.0;
     const double cap_Wh = params_.capacity_kWh * 1000.0;
     
     soc_ = std::clamp(soc_ - (energy_Wh / cap_Wh), params_.min_soc, params_.max_soc);
+
+    power_ = power_kW * 1000.0;           // W
+    current_ = power_ / voltage_;          // A (positive = discharge)
     
     LOG_DEBUG("[BatteryPlant::consume_energy] Consumed %.2f J (%.4f Wh), SOC=%.3f", 
               energy_consumed_J, energy_Wh, soc_);
@@ -96,7 +100,7 @@ void BatteryPlant::store_energy(double energy_stored_J, double regen_power_kW) {
     // ========================================================================
     // CRITICAL FIX: Update voltage based on current SOC before calculating current
     // ========================================================================
-    const double nominal_voltage = 400.0;
+    const double nominal_voltage = params_.nominal_voltage_v;
     voltage_ = nominal_voltage * (0.85 + 0.30 * soc_);
     
     // Convert Joules (W*s) to Wh
@@ -143,8 +147,8 @@ double BatteryPlant::get_current() const { return current_; }
 double BatteryPlant::get_power() const { return power_; }
 
 void BatteryPlant::reset() {
-    soc_ = 0.5;  // Reset to 50% SOC
-    voltage_ = 400.0;
+    soc_ = params_.initial_soc;  // ← Use params
+    voltage_ = params_.nominal_voltage_v * (0.85 + 0.30 * soc_);
     current_ = 0.0;
     power_ = 0.0;
     regen_power_kW_ = 0.0;

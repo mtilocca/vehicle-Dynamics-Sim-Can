@@ -100,6 +100,7 @@ int SimApp::run_plant_only() {
     plant::PlantModel plant_model(pmp);
     plant::PlantState s{};
     s.batt_soc_pct = 50.0;
+    s.batt_v = pmp.battery_params.nominal_voltage_v; 
     s.dynamic_model_enabled = cfg_.enable_dynamic_model;
     s.surface_mu = cfg_.surface_friction;
 

@@ -93,6 +93,7 @@ VehicleConfig VehicleConfig::load(const std::string& yaml_path) {
         if (config["vehicle"]["battery"]) {
             auto bat = config["vehicle"]["battery"];
             vehicle.params.battery_params.capacity_kWh = bat["capacity_kwh"].as<double>(60.0);
+             vehicle.params.battery_params.nominal_voltage_v = bat["nominal_voltage_v"].as<double>(400.0); 
             vehicle.params.battery_params.max_charge_power_kW = bat["max_charge_power_kw"].as<double>(50.0);
             vehicle.params.battery_params.max_discharge_power_kW = bat["max_discharge_power_kw"].as<double>(150.0);
             vehicle.params.battery_params.efficiency_charge = bat["efficiency_charge"].as<double>(0.95);
