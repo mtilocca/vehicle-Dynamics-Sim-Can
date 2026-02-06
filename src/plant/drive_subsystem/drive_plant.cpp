@@ -75,6 +75,88 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s)
     s.brake_force_kN = brake_force_kN;
 
     // ========================================================================
+    // STEP 4: Drive Torque Distribution (RWD, 50/50 open diff)
+    // ========================================================================
+    // Front wheels: non-driven (tau_drive = 0)
+    // Rear wheels: equal split (open differential)
+    //
+    // Future: Could add limited-slip differential or torque vectoring here
+    
+    s.tau_drive_fl_nm = 0.0;  // Front-left: non-driven
+    s.tau_drive_fr_nm = 0.0;  // Front-right: non-driven
+    s.tau_drive_rl_nm = wheel_tq_total * 0.5;  // Rear-left: 50%
+    s.tau_drive_rr_nm = wheel_tq_total * 0.5;  // Rear-right: 50%
+
+    LOG_DEBUG("[DrivePlant] v=%.2f m/s, τ_motor=%.0f Nm, τ_wheel_total=%.0f Nm, brake=%.1f%%",
+              v, motor_tq_cmd, wheel_tq_total, brake_pct);
+    LOG_DEBUG("[DrivePlant] τ_drive_rl=%.0f Nm, τ_drive_rr=%.0f Nm, τ_brake_fl=%.0f Nm",
+              s.tau_drive_rl_nm, s.tau_drive_rr_nm, s.tau_brake_fl_nm);
+
+    // ========================================================================
+    // STEP 5: Power Demand and Battery Energy Flow
+    // ========================================================================
+    
+    // Power = Torque × Angular velocity (at motor shaft)
+    const double motor_omega = omega * p_.gear_ratio;
+    double power_demand_kW = motor_tq_cmd * motor_omega / 1000.0;
+
+    // Initialize battery state fields
+    s.motor_power_kW = 0.0;
+    s.regen_power_kW = 0.0;
+    s.motor_torque_nm = motor_tq_cmd;
+
+    if (enabled && battery_plant_) {
+        // Case 1: Driving (power consumption)
+        if (power_demand_kW > 0.01) {
+            double energy_J = power_demand_kW * dt_s * 1000.0;
+            battery_plant_->consume_energy(energy_J);
+
+            s.motor_power_kW = power_demand_kW;
+            s.batt_i = battery_plant_->get_current();
+            s.batt_v = battery_plant_->get_voltage();
+
+            LOG_DEBUG("[DrivePlant] Driving: P=%.2f kW, I=%.2f A", 
+                      power_demand_kW, s.batt_i);
+        }
+        // Case 2: Regenerative braking (charging)
+        else if (power_demand_kW < -0.01) {
+            double regen_power_kW = -power_demand_kW * p_.regen_eff_active;
+            double energy_J = regen_power_kW * dt_s * 1000.0;
+            battery_plant_->store_energy(energy_J, regen_power_kW);
+
+            s.motor_power_kW = power_demand_kW;
+            s.regen_power_kW = regen_power_kW;
+            s.batt_i = battery_plant_->get_current();
+            s.batt_v = battery_plant_->get_voltage();
+
+            LOG_DEBUG("[DrivePlant] Regen: P=%.2f kW, I=%.2f A", 
+                      regen_power_kW, s.batt_i);
+        }
+        // Case 3: Coasting (light regen from drag)
+        else if (std::abs(v) > p_.v_stop_eps && brake_pct < 1.0) {
+            const double F_drag = p_.drag_c * v * std::abs(v);
+            const double F_roll = p_.roll_c;
+            const double F_res = F_drag + F_roll;
+            
+            double regen_power_kW = F_res * std::abs(v) / 1000.0 * p_.regen_eff_coast;
+            double energy_J = regen_power_kW * dt_s * 1000.0;
+            battery_plant_->store_energy(energy_J, regen_power_kW);
+
+            s.regen_power_kW = regen_power_kW;
+            s.batt_i = battery_plant_->get_current();
+            s.batt_v = battery_plant_->get_voltage();
+        }
+    }
+
+    // ========================================================================
+    // STEP 6: Mode-Dependent Velocity/Wheel Speed Handling
+    // ========================================================================
+    
+    // For backward compatibility / logging
+    const double brake_force_kN = brake_tq_total / p_.wheel_radius_m / 1000.0;
+    s.brake_force_kN = brake_force_kN;
+
+    // ========================================================================
     // TRACTION LIMITING (dynamic model)
     // ========================================================================
     const double Fx_demanded = wheel_tq / p_.wheel_radius_m;
