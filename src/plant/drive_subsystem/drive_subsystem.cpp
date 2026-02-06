@@ -18,7 +18,9 @@ void DriveSubsystem::initialize(PlantState& s) {
     LOG_INFO("[DriveSubsystem] Initializing: mass=%.0f kg, max_torque=%.0f Nm, max_power=%.0f kW",
              drive_.params().mass_kg,
              drive_.params().motor_torque_max_nm,
-             drive_.params().motor_power_max_w / 1000.0);
+             drive_.params().motor_power_max_w / 1000.0,
+             drive_.params().drag_c,
+             drive_.params().roll_c);
 
     // Set initial velocity to zero
     s.v_mps = 0.0;
@@ -27,6 +29,7 @@ void DriveSubsystem::initialize(PlantState& s) {
     s.motor_power_kW = 0.0;
     s.regen_power_kW = 0.0;
     s.brake_force_kN = 0.0;
+    
 }
 
 void DriveSubsystem::reset(PlantState& s) {
