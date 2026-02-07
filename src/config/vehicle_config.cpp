@@ -1,4 +1,4 @@
-// src/config/vehicle_config.cpp
+// src/config/vehicle_config.cpp - FIXED CoG parameter storage
 #include "config/vehicle_config.hpp"
 #include "utils/logging.hpp"
 #include <yaml-cpp/yaml.h>
@@ -45,20 +45,15 @@ VehicleConfig VehicleConfig::load(const std::string& yaml_path) {
             vehicle.params.track_width_m = geo["track_width_m"].as<double>(1.6);
             vehicle.params.drive.wheel_radius_m = geo["wheel_radius_m"].as<double>(0.33);
             
-            // NEW: CoG parameters (optional)
-            if (geo["cg_height_m"]) {
-                // Store in params if needed (TODO: extend PlantModelParams)
-                double cg_height = geo["cg_height_m"].as<double>(0.5);
-                LOG_DEBUG("[VehicleConfig] CoG height: %.2f m", cg_height);
-            }
-            if (geo["cg_to_front_axle_m"]) {
-                double cg_to_front = geo["cg_to_front_axle_m"].as<double>(1.4);
-                LOG_DEBUG("[VehicleConfig] CoG to front axle: %.2f m", cg_to_front);
-            }
-            if (geo["cg_to_rear_axle_m"]) {
-                double cg_to_rear = geo["cg_to_rear_axle_m"].as<double>(1.4);
-                LOG_DEBUG("[VehicleConfig] CoG to rear axle: %.2f m", cg_to_rear);
-            }
+            // CRITICAL FIX: Store CoG parameters (not just log!)
+            vehicle.params.geometry.cg_height_m = geo["cg_height_m"].as<double>(0.5);
+            vehicle.params.geometry.cg_to_front_m = geo["cg_to_front_axle_m"].as<double>(1.4);
+            vehicle.params.geometry.cg_to_rear_m = geo["cg_to_rear_axle_m"].as<double>(1.4);
+            
+            LOG_DEBUG("[VehicleConfig] CoG: h=%.2f m, front=%.2f m, rear=%.2f m",
+                      vehicle.params.geometry.cg_height_m,
+                      vehicle.params.geometry.cg_to_front_m,
+                      vehicle.params.geometry.cg_to_rear_m);
         }
         
         // ====================================================================
@@ -83,8 +78,10 @@ VehicleConfig VehicleConfig::load(const std::string& yaml_path) {
         if (config["vehicle"]["brakes"]) {
             auto brakes = config["vehicle"]["brakes"];
             vehicle.params.drive.brake_torque_max_nm = brakes["brake_torque_max_nm"].as<double>(4000.0);
-            // Note: regen efficiencies are in DrivePlant, not exposed in params yet
-            // Can extend PlantModelParams if needed
+            
+            // FIXED: Store regen efficiencies
+            vehicle.params.drive.regen_eff_active = brakes["regen_efficiency_active"].as<double>(0.65);
+            vehicle.params.drive.regen_eff_coast = brakes["regen_efficiency_coast"].as<double>(0.02);
         }
         
         // ====================================================================
@@ -93,7 +90,7 @@ VehicleConfig VehicleConfig::load(const std::string& yaml_path) {
         if (config["vehicle"]["battery"]) {
             auto bat = config["vehicle"]["battery"];
             vehicle.params.battery_params.capacity_kWh = bat["capacity_kwh"].as<double>(60.0);
-             vehicle.params.battery_params.nominal_voltage_v = bat["nominal_voltage_v"].as<double>(400.0); 
+            vehicle.params.battery_params.nominal_voltage_v = bat["nominal_voltage_v"].as<double>(400.0);
             vehicle.params.battery_params.max_charge_power_kW = bat["max_charge_power_kw"].as<double>(50.0);
             vehicle.params.battery_params.max_discharge_power_kW = bat["max_discharge_power_kw"].as<double>(150.0);
             vehicle.params.battery_params.efficiency_charge = bat["efficiency_charge"].as<double>(0.95);
@@ -121,7 +118,7 @@ VehicleConfig VehicleConfig::load(const std::string& yaml_path) {
         }
         
         // ====================================================================
-        // Parse tire parameters (NEW)
+        // Parse tire parameters (FIXED: Now stored in params.dynamic_config)
         // ====================================================================
         if (config["tires"]) {
             auto tires = config["tires"];
@@ -142,13 +139,16 @@ VehicleConfig VehicleConfig::load(const std::string& yaml_path) {
                 vehicle.tire_params.load_exponent = stiff["load_exponent"].as<double>(0.50);
             }
             
-            // Surface friction
+            // Surface friction - STORE in dynamic_config
             if (tires["surface"]) {
                 auto surf = tires["surface"];
                 vehicle.tire_params.surface.name = surf["name"].as<std::string>("gravel_compact");
                 vehicle.tire_params.surface.description = surf["description"].as<std::string>("");
                 vehicle.tire_params.surface.mu_peak = surf["mu_peak"].as<double>(0.72);
                 vehicle.tire_params.surface.mu_slide = surf["mu_slide"].as<double>(0.65);
+                
+                // CRITICAL: Store in PlantModelParams for WheelSubsystem
+                vehicle.params.dynamic_config.surface_mu = surf["mu_peak"].as<double>(0.72);
             }
             
             // Velocity fade (optional)
@@ -167,6 +167,9 @@ VehicleConfig VehicleConfig::load(const std::string& yaml_path) {
                 vehicle.tire_params.v_min_for_slip_calc = limits["v_min_for_slip_calc"].as<double>(0.5);
             }
         }
+        
+        // CRITICAL: Enable dynamic model by default (kinematic removed)
+        vehicle.params.dynamic_config.enabled = true;
         
         // Validate loaded config
         vehicle.validate();
@@ -201,11 +204,18 @@ VehicleConfig VehicleConfig::get_default() {
     vehicle.params.track_width_m = 1.6;
     vehicle.params.drive.wheel_radius_m = 0.33;
     
+    // CoG defaults
+    vehicle.params.geometry.cg_height_m = 0.5;
+    vehicle.params.geometry.cg_to_front_m = 1.4;
+    vehicle.params.geometry.cg_to_rear_m = 1.4;
+    
     // Drivetrain
     vehicle.params.drive.motor_torque_max_nm = 4000.0;
     vehicle.params.drive.motor_power_max_w = 300000.0;
     vehicle.params.drive.gear_ratio = 9.0;
     vehicle.params.drive.drivetrain_eff = 0.92;
+    vehicle.params.drive.regen_eff_active = 0.65;
+    vehicle.params.drive.regen_eff_coast = 0.02;
     
     // Motor params
     vehicle.params.motor_params.max_power_kW = 300.0;
@@ -217,6 +227,7 @@ VehicleConfig VehicleConfig::get_default() {
     
     // Battery
     vehicle.params.battery_params.capacity_kWh = 60.0;
+    vehicle.params.battery_params.nominal_voltage_v = 400.0;
     vehicle.params.battery_params.max_charge_power_kW = 50.0;
     vehicle.params.battery_params.max_discharge_power_kW = 150.0;
     vehicle.params.battery_params.efficiency_charge = 0.95;
@@ -232,13 +243,17 @@ VehicleConfig VehicleConfig::get_default() {
     vehicle.params.drive.v_max_mps = 60.0;
     vehicle.params.drive.v_stop_eps = 0.3;
     
-    // Tire defaults (NEW)
+    // Tire defaults
     vehicle.tire_params.model = "dugoff";
     vehicle.tire_params.radius_m = 0.33;
     vehicle.tire_params.width_m = 0.22;
     vehicle.tire_params.surface.name = "dry_pavement";
     vehicle.tire_params.surface.mu_peak = 0.85;
     vehicle.tire_params.surface.mu_slide = 0.75;
+    
+    // Dynamic model config
+    vehicle.params.dynamic_config.enabled = true;
+    vehicle.params.dynamic_config.surface_mu = 0.85;
     
     return vehicle;
 }
@@ -285,7 +300,7 @@ void VehicleConfig::validate() const {
         throw std::runtime_error("Invalid v_max_mps: must be > 0");
     }
     
-    // Tire validation (NEW)
+    // Tire validation
     if (tire_params.radius_m <= 0.0) {
         throw std::runtime_error("Invalid tire radius_m: must be > 0");
     }
@@ -311,7 +326,7 @@ void VehicleConfig::print_summary() const {
         LOG_INFO("Description: %s", description.c_str());
     }
     LOG_INFO("----------------------------------------");
-    LOG_INFO("Mass: %.0f kg", params.drive.mass_kg);
+    LOG_INFO("Mass: %.0f kg (%.0f tons)", params.drive.mass_kg, params.drive.mass_kg / 1000.0);
     LOG_INFO("Motor Power: %.0f kW (%.0f hp)", 
              params.drive.motor_power_max_w / 1000.0,
              params.drive.motor_power_max_w / 745.7);
@@ -320,6 +335,10 @@ void VehicleConfig::print_summary() const {
     LOG_INFO("Max Speed: %.1f m/s (%.0f km/h)", 
              params.drive.v_max_mps,
              params.drive.v_max_mps * 3.6);
+    LOG_INFO("CoG: h=%.2f m, front=%.2f m, rear=%.2f m",
+             params.geometry.cg_height_m,
+             params.geometry.cg_to_front_m,
+             params.geometry.cg_to_rear_m);
     LOG_INFO("----------------------------------------");
     LOG_INFO("Tire Model: %s", tire_params.model.c_str());
     LOG_INFO("Surface: %s (μ_peak=%.2f, μ_slide=%.2f)", 
