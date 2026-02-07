@@ -75,14 +75,13 @@ PlantModel::PlantModel(PlantModelParams p)
              wheel_params.cg_height_m, wheel_params.tyre_params.mu_peak);
     
     // Priority 110: VehicleSubsystem - Longitudinal/yaw/position integration (NEW!)
-    VehicleSubsystemParams vehicle_params;
+    VehicleParams vehicle_params;
     vehicle_params.mass_kg = p_.drive.mass_kg;
     vehicle_params.wheelbase_m = p_.wheelbase_m;
-    vehicle_params.track_width_m = p_.track_width_m;
     vehicle_params.drag_c = p_.drive.drag_c;
     vehicle_params.roll_c = p_.drive.roll_c;
     vehicle_params.v_max_mps = p_.drive.v_max_mps;
-    vehicle_params.dynamic_mode_enabled = p_.dynamic_config.enabled;
+    vehicle_params.v_stop_eps = p_.drive.v_stop_eps;
     
     auto vehicle = std::make_unique<VehicleSubsystem>(vehicle_params);
     subsystem_mgr_.register_subsystem(std::move(vehicle));

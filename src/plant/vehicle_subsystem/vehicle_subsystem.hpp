@@ -10,35 +10,24 @@
 // - Integrate yaw angle from bicycle kinematics
 // - Integrate global position (x, y)
 // - Apply resistive forces (drag, rolling resistance)
-//
-// Dependencies:
-// - Reads: s.Fx_fl/fr/rl/rr (from WheelSubsystem)
-// - Reads: s.steer_virtual_rad (from SteerSubsystem)
-// - Writes: s.v_mps, s.a_long_mps2, s.yaw_rad, s.x_m, s.y_m
 
 #pragma once
 
 #include "plant/plant_main/physics_subsystem.hpp"
-#include "cmath"
+#include <cmath>
 
 namespace plant {
 
 struct VehicleParams {
-    // ========================================================================
     // Vehicle Mass and Geometry
-    // ========================================================================
     double mass_kg = 218000.0;          // Vehicle mass [kg]
     double wheelbase_m = 6.3;           // Wheelbase L [m]
     
-    // ========================================================================
     // Resistive Forces
-    // ========================================================================
     double drag_c = 2.5;                // Aerodynamic drag coefficient [N/(m/s)²]
-    double roll_c = 1500.0;             // Rolling resistance [N] (constant model)
+    double roll_c = 1500.0;             // Rolling resistance [N]
     
-    // ========================================================================
     // Speed Limits
-    // ========================================================================
     double v_stop_eps = 0.3;            // Standstill threshold [m/s]
     double v_max_mps = 60.0;            // Maximum velocity [m/s]
 };
@@ -59,10 +48,7 @@ class VehicleSubsystem : public PhysicsSubsystem {
 public:
     explicit VehicleSubsystem(const VehicleParams& params = {});
 
-    // ========================================================================
     // PhysicsSubsystem Interface
-    // ========================================================================
-
     void initialize(PlantState& s) override;
     void reset(PlantState& s) override;
     void step(PlantState& s, const sim::ActuatorCmd& cmd, double dt) override;
@@ -70,10 +56,7 @@ public:
     const char* name() const override { return "Vehicle"; }
     int priority() const override { return 110; }  // After WheelSubsystem (105)
 
-    // ========================================================================
     // Configuration Interface
-    // ========================================================================
-
     const VehicleParams& get_params() const { return p_; }
     void set_params(const VehicleParams& params);
 

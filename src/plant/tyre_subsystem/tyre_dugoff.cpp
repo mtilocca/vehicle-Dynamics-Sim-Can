@@ -1,4 +1,5 @@
 // src/plant/tyre_subsystem/tyre_dugoff.cpp
+// FIXED: Added lambda clamping to prevent 1e11 explosion
 #include "tyre_subsystem/tyre_dugoff.hpp"
 #include "utils/logging.hpp"
 #include <cmath>
@@ -63,6 +64,14 @@ TyreForces TyreDugoff::compute_forces(
     
     // Lambda = (mu * Fz) / (2 * slip_magnitude)
     forces.lambda = (mu * Fz) / (2.0 * slip_magnitude);
+    
+    // ========================================================================
+    // FIX #1: Clamp lambda to prevent numerical overflow
+    // ========================================================================
+    // During cruise, tire forces approach zero → slip_magnitude → 0 → lambda → ∞
+    // Lambda > 1000 indicates "lots of available grip" but exact value is not meaningful
+    // This prevents lambda from exploding to 1e11 and breaking graphs
+    forces.lambda = std::min(forces.lambda, 1000.0);
     
     // ========================================================================
     // Step 4: Compute friction saturation function f(lambda)

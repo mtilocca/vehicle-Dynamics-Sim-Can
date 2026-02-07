@@ -1,6 +1,5 @@
 // src/plant/vehicle_subsystem/vehicle_subsystem.cpp
-//
-// VehicleSubsystem Implementation
+// DEBUG VERSION: Added detailed logging to track acceleration sign
 //
 // Execution order in SubsystemManager:
 //   1. SteerSubsystem (50)      - Computes steering angles
@@ -67,6 +66,22 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
     // Longitudinal acceleration: a = F_net / m
     const double a_long = F_net / p_.mass_kg;
     
+    // DEBUG LOGGING FOR ACCELERATION SIGN BUG
+    static int debug_ctr = 0;
+    if (debug_ctr++ % 50 == 0) {  // Every 0.5 seconds
+        LOG_INFO("========== ACCELERATION DEBUG ==========");
+        LOG_INFO("v_mps = %.3f m/s", s.v_mps);
+        LOG_INFO("Fx_total = %.1f N (FL=%.1f, FR=%.1f, RL=%.1f, RR=%.1f)",
+                 Fx_total, s.Fx_fl, s.Fx_fr, s.Fx_rl, s.Fx_rr);
+        LOG_INFO("F_drag = %.1f N (opposes motion)", F_drag);
+        LOG_INFO("F_roll = %.1f N (opposes motion)", F_roll);
+        LOG_INFO("F_net = Fx_total - F_drag - F_roll = %.1f - %.1f - %.1f = %.1f N",
+                 Fx_total, F_drag, F_roll, F_net);
+        LOG_INFO("a_long = F_net / mass = %.1f / %.0f = %.6f m/s²",
+                 F_net, p_.mass_kg, a_long);
+        LOG_INFO("========================================");
+    }
+    
     // Forward Euler integration: v[k+1] = v[k] + a·Δt
     double v_next = s.v_mps + a_long * dt;
     
@@ -104,17 +119,6 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
     // Integrate position: x[k+1] = x[k] + v·cos(ψ)·Δt
     s.x_m += s.v_mps * std::cos(s.yaw_rad) * dt;
     s.y_m += s.v_mps * std::sin(s.yaw_rad) * dt;
-    
-    // ========================================================================
-    // DIAGNOSTIC LOGGING
-    // ========================================================================
-    static int log_ctr = 0;
-    if (log_ctr++ % 100 == 0) {
-        LOG_DEBUG("[VehicleSubsystem] v=%.2f m/s, a=%.2f m/s², ψ=%.1f°, Fx_tot=%.0f N",
-                  s.v_mps, s.a_long_mps2, s.yaw_rad * 180.0 / M_PI, Fx_total);
-        LOG_DEBUG("[VehicleSubsystem] F_drag=%.0f N, F_roll=%.0f N, F_net=%.0f N",
-                  F_drag, F_roll, F_net);
-    }
 }
 
 void VehicleSubsystem::set_params(const VehicleParams& params) {

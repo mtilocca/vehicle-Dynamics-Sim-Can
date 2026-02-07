@@ -58,8 +58,13 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s)
     
     if (coast_conditions) {
         // YAML-driven scaling (tune these parameters)
-        const double regen_drag_max_frac  = 0.15;  // 15% of max torque
+        const double regen_drag_max_frac  = 0.03;  // 3% of max torque (passenger car)
         const double regen_drag_v_ref_mps = 15.0;  // reach max at 15 m/s
+        
+        // NOTE: Tune regen_drag_max_frac based on vehicle type: --> migrate to YAML later
+        // - Passenger car: 0.03-0.05 (3-5%) → -0.5 to -0.8 m/s² coast
+        // - Electric SUV:  0.08-0.12 (8-12%) → -1.0 to -1.5 m/s² coast
+        // - Mining truck:  0.15-0.20 (15-20%) → -2.0 to -3.0 m/s² coast
 
         const double regen_drag_max_nm = regen_drag_max_frac * p_.motor_torque_max_nm;
         const double regen_drag_gain_nm_per_mps = 
