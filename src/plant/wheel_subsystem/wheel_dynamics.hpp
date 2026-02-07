@@ -1,89 +1,114 @@
 // src/plant/wheel_subsystem/wheel_dynamics.hpp
 #pragma once
 
-#include <algorithm>
 #include <cmath>
+#include <algorithm>
 
 namespace plant {
 
 /**
- * WheelDynamicsParams - wheel angular dynamics + robust low-speed handling
+ * WheelDynamicsParams - Parameters for single wheel rotational dynamics
+ *
+ * Based on the equation: Iw·ω̇ = τ_drive - τ_brake - Fx·R
+ *
+ * Units follow codebase convention: _kgm2, _m, _radps, _nm, _n
  */
 struct WheelDynamicsParams {
-    double R_m = 1.93;          // Wheel radius [m]
-    double Iw_kgm2 = 1000.0;    // Wheel inertia [kg*m^2]
+    // Wheel inertia (kg·m²)
+    // Includes tire, rim, brake rotor, hub assembly
+    // Default: XCMG XDE320/360 heavy mining truck
+    double inertia_kgm2 = 1000.0;
 
-    // Numerical robustness near standstill
-    double v_min_mps = 0.5;     // Min |Vx| used internally for slip logic
-    double omega_eps_radps = 0.01; // Snap-to-zero threshold for omega
-    double omega_max_radps = 250.0; // Hard clamp
+    // Effective rolling radius (m)
+    // Slightly less than tire radius due to deflection under load
+    double radius_m = 1.93;  // 37.00R57 tire
 
-    // Simple viscous damping (optional)
-    double viscous_damping = 0.0; // Nm per (rad/s)
+    // Angular velocity limits (rad/s)
+    double omega_max_radps = 50.0;   // ~175 km/h at R=1.93m
+    double omega_min_radps = -10.0;  // Limited reverse
+
+    // Velocity threshold for slip calculation (m/s)
+    // Prevents division by zero at low speeds
+    double v_eps_mps = 0.1;
+
+    // Angular velocity threshold for zero-crossing (rad/s)
+    // Snap to zero below this to prevent oscillations
+    double omega_eps_radps = 0.01;
 };
 
 /**
- * WheelDynamics - integrates omega given drive/brake torques
+ * WheelDynamics - Rotational dynamics for a single wheel
  *
- * This class is intentionally simple and robust:
- * - Brake torque always opposes wheel rotation (sign based on omega)
- * - At very low omega, brake is allowed to “stick” and snap omega to 0
- * - Drive torque sign defines desired direction at standstill
+ * Implements:
+ *   Iw·ω̇ = τ_drive - τ_brake - Fx·R
+ *
+ * Notes:
+ * - tau_drive can be +/- (forward/reverse)
+ * - tau_brake is expected >= 0 and should oppose motion (handled in WheelSubsystem)
+ * - fx_n is the tire longitudinal force produced by the tire model (sign included)
  */
 class WheelDynamics {
 public:
-    explicit WheelDynamics(const WheelDynamicsParams& p = WheelDynamicsParams())
-        : p_(p) {}
-
-    void set_params(const WheelDynamicsParams& p) { p_ = p; }
-    const WheelDynamicsParams& get_params() const { return p_; }
-
-    void reset(double omega0_radps) { (void)omega0_radps; }
+    explicit WheelDynamics(const WheelDynamicsParams& params = {})
+        : p_(params), omega_radps_(0.0) {}
 
     /**
-     * Integrate omega one step.
+     * step() - Integrate wheel angular velocity
      *
-     * @param omega_radps current wheel speed
-     * @param Vx_mps vehicle longitudinal speed (used only for low-speed decisions)
-     * @param tau_drive_nm drive torque (+ fwd, - reverse)
-     * @param tau_brake_nm brake torque magnitude (>=0), opposes wheel rotation
-     * @param dt timestep
+     * @param tau_drive_nm  Drive torque (Nm), positive = forward
+     * @param tau_brake_nm  Brake torque (Nm), always >= 0, should oppose wheel rotation
+     * @param fx_n          Tire longitudinal force (N), from Dugoff model
+     * @param dt_s          Timestep (s)
      */
-    double step(double omega_radps, double Vx_mps, double tau_drive_nm, double tau_brake_nm, double dt) const {
-        if (dt <= 0.0) return omega_radps;
+    void step(double tau_drive_nm, double tau_brake_nm, double fx_n, double dt_s);
 
-        // Brake opposes wheel rotation. If omega is ~0, oppose the *intended* direction (from drive or vehicle speed).
-        const double dir_from_drive = (tau_drive_nm >  1e-6) ?  1.0 : (tau_drive_nm < -1e-6 ? -1.0 : 0.0);
-        const double dir_from_vx    = (Vx_mps >  1e-6) ?  1.0 : (Vx_mps < -1e-6 ? -1.0 : 0.0);
-        const double dir_from_omega = (omega_radps > 1e-6) ? 1.0 : (omega_radps < -1e-6 ? -1.0 : 0.0);
+    /**
+     * compute_slip_ratio() - Longitudinal slip ratio
+     *
+     * σx = (ωR - Vx) / max(|Vx|, |ωR|, eps)
+     *
+     * Works for forward AND reverse:
+     * - Vx < 0 is valid
+     * - ω can be < 0
+     */
+    double compute_slip_ratio(double v_x_mps) const;
 
-        double brake_dir = dir_from_omega;
-        if (brake_dir == 0.0) {
-            brake_dir = (dir_from_drive != 0.0) ? dir_from_drive : dir_from_vx;
-        }
+    /**
+     * compute_lateral_slip() - Lateral slip proxy (≈ tan(alpha))
+     * σy ≈ Vy / max(|Vx|, eps)
+     */
+    double compute_lateral_slip(double v_x_mps, double v_y_mps) const;
 
-        const double tau_brake_effective = tau_brake_nm * brake_dir; // signed torque applied *against* motion
-        // So net torque: drive - brake_effective - damping
-        const double tau_damp = p_.viscous_damping * omega_radps;
+    // State access
+    double omega_radps() const { return omega_radps_; }
 
-        const double tau_net = tau_drive_nm - tau_brake_effective - tau_damp;
-
-        const double alpha = tau_net / p_.Iw_kgm2;
-        double omega_next = omega_radps + alpha * dt;
-
-        // Clamp
-        omega_next = std::max(-p_.omega_max_radps, std::min(p_.omega_max_radps, omega_next));
-
-        // Snap-to-zero if extremely small and no clear drive torque
-        if (std::abs(omega_next) < p_.omega_eps_radps && std::abs(tau_drive_nm) < 1e-3) {
-            omega_next = 0.0;
-        }
-
-        return omega_next;
+    void set_omega_radps(double omega) {
+        omega_radps_ = clamp(omega, p_.omega_min_radps, p_.omega_max_radps);
     }
+
+    void init_from_velocity(double v_mps) {
+        omega_radps_ = v_mps / p_.radius_m;
+    }
+
+    double wheel_velocity_mps() const { return omega_radps_ * p_.radius_m; }
+
+    // Diagnostics
+    double compute_omega_dot(double tau_drive_nm, double tau_brake_nm, double fx_n) const;
+
+    double get_stability_dt_max(double cx_n_per_slip) const;
+
+    const WheelDynamicsParams& params() const { return p_; }
+    WheelDynamicsParams& params() { return p_; }
 
 private:
     WheelDynamicsParams p_;
+    double omega_radps_;
+
+    static double clamp(double v, double lo, double hi) {
+        return std::max(lo, std::min(hi, v));
+    }
+
+    static int sgn(double x) { return (x > 0.0) - (x < 0.0); }
 };
 
 } // namespace plant

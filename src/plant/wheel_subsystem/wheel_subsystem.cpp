@@ -1,221 +1,193 @@
 // src/plant/wheel_subsystem/wheel_subsystem.cpp
 #include "plant/wheel_subsystem/wheel_subsystem.hpp"
 #include "utils/logging.hpp"
-
 #include <cmath>
 
 namespace plant {
 
 WheelSubsystem::WheelSubsystem(const WheelSubsystemParams& params)
     : p_(params),
-      w_fl_(params.wheel),
-      w_fr_(params.wheel),
-      w_rl_(params.wheel),
-      w_rr_(params.wheel),
-      tyre_model_(TyreDugoffParams()),
-      tyre_params_(TyreDugoffParams())
-{
-    apply_tyre_params_();
-}
-
-void WheelSubsystem::apply_tyre_params_() {
-    // Start from existing
-    tyre_params_ = tyre_model_.get_params();
-
-    // Override friction from subsystem params
-    tyre_params_.mu_peak  = p_.mu_peak;
-    tyre_params_.mu_slide = p_.mu_slide;
-
-    tyre_model_.set_params(tyre_params_);
-}
+      wd_fl_(params.wheel),
+      wd_fr_(params.wheel),
+      wd_rl_(params.wheel),
+      wd_rr_(params.wheel),
+      tyre_model_(params.tyre_params) {}
 
 void WheelSubsystem::initialize(PlantState& s) {
-    LOG_INFO("[WheelSubsystem] Initializing: Iw=%.1f kg·m², R=%.2f m, mode=DYNAMIC",
-             p_.wheel.Iw_kgm2, p_.wheel.R_m);
+    LOG_INFO("[WheelSubsystem] Initializing: Iw=%.0f kg·m², R=%.2f m, mode=%s",
+             p_.wheel.inertia_kgm2, p_.wheel.radius_m,
+             p_.dynamic_mode_enabled ? "DYNAMIC" : "KINEMATIC");
 
-    // Ensure tyre params consistent
-    apply_tyre_params_();
+    // Push surface friction into tyre_params (since TyreDugoff has no set_surface_friction())
+    p_.tyre_params.mu_peak = p_.mu_peak;
+    p_.tyre_params.mu_slide = p_.mu_slide;
+    tyre_model_.set_params(p_.tyre_params);
 
-    // Initialize wheel angular speeds to match vehicle speed at start
-    const double omega0 = (std::abs(p_.wheel.R_m) > 1e-6) ? (s.v_mps / p_.wheel.R_m) : 0.0;
+    // Initialize wheel speeds from vehicle speed
+    wd_fl_.init_from_velocity(s.v_mps);
+    wd_fr_.init_from_velocity(s.v_mps);
+    wd_rl_.init_from_velocity(s.v_mps);
+    wd_rr_.init_from_velocity(s.v_mps);
 
-    s.omega_fl_radps = omega0;
-    s.omega_fr_radps = omega0;
-    s.omega_rl_radps = omega0;
-    s.omega_rr_radps = omega0;
+    s.omega_fl_radps = wd_fl_.omega_radps();
+    s.omega_fr_radps = wd_fr_.omega_radps();
+    s.omega_rl_radps = wd_rl_.omega_radps();
+    s.omega_rr_radps = wd_rr_.omega_radps();
 
-    w_fl_.reset(s.omega_fl_radps);
-    w_fr_.reset(s.omega_fr_radps);
-    w_rl_.reset(s.omega_rl_radps);
-    w_rr_.reset(s.omega_rr_radps);
-
-    // Mark dynamic model enabled
-    s.dynamic_model_enabled = true;
-    s.surface_mu = p_.mu_peak;
-    s.surface_mu_slide = p_.mu_slide;
+    s.dynamic_model_enabled = p_.dynamic_mode_enabled;
 }
 
 void WheelSubsystem::reset(PlantState& s) {
-    LOG_INFO("[WheelSubsystem] Resetting wheel state");
+    wd_fl_.set_omega_radps(0.0);
+    wd_fr_.set_omega_radps(0.0);
+    wd_rl_.set_omega_radps(0.0);
+    wd_rr_.set_omega_radps(0.0);
 
     s.omega_fl_radps = 0.0;
     s.omega_fr_radps = 0.0;
     s.omega_rl_radps = 0.0;
     s.omega_rr_radps = 0.0;
 
-    w_fl_.reset(0.0);
-    w_fr_.reset(0.0);
-    w_rl_.reset(0.0);
-    w_rr_.reset(0.0);
-
-    // Clear forces
+    // Zero forces/slips
     s.Fx_fl = s.Fx_fr = s.Fx_rl = s.Fx_rr = 0.0;
     s.Fy_fl = s.Fy_fr = s.Fy_rl = s.Fy_rr = 0.0;
-    s.lambda_fl = s.lambda_fr = s.lambda_rl = s.lambda_rr = 1.0;
     s.sigma_x_fl = s.sigma_x_fr = s.sigma_x_rl = s.sigma_x_rr = 0.0;
     s.sigma_y_fl = s.sigma_y_fr = s.sigma_y_rl = s.sigma_y_rr = 0.0;
+    s.lambda_fl = s.lambda_fr = s.lambda_rl = s.lambda_rr = 1.0;
 }
 
 void WheelSubsystem::set_params(const WheelSubsystemParams& params) {
     p_ = params;
 
-    // Rebuild wheel dynamics with new params
-    w_fl_.set_params(p_.wheel);
-    w_fr_.set_params(p_.wheel);
-    w_rl_.set_params(p_.wheel);
-    w_rr_.set_params(p_.wheel);
+    // Keep tyre params consistent
+    p_.tyre_params.mu_peak = p_.mu_peak;
+    p_.tyre_params.mu_slide = p_.mu_slide;
+    tyre_model_.set_params(p_.tyre_params);
 
-    apply_tyre_params_();
+    // Update wheel dynamics params
+    wd_fl_.params() = p_.wheel;
+    wd_fr_.params() = p_.wheel;
+    wd_rl_.params() = p_.wheel;
+    wd_rr_.params() = p_.wheel;
 
-    LOG_INFO("[WheelSubsystem] Parameters updated: mu_peak=%.2f mu_slide=%.2f R=%.2f Iw=%.1f",
-             p_.mu_peak, p_.mu_slide, p_.wheel.R_m, p_.wheel.Iw_kgm2);
+    LOG_INFO("[WheelSubsystem] Params updated: R=%.2f, mu_peak=%.2f, mode=%s",
+             p_.wheel.radius_m, p_.tyre_params.mu_peak,
+             p_.dynamic_mode_enabled ? "DYNAMIC" : "KINEMATIC");
 }
 
-void WheelSubsystem::compute_normal_loads_(
-    PlantState& s,
-    double a_long,
-    double& Fz_fl, double& Fz_fr, double& Fz_rl, double& Fz_rr
-) const {
-    // Static axle loads
-    const double g = 9.81;
-    const double W = p_.mass_kg * g;
-
-    // Static front/rear split from cg distances
-    const double L = p_.wheelbase_m;
-    const double a = p_.cg_to_front_m; // CG -> front
-    const double b = p_.cg_to_rear_m;  // CG -> rear
-
-    double Fz_front_static = (b / L) * W;
-    double Fz_rear_static  = (a / L) * W;
-
-    // Longitudinal load transfer ΔF = m*a*h/L
-    double dF = 0.0;
-    if (p_.enable_load_transfer && L > 1e-6) {
-        dF = (p_.mass_kg * a_long * p_.cg_height_m) / L;
-    }
-
-    // Under acceleration: transfer to rear (front loses load)
-    const double Fz_front = Fz_front_static - dF;
-    const double Fz_rear  = Fz_rear_static + dF;
-
-    // Split left/right equally (no lateral transfer here)
-    Fz_fl = 0.5 * Fz_front;
-    Fz_fr = 0.5 * Fz_front;
-    Fz_rl = 0.5 * Fz_rear;
-    Fz_rr = 0.5 * Fz_rear;
-
-    // Store in state for logging
-    s.Fz_fl = Fz_fl; s.Fz_fr = Fz_fr; s.Fz_rl = Fz_rl; s.Fz_rr = Fz_rr;
-}
-
-void WheelSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt) {
+void WheelSubsystem::step(PlantState& s, const sim::ActuatorCmd& /*cmd*/, double dt) {
     if (dt <= 0.0) return;
 
-    // If the global model isn't using dynamics, bail (but you set it true in initialize)
-    if (!s.dynamic_model_enabled) {
+    s.dynamic_model_enabled = p_.dynamic_mode_enabled;
+
+    // If dynamic mode disabled, just kinematically follow vehicle speed
+    if (!p_.dynamic_mode_enabled) {
+        wd_fl_.init_from_velocity(s.v_mps);
+        wd_fr_.init_from_velocity(s.v_mps);
+        wd_rl_.init_from_velocity(s.v_mps);
+        wd_rr_.init_from_velocity(s.v_mps);
+
+        s.omega_fl_radps = wd_fl_.omega_radps();
+        s.omega_fr_radps = wd_fr_.omega_radps();
+        s.omega_rl_radps = wd_rl_.omega_radps();
+        s.omega_rr_radps = wd_rr_.omega_radps();
+
+        // Zero forces
         s.Fx_fl = s.Fx_fr = s.Fx_rl = s.Fx_rr = 0.0;
         s.Fy_fl = s.Fy_fr = s.Fy_rl = s.Fy_rr = 0.0;
         return;
     }
 
-    // --- Wheel dynamics integration (omega)
-    // Brake torques are assumed POSITIVE magnitudes.
-    // Drive torques can be +/- (forward / reverse).
-    //
-    // We apply: tau_net = tau_drive - sign(omega)*tau_brake - tau_road
-    // tau_road is handled inside WheelDynamics via Fx*R feedback.
-    //
-    // NOTE: Front wheels are non-driven in your PlantState, but we still allow tau_drive_* if you set them.
+    // ---------------------------------------------------------------------
+    // Robust reverse-capable handling:
+    // - Brake torque must oppose wheel rotation, not “vehicle direction”.
+    // - When omega ~ 0, oppose the *requested* longitudinal direction from Vx.
+    // ---------------------------------------------------------------------
+    auto brake_opposing_torque = [&](double tau_brake_nm, double omega_radps, double v_ref_mps) {
+        if (tau_brake_nm <= 0.0) return 0.0;
 
-    // Estimate longitudinal acceleration for load transfer using previous state
-    const double a_guess = s.a_long_mps2;
+        const double eps = p_.wheel.omega_eps_radps;
+        int dir = 0;
+        if (std::abs(omega_radps) > eps) {
+            dir = sgn(omega_radps);
+        } else if (std::abs(v_ref_mps) > p_.wheel.v_eps_mps) {
+            dir = sgn(v_ref_mps);
+        } else {
+            dir = 0;
+        }
 
-    // Compute normal loads first
-    double Fz_fl, Fz_fr, Fz_rl, Fz_rr;
-    compute_normal_loads_(s, a_guess, Fz_fl, Fz_fr, Fz_rl, Fz_rr);
-
-    // Velocities at contact patch (simple: Vx = vehicle v, Vy=0 in body frame)
-    const double Vx = s.v_mps;
-
-    // You can extend Vy later using yaw rate + lateral velocity model.
-    const double Vy = 0.0;
-
-    auto step_one = [&](WheelDynamics& wd,
-                        double& omega_state,
-                        double tau_drive,
-                        double tau_brake,
-                        double delta_rad,
-                        double Fz,
-                        double& Fx_out,
-                        double& Fy_out,
-                        double& sx_out,
-                        double& sy_out,
-                        double& lam_out)
-    {
-        // 1) Integrate wheel speed using wheel dynamics (internal direction handling)
-        omega_state = wd.step(omega_state, Vx, tau_drive, tau_brake, dt);
-
-        // 2) Tire forces from Dugoff (signature must match your header: 5 args)
-        const TyreForces tf = tyre_model_.compute_forces(
-            omega_state,
-            p_.wheel.R_m,
-            Vx,
-            Vy,
-            Fz
-        );
-
-        // 3) Rotate tire forces from wheel frame -> vehicle frame using steer angle
-        // (Longitudinal along wheel heading)
-        const double c = std::cos(delta_rad);
-        const double sn = std::sin(delta_rad);
-
-        // Wheel-frame: Fx along wheel forward, Fy to left of wheel
-        // Vehicle-frame: x forward, y left
-        Fx_out =  tf.Fx * c - tf.Fy * sn;
-        Fy_out =  tf.Fx * sn + tf.Fy * c;
-
-        sx_out  = tf.sigma_x;
-        sy_out  = tf.sigma_y;
-        lam_out = tf.lambda;
+        // Oppose direction => same sign as dir (because we subtract tau_brake upstream in WheelDynamics)
+        // We want tau_brake_term = dir * |tau_brake|
+        return static_cast<double>(dir) * tau_brake_nm;
     };
 
-    // Front wheels
-    step_one(w_fl_, s.omega_fl_radps, s.tau_drive_fl_nm, s.tau_brake_fl_nm, s.delta_fl_rad, Fz_fl,
-             s.Fx_fl, s.Fy_fl, s.sigma_x_fl, s.sigma_y_fl, s.lambda_fl);
+    // Local wheel longitudinal velocity: use vehicle Vx for now (no full body velocities yet)
+    const double Vx = s.v_mps;
+    const double Vy_fl = 0.0;
+    const double Vy_fr = 0.0;
+    const double Vy_rl = 0.0;
+    const double Vy_rr = 0.0;
 
-    step_one(w_fr_, s.omega_fr_radps, s.tau_drive_fr_nm, s.tau_brake_fr_nm, s.delta_fr_rad, Fz_fr,
-             s.Fx_fr, s.Fy_fr, s.sigma_x_fr, s.sigma_y_fr, s.lambda_fr);
+    // --- Per-wheel: slip -> tyre forces (Dugoff) -> wheel omega integration ---
+    auto process_wheel = [&](WheelDynamics& wd,
+                             double tau_drive_nm,
+                             double tau_brake_nm,
+                             double Vx_mps,
+                             double Vy_mps,
+                             double Fz_n,
+                             double& out_Fx,
+                             double& out_Fy,
+                             double& out_sigma_x,
+                             double& out_sigma_y,
+                             double& out_lambda)
+    {
+        // Compute tyre forces using Dugoff API (5 args, returns TyreForces)
+        const TyreForces tf = tyre_model_.compute_forces(
+            wd.omega_radps(),
+            p_.wheel.radius_m,
+            Vx_mps,
+            Vy_mps,
+            Fz_n
+        );
 
-    // Rear wheels (driven)
-    step_one(w_rl_, s.omega_rl_radps, s.tau_drive_rl_nm, s.tau_brake_rl_nm, 0.0, Fz_rl,
-             s.Fx_rl, s.Fy_rl, s.sigma_x_rl, s.sigma_y_rl, s.lambda_rl);
+        out_Fx = tf.Fx;
+        out_Fy = tf.Fy;
+        out_sigma_x = tf.sigma_x;
+        out_sigma_y = tf.sigma_y;
+        out_lambda = tf.lambda;
 
-    step_one(w_rr_, s.omega_rr_radps, s.tau_drive_rr_nm, s.tau_brake_rr_nm, 0.0, Fz_rr,
-             s.Fx_rr, s.Fy_rr, s.sigma_x_rr, s.sigma_y_rr, s.lambda_rr);
+        // Make brake oppose current wheel rotation (or Vx if omega ~ 0)
+        const double tau_brake_term = brake_opposing_torque(tau_brake_nm, wd.omega_radps(), Vx_mps);
 
-    // Surface friction into PlantState for logging
-    s.surface_mu = p_.mu_peak;
-    s.surface_mu_slide = p_.mu_slide;
+        // Integrate wheel omega with the generated Fx load term
+        wd.step(tau_drive_nm, tau_brake_term, out_Fx, dt);
+    };
+
+    // If you have Fz already computed elsewhere, use it; otherwise expect it set by your load-transfer model.
+    // Here we assume PlantState contains Fz_*.
+    process_wheel(wd_fl_, s.tau_drive_fl_nm, s.tau_brake_fl_nm, Vx, Vy_fl, s.Fz_fl,
+                  s.Fx_fl, s.Fy_fl, s.sigma_x_fl, s.sigma_y_fl, s.lambda_fl);
+
+    process_wheel(wd_fr_, s.tau_drive_fr_nm, s.tau_brake_fr_nm, Vx, Vy_fr, s.Fz_fr,
+                  s.Fx_fr, s.Fy_fr, s.sigma_x_fr, s.sigma_y_fr, s.lambda_fr);
+
+    process_wheel(wd_rl_, s.tau_drive_rl_nm, s.tau_brake_rl_nm, Vx, Vy_rl, s.Fz_rl,
+                  s.Fx_rl, s.Fy_rl, s.sigma_x_rl, s.sigma_y_rl, s.lambda_rl);
+
+    process_wheel(wd_rr_, s.tau_drive_rr_nm, s.tau_brake_rr_nm, Vx, Vy_rr, s.Fz_rr,
+                  s.Fx_rr, s.Fy_rr, s.sigma_x_rr, s.sigma_y_rr, s.lambda_rr);
+
+    // Export wheel speeds to PlantState
+    s.omega_fl_radps = wd_fl_.omega_radps();
+    s.omega_fr_radps = wd_fr_.omega_radps();
+    s.omega_rl_radps = wd_rl_.omega_radps();
+    s.omega_rr_radps = wd_rr_.omega_radps();
+
+    // Optional: convert to rps too (your PlantState still has wheel_*_rps fields)
+    s.wheel_fl_rps = s.omega_fl_radps / (2.0 * M_PI);
+    s.wheel_fr_rps = s.omega_fr_radps / (2.0 * M_PI);
+    s.wheel_rl_rps = s.omega_rl_radps / (2.0 * M_PI);
+    s.wheel_rr_rps = s.omega_rr_radps / (2.0 * M_PI);
 }
 
 } // namespace plant

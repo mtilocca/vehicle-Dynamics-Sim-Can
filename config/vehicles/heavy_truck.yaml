@@ -53,6 +53,15 @@ vehicle:
     v_stop_eps: 0.5                    # Stopped threshold [m/s]
 
 # ==============================================================================
+# WHEEL PARAMETERS (ROTATIONAL DYNAMICS)
+# ==============================================================================
+# This is used by WheelDynamics (wheel angular acceleration, slip, etc.)
+# inertia_kgm2 is per-wheel rotational inertia.
+# ==============================================================================
+wheels:
+  inertia_kgm2: 1000.0                 # Rotational inertia per wheel (kg·m²)
+
+# ==============================================================================
 # TIRE MODEL PARAMETERS (Dugoff Model)
 # ==============================================================================
 # To change surface conditions, uncomment ONE of the surface options below
