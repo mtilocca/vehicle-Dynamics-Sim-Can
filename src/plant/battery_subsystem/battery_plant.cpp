@@ -89,7 +89,7 @@ void BatteryPlant::consume_energy(double energy_consumed_J, double power_kW) {
     
     soc_ = std::clamp(soc_ - (energy_Wh / cap_Wh), params_.min_soc, params_.max_soc);
 
-    power_ = power_kW * 1000.0;           // W
+    power_ = power_kW / 1000.0;           // W
     current_ = power_ / voltage_;          // A (positive = discharge)
     
     LOG_DEBUG("[BatteryPlant::consume_energy] Consumed %.2f J (%.4f Wh), SOC=%.3f", 
