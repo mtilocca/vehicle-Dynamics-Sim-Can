@@ -51,11 +51,13 @@ PlantModel::PlantModel(PlantModelParams p)
         wheel_params.wheel.v_eps_mps = 0.1;
         wheel_params.wheel.omega_eps_radps = 0.01;
 
-        // Geometry (WheelSubsystemParams fields you ACTUALLY have)
-        wheel_params.wheel_radius_m = p_.drive.wheel_radius_m;
+        // Vehicle geometry (needed for 3-DOF wheel kinematics and load transfer)
+        wheel_params.mass_kg = p_.drive.mass_kg;
         wheel_params.wheelbase_m = p_.wheelbase_m;
         wheel_params.track_m = p_.track_width_m;
         wheel_params.cg_height_m = p_.geometry.cg_height_m;
+        wheel_params.cg_to_front_m = p_.geometry.cg_to_front_m;
+        wheel_params.wheel_radius_m = p_.drive.wheel_radius_m;
 
         // Surface friction quick overrides (WheelSubsystem owns these)
         wheel_params.mu_peak  = p_.dynamic_config.surface_mu;
@@ -88,11 +90,14 @@ PlantModel::PlantModel(PlantModelParams p)
                  wheel_params.dynamic_mode_enabled ? "ON" : "OFF");
     }
 
-    // Priority 110: VehicleSubsystem - integrates vehicle motion
+    // Priority 110: VehicleSubsystem - integrates vehicle motion (3-DOF)
     {
         VehicleParams vehicle_params;
         vehicle_params.mass_kg = p_.drive.mass_kg;
         vehicle_params.wheelbase_m = p_.wheelbase_m;
+        vehicle_params.track_m = p_.track_width_m;
+        vehicle_params.cg_to_front_m = p_.geometry.cg_to_front_m;
+        vehicle_params.yaw_inertia_kgm2 = p_.geometry.yaw_inertia_kgm2;
         vehicle_params.drag_c = p_.drive.drag_c;
         vehicle_params.roll_c = p_.drive.roll_c;
         vehicle_params.v_max_mps = p_.drive.v_max_mps;
@@ -160,10 +165,12 @@ void PlantModel::set_params(const PlantModelParams& p) {
         wheel_params.wheel.v_eps_mps = 0.1;
         wheel_params.wheel.omega_eps_radps = 0.01;
 
-        wheel_params.wheel_radius_m = p_.drive.wheel_radius_m;
+        wheel_params.mass_kg = p_.drive.mass_kg;
         wheel_params.wheelbase_m = p_.wheelbase_m;
         wheel_params.track_m = p_.track_width_m;
         wheel_params.cg_height_m = p_.geometry.cg_height_m;
+        wheel_params.cg_to_front_m = p_.geometry.cg_to_front_m;
+        wheel_params.wheel_radius_m = p_.drive.wheel_radius_m;
 
         wheel_params.mu_peak  = p_.dynamic_config.surface_mu;
         wheel_params.mu_slide = p_.dynamic_config.surface_mu * 0.90;
@@ -183,11 +190,14 @@ void PlantModel::set_params(const PlantModelParams& p) {
         static_cast<WheelSubsystem*>(wheel)->set_params(wheel_params);
     }
 
-    // Vehicle
+    // Vehicle (3-DOF)
     if (auto* vehicle = subsystem_mgr_.find_subsystem("Vehicle")) {
         VehicleParams vehicle_params;
         vehicle_params.mass_kg = p_.drive.mass_kg;
         vehicle_params.wheelbase_m = p_.wheelbase_m;
+        vehicle_params.track_m = p_.track_width_m;
+        vehicle_params.cg_to_front_m = p_.geometry.cg_to_front_m;
+        vehicle_params.yaw_inertia_kgm2 = p_.geometry.yaw_inertia_kgm2;
         vehicle_params.drag_c = p_.drive.drag_c;
         vehicle_params.roll_c = p_.drive.roll_c;
         vehicle_params.v_max_mps = p_.drive.v_max_mps;

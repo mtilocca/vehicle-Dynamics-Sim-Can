@@ -17,6 +17,7 @@ vehicle:
     cg_height_m: 3.20                  # Center of gravity height (estimated)
     cg_to_front_axle_m: 2.52           # CoG distance to front axle (40% of wheelbase)
     cg_to_rear_axle_m: 3.78            # CoG distance to rear axle (60% of wheelbase)
+    yaw_inertia_kgm2: 8500000.0        # Yaw moment of inertia (8.5e6 kg·m²)
 
   # Electric drivetrain configuration
   drivetrain:

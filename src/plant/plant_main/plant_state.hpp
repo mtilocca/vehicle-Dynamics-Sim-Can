@@ -17,9 +17,13 @@ struct PlantState {
     double y_m = 0.0;
     double yaw_rad = 0.0;      // heading (psi)
 
-    // --- Kinematics
-    double v_mps = 0.0;        // longitudinal speed at rear axle reference
-    double a_long_mps2 = 0.0;
+    // --- Kinematics (3-DOF: longitudinal, lateral, yaw)
+    double v_mps = 0.0;        // longitudinal speed at rear axle reference (Vx)
+    double a_long_mps2 = 0.0;  // longitudinal acceleration
+
+    double vy_mps = 0.0;       // lateral velocity at CG (m/s)
+    double yaw_rate_radps = 0.0; // yaw rate (rad/s)
+    double a_lat_mps2 = 0.0;   // lateral acceleration
 
     // --- Steering (virtual bicycle steer + physical wheel angles)
     double steer_virtual_rad = 0.0;  // bicycle steer angle δ
@@ -112,13 +116,21 @@ struct PlantState {
     double sigma_x_fr = 0.0;
     double sigma_x_rl = 0.0;
     double sigma_x_rr = 0.0;
-    
+
     // --- Lateral Slip Ratios (dimensionless) ---
     // sigma_y = Vy / Vx ≈ slip angle for small angles
     double sigma_y_fl = 0.0;
     double sigma_y_fr = 0.0;
     double sigma_y_rl = 0.0;
     double sigma_y_rr = 0.0;
+
+    // --- Slip Angles (rad) ---
+    // alpha = atan2(Vy_wheel, |Vx_wheel|)
+    // Used for precise lateral tire force computation
+    double alpha_fl = 0.0;
+    double alpha_fr = 0.0;
+    double alpha_rl = 0.0;
+    double alpha_rr = 0.0;
     
     // --- Friction Utilization (dimensionless) ---
     // lambda = (mu*Fz) / (2*sqrt(Cx²σx² + Cy²σy²))
@@ -158,7 +170,9 @@ struct PlantState {
         // === VEHICLE DYNAMICS (Frame 0x300: VEHICLE_STATE_1) ===
         visitor.visit("vehicle_speed_mps", v_mps);
         visitor.visit("vehicle_accel_mps2", a_long_mps2);
-        visitor.visit("yaw_rate_radps", steer_rate_radps);  // Proxy for yaw rate
+        visitor.visit("vy_mps", vy_mps);
+        visitor.visit("yaw_rate_radps", yaw_rate_radps);
+        visitor.visit("a_lat_mps2", a_lat_mps2);
         visitor.visit("status_flags", status_flags);
         
         // === MOTOR STATE (Frame 0x310: MOTOR_STATE_1) ===
@@ -253,6 +267,12 @@ struct PlantState {
         visitor.visit("sigma_y_fr", sigma_y_fr);
         visitor.visit("sigma_y_rl", sigma_y_rl);
         visitor.visit("sigma_y_rr", sigma_y_rr);
+
+        // Slip angles (rad)
+        visitor.visit("alpha_fl", alpha_fl);
+        visitor.visit("alpha_fr", alpha_fr);
+        visitor.visit("alpha_rl", alpha_rl);
+        visitor.visit("alpha_rr", alpha_rr);
         
         // Friction utilization (dimensionless)
         visitor.visit("lambda_fl", lambda_fl);

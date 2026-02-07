@@ -189,9 +189,11 @@ static void test_wheel_subsystem_init(TestResult& r) {
     const double g = 9.81;
 
     WheelSubsystemParams params;
+    params.mass_kg = mass_kg;
     params.wheelbase_m = wheelbase_m;
     params.track_m = 7.2;
     params.cg_height_m = 3.2;
+    params.cg_to_front_m = cg_to_front_m;
     params.wheel.radius_m = 1.93;
     params.wheel.inertia_kgm2 = 1000.0;
     params.tyre_params.mu_peak = 0.72;
@@ -241,9 +243,11 @@ static void test_wheel_subsystem_dynamic_step(TestResult& r) {
     std::cout << "\n" << YELLOW << "=== Test 6: WheelSubsystem Dynamic Step ===" << RESET << "\n";
 
     WheelSubsystemParams params;
+    params.mass_kg = 218000.0;
     params.wheelbase_m = 6.3;
     params.track_m = 7.2;
     params.cg_height_m = 3.2;
+    params.cg_to_front_m = 3.78;
     params.wheel.radius_m = 1.93;
     params.wheel.inertia_kgm2 = 1000.0;
 
@@ -277,7 +281,12 @@ static void test_wheel_subsystem_dynamic_step(TestResult& r) {
 
     const double omega_before = s.omega_rl_radps;
 
-    subsystem.step(s, cmd, dt);
+    // Run multiple steps to allow slip to develop
+    // (First step: free-rolling → slip=0, Fx≈0)
+    // (Subsequent steps: slip builds up → Fx > 0)
+    for (int i = 0; i < 5; i++) {
+        subsystem.step(s, cmd, dt);
+    }
 
     const double omega_after = s.omega_rl_radps;
 
@@ -305,9 +314,11 @@ static void test_load_transfer(TestResult& r) {
     const double cg_to_front_m = 3.78;
 
     WheelSubsystemParams params;
+    params.mass_kg = mass_kg;
     params.wheelbase_m = wheelbase_m;
     params.track_m = 7.2;
     params.cg_height_m = cg_height_m;
+    params.cg_to_front_m = cg_to_front_m;
 
     WheelSubsystem subsystem(params);
 
@@ -358,6 +369,11 @@ static void test_kinematic_vs_dynamic(TestResult& r) {
     std::cout << "\n" << YELLOW << "=== Test 8: Kinematic vs Dynamic Mode ===" << RESET << "\n";
 
     WheelSubsystemParams params;
+    params.mass_kg = 218000.0;
+    params.wheelbase_m = 6.3;
+    params.track_m = 7.2;
+    params.cg_height_m = 3.2;
+    params.cg_to_front_m = 3.78;
     params.wheel.radius_m = 1.93;
 
     // KINEMATIC mode

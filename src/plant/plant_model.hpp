@@ -11,11 +11,12 @@ namespace sim { struct ActuatorCmd; }
 
 namespace plant {
 
-// NEW: Geometry parameters for load transfer and dynamics
+// NEW: Geometry parameters for load transfer and 3-DOF dynamics
 struct VehicleGeometry {
     double cg_height_m = 0.5;      // CoG height above ground [m]
     double cg_to_front_m = 1.4;    // Distance from CoG to front axle [m]
     double cg_to_rear_m = 1.4;     // Distance from CoG to rear axle [m] (should match L - cg_to_front)
+    double yaw_inertia_kgm2 = 5000.0; // Yaw moment of inertia Iz [kg·m²]
 };
 
 // NEW: Dynamic model configuration

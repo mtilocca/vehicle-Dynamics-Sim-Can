@@ -1,5 +1,7 @@
 // src/plant/wheel_subsystem/wheel_subsystem.cpp
 #include "plant/wheel_subsystem/wheel_subsystem.hpp"
+#include "plant/wheel_subsystem/wheel_kinematics.hpp"
+#include "plant/wheel_subsystem/load_transfer_model.hpp"
 #include "utils/logging.hpp"
 #include <cmath>
 
@@ -33,6 +35,13 @@ void WheelSubsystem::initialize(PlantState& s) {
     s.omega_fr_radps = wd_fr_.omega_radps();
     s.omega_rl_radps = wd_rl_.omega_radps();
     s.omega_rr_radps = wd_rr_.omega_radps();
+
+    // Compute initial static normal loads (zero acceleration)
+    LoadTransferModel::compute(
+        p_.mass_kg, 0.0, 0.0,
+        p_.wheelbase_m, p_.track_m, p_.cg_height_m, p_.cg_to_front_m,
+        s.Fz_fl, s.Fz_fr, s.Fz_rl, s.Fz_rr
+    );
 
     s.dynamic_model_enabled = p_.dynamic_mode_enabled;
 }
@@ -121,12 +130,49 @@ void WheelSubsystem::step(PlantState& s, const sim::ActuatorCmd& /*cmd*/, double
         return static_cast<double>(dir) * tau_brake_nm;
     };
 
-    // Local wheel longitudinal velocity: use vehicle Vx for now (no full body velocities yet)
-    const double Vx = s.v_mps;
-    const double Vy_fl = 0.0;
-    const double Vy_fr = 0.0;
-    const double Vy_rl = 0.0;
-    const double Vy_rr = 0.0;
+    // -------------------------------------------------------------------------
+    // WHEEL KINEMATICS: Compute per-wheel velocities from vehicle body state
+    // -------------------------------------------------------------------------
+    // Wheel positions relative to CG (vehicle frame: +x forward, +y left)
+    const double cg_to_rear = p_.wheelbase_m - p_.cg_to_front_m;
+    const double half_track = p_.track_m / 2.0;
+
+    // Front wheels: forward of CG, left/right of centerline
+    const double x_f = p_.cg_to_front_m;
+    const double y_fl = +half_track;
+    const double y_fr = -half_track;
+
+    // Rear wheels: behind CG, left/right of centerline
+    const double x_r = -cg_to_rear;
+    const double y_rl = +half_track;
+    const double y_rr = -half_track;
+
+    // Compute per-wheel velocities in wheel frame
+    double vx_fl, vy_fl, vx_fr, vy_fr, vx_rl, vy_rl, vx_rr, vy_rr;
+
+    WheelKinematics::compute(s.v_mps, s.vy_mps, s.yaw_rate_radps,
+                             x_f, y_fl, s.delta_fl_rad, vx_fl, vy_fl);
+    WheelKinematics::compute(s.v_mps, s.vy_mps, s.yaw_rate_radps,
+                             x_f, y_fr, s.delta_fr_rad, vx_fr, vy_fr);
+    WheelKinematics::compute(s.v_mps, s.vy_mps, s.yaw_rate_radps,
+                             x_r, y_rl, 0.0, vx_rl, vy_rl);  // Rear: no steer
+    WheelKinematics::compute(s.v_mps, s.vy_mps, s.yaw_rate_radps,
+                             x_r, y_rr, 0.0, vx_rr, vy_rr);  // Rear: no steer
+
+    // Compute slip angles
+    s.alpha_fl = WheelKinematics::slip_angle(vx_fl, vy_fl, p_.tyre_params.v_min);
+    s.alpha_fr = WheelKinematics::slip_angle(vx_fr, vy_fr, p_.tyre_params.v_min);
+    s.alpha_rl = WheelKinematics::slip_angle(vx_rl, vy_rl, p_.tyre_params.v_min);
+    s.alpha_rr = WheelKinematics::slip_angle(vx_rr, vy_rr, p_.tyre_params.v_min);
+
+    // -------------------------------------------------------------------------
+    // NORMAL LOADS: Compute Fz with load transfer
+    // -------------------------------------------------------------------------
+    LoadTransferModel::compute(
+        p_.mass_kg, s.a_long_mps2, s.a_lat_mps2,
+        p_.wheelbase_m, p_.track_m, p_.cg_height_m, p_.cg_to_front_m,
+        s.Fz_fl, s.Fz_fr, s.Fz_rl, s.Fz_rr
+    );
 
     // --- Per-wheel: slip -> tyre forces (Dugoff) -> wheel omega integration ---
     auto process_wheel = [&](WheelDynamics& wd,
@@ -163,18 +209,19 @@ void WheelSubsystem::step(PlantState& s, const sim::ActuatorCmd& /*cmd*/, double
         wd.step(tau_drive_nm, tau_brake_term, out_Fx, dt);
     };
 
-    // If you have Fz already computed elsewhere, use it; otherwise expect it set by your load-transfer model.
-    // Here we assume PlantState contains Fz_*.
-    process_wheel(wd_fl_, s.tau_drive_fl_nm, s.tau_brake_fl_nm, Vx, Vy_fl, s.Fz_fl,
+    // -------------------------------------------------------------------------
+    // TIRE FORCES: Process each wheel (slip → Dugoff → forces → ω integration)
+    // -------------------------------------------------------------------------
+    process_wheel(wd_fl_, s.tau_drive_fl_nm, s.tau_brake_fl_nm, vx_fl, vy_fl, s.Fz_fl,
                   s.Fx_fl, s.Fy_fl, s.sigma_x_fl, s.sigma_y_fl, s.lambda_fl);
 
-    process_wheel(wd_fr_, s.tau_drive_fr_nm, s.tau_brake_fr_nm, Vx, Vy_fr, s.Fz_fr,
+    process_wheel(wd_fr_, s.tau_drive_fr_nm, s.tau_brake_fr_nm, vx_fr, vy_fr, s.Fz_fr,
                   s.Fx_fr, s.Fy_fr, s.sigma_x_fr, s.sigma_y_fr, s.lambda_fr);
 
-    process_wheel(wd_rl_, s.tau_drive_rl_nm, s.tau_brake_rl_nm, Vx, Vy_rl, s.Fz_rl,
+    process_wheel(wd_rl_, s.tau_drive_rl_nm, s.tau_brake_rl_nm, vx_rl, vy_rl, s.Fz_rl,
                   s.Fx_rl, s.Fy_rl, s.sigma_x_rl, s.sigma_y_rl, s.lambda_rl);
 
-    process_wheel(wd_rr_, s.tau_drive_rr_nm, s.tau_brake_rr_nm, Vx, Vy_rr, s.Fz_rr,
+    process_wheel(wd_rr_, s.tau_drive_rr_nm, s.tau_brake_rr_nm, vx_rr, vy_rr, s.Fz_rr,
                   s.Fx_rr, s.Fy_rr, s.sigma_x_rr, s.sigma_y_rr, s.lambda_rr);
 
     // Export wheel speeds to PlantState

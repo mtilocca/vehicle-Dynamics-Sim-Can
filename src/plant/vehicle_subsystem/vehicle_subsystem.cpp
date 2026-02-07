@@ -13,29 +13,35 @@ VehicleSubsystem::VehicleSubsystem(const VehicleParams& params)
 }
 
 void VehicleSubsystem::initialize(PlantState& s) {
-    LOG_INFO("[VehicleSubsystem] Initializing: mass=%.0f kg, wheelbase=%.2f m",
-             p_.mass_kg, p_.wheelbase_m);
-    LOG_INFO("[VehicleSubsystem] Resistance: drag_c=%.2f, roll_c=%.1f N",
-             p_.drag_c, p_.roll_c);
+    LOG_INFO("[VehicleSubsystem] Initializing 3-DOF dynamics:");
+    LOG_INFO("  - mass=%.0f kg, Iz=%.2e kg·m²", p_.mass_kg, p_.yaw_inertia_kgm2);
+    LOG_INFO("  - wheelbase=%.2f m, track=%.2f m", p_.wheelbase_m, p_.track_m);
+    LOG_INFO("  - drag_c=%.2f, roll_c=%.1f N", p_.drag_c, p_.roll_c);
 
-    // Initialize vehicle state to rest
+    // Initialize vehicle state to rest (3-DOF: vx, vy, yaw_rate)
     s.x_m = 0.0;
     s.y_m = 0.0;
     s.yaw_rad = 0.0;
     s.v_mps = 0.0;
+    s.vy_mps = 0.0;
+    s.yaw_rate_radps = 0.0;
     s.a_long_mps2 = 0.0;
+    s.a_lat_mps2 = 0.0;
 
     dir_latch_ = 0;
 }
 
 void VehicleSubsystem::reset(PlantState& s) {
-    LOG_INFO("[VehicleSubsystem] Resetting to origin");
+    LOG_INFO("[VehicleSubsystem] Resetting to origin (3-DOF)");
 
     s.x_m = 0.0;
     s.y_m = 0.0;
     s.yaw_rad = 0.0;
     s.v_mps = 0.0;
+    s.vy_mps = 0.0;
+    s.yaw_rate_radps = 0.0;
     s.a_long_mps2 = 0.0;
+    s.a_lat_mps2 = 0.0;
 
     dir_latch_ = 0;
 }
@@ -147,26 +153,65 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
         v_next = 0.0;
     }
 
-    // Update state
+    // Update longitudinal state
     s.v_mps = v_next;
     s.a_long_mps2 = a_long;
 
     // ========================================================================
-    // BICYCLE KINEMATICS
-    // NOTE: using v (which can be negative) naturally flips yaw_rate in reverse.
+    // LATERAL AND YAW DYNAMICS (3-DOF)
     // ========================================================================
-    double yaw_rate = 0.0;
-    if (std::abs(s.v_mps) > p_.v_stop_eps) {
-        yaw_rate = s.v_mps / p_.wheelbase_m * std::tan(s.steer_virtual_rad);
-    }
 
-    s.yaw_rad += yaw_rate * dt;
+    // Sum lateral forces from all wheels
+    const double Fy_total = s.Fy_fl + s.Fy_fr + s.Fy_rl + s.Fy_rr;
 
+    // Compute yaw moment about CG
+    // Mz = Σ(Fx_i * y_i - Fy_i * x_i) where (x_i, y_i) is wheel position relative to CG
+    const double cg_to_rear = p_.wheelbase_m - p_.cg_to_front_m;
+    const double half_track = p_.track_m / 2.0;
+
+    const double x_f = p_.cg_to_front_m;
+    const double x_r = -cg_to_rear;
+
+    const double Mz_fl = s.Fx_fl * (+half_track) - s.Fy_fl * x_f;
+    const double Mz_fr = s.Fx_fr * (-half_track) - s.Fy_fr * x_f;
+    const double Mz_rl = s.Fx_rl * (+half_track) - s.Fy_rl * x_r;
+    const double Mz_rr = s.Fx_rr * (-half_track) - s.Fy_rr * x_r;
+
+    const double Mz_total = Mz_fl + Mz_fr + Mz_rl + Mz_rr;
+
+    // Lateral acceleration (accounting for centripetal coupling)
+    // ay = Fy / m - yaw_rate * vx
+    const double ay_from_forces = Fy_total / p_.mass_kg;
+    const double ay = ay_from_forces - s.yaw_rate_radps * s.v_mps;
+
+    // Yaw acceleration
+    const double yaw_ddot = Mz_total / p_.yaw_inertia_kgm2;
+
+    // Integrate lateral velocity
+    double vy_next = s.vy_mps + ay_from_forces * dt;
+    s.vy_mps = vy_next;
+    s.a_lat_mps2 = ay;  // Total lateral acceleration (with centripetal term)
+
+    // Integrate yaw rate
+    s.yaw_rate_radps += yaw_ddot * dt;
+    s.yaw_rad += s.yaw_rate_radps * dt;
+
+    // Normalize yaw angle to [-π, +π]
     while (s.yaw_rad > M_PI) s.yaw_rad -= 2.0 * M_PI;
     while (s.yaw_rad < -M_PI) s.yaw_rad += 2.0 * M_PI;
 
-    s.x_m += s.v_mps * std::cos(s.yaw_rad) * dt;
-    s.y_m += s.v_mps * std::sin(s.yaw_rad) * dt;
+    // ========================================================================
+    // POSITION INTEGRATION (global frame)
+    // ========================================================================
+    const double cos_yaw = std::cos(s.yaw_rad);
+    const double sin_yaw = std::sin(s.yaw_rad);
+
+    // Transform body velocities (vx, vy) to global frame
+    const double vx_global = s.v_mps * cos_yaw - s.vy_mps * sin_yaw;
+    const double vy_global = s.v_mps * sin_yaw + s.vy_mps * cos_yaw;
+
+    s.x_m += vx_global * dt;
+    s.y_m += vy_global * dt;
 }
 
 void VehicleSubsystem::set_params(const VehicleParams& params) {

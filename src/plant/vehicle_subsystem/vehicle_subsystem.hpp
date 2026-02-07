@@ -14,9 +14,12 @@
 namespace plant {
 
 struct VehicleParams {
-    // Vehicle Mass and Geometry
+    // Vehicle Mass and Geometry (3-DOF: longitudinal, lateral, yaw)
     double mass_kg = 218000.0;          // Vehicle mass [kg]
     double wheelbase_m = 6.3;           // Wheelbase L [m]
+    double track_m = 7.2;               // Track width [m]
+    double cg_to_front_m = 2.52;        // CG to front axle distance [m]
+    double yaw_inertia_kgm2 = 8.5e6;    // Yaw moment of inertia Iz [kg·m²]
 
     // Resistive Forces
     double drag_c = 2.5;                // Aerodynamic drag coefficient [N/(m/s)²]

@@ -45,15 +45,17 @@ VehicleConfig VehicleConfig::load(const std::string& yaml_path) {
             vehicle.params.track_width_m = geo["track_width_m"].as<double>(1.6);
             vehicle.params.drive.wheel_radius_m = geo["wheel_radius_m"].as<double>(0.33);
 
-            // Store CoG parameters
+            // Store CoG parameters and inertia
             vehicle.params.geometry.cg_height_m = geo["cg_height_m"].as<double>(0.5);
             vehicle.params.geometry.cg_to_front_m = geo["cg_to_front_axle_m"].as<double>(1.4);
             vehicle.params.geometry.cg_to_rear_m = geo["cg_to_rear_axle_m"].as<double>(1.4);
+            vehicle.params.geometry.yaw_inertia_kgm2 = geo["yaw_inertia_kgm2"].as<double>(5000.0);
 
-            LOG_DEBUG("[VehicleConfig] CoG: h=%.2f m, front=%.2f m, rear=%.2f m",
+            LOG_DEBUG("[VehicleConfig] CoG: h=%.2f m, front=%.2f m, rear=%.2f m, Iz=%.2e kg·m²",
                       vehicle.params.geometry.cg_height_m,
                       vehicle.params.geometry.cg_to_front_m,
-                      vehicle.params.geometry.cg_to_rear_m);
+                      vehicle.params.geometry.cg_to_rear_m,
+                      vehicle.params.geometry.yaw_inertia_kgm2);
         }
 
         // ====================================================================
