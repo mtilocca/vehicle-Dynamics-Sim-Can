@@ -47,6 +47,8 @@ struct PlantState {
     // Drive torques (from motor, positive = forward)
     double tau_drive_rl_nm = 0.0;   // Drive torque rear-left (Nm)
     double tau_drive_rr_nm = 0.0;   // Drive torque rear-right (Nm)
+    double tau_drive_fr_nm = 0.0;   // Drive torque front-right (Nm)
+    double tau_drive_fl_nm = 0.0;   // Drive torque front-right (Nm)
     // Note: Front wheels are non-driven for rear-wheel-drive vehicle
     
     // Brake torques (always positive, opposes motion)

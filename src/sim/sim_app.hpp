@@ -81,23 +81,7 @@ struct SimAppConfig {
     // Vehicle configuration (optional - if not set, uses hardcoded defaults)
     std::optional<plant::PlantModelParams> vehicle_params;
     
-    // ========== Dynamic Model Configuration (NEW) ==========
-    
-    /**
-     * Enable dynamic tire model (Dugoff)
-     * 
-     * When true:
-     * - TyreSubsystem computes friction-limited tire forces
-     * - Load transfer during acceleration/braking
-     * - Traction limiting based on surface friction
-     * - CSV logging includes tire dynamics columns
-     * 
-     * When false (default):
-     * - Pure kinematic bicycle model (V1 behavior)
-     * - Unlimited traction
-     * - Tire dynamics columns show zeros
-     */
-    bool enable_dynamic_model = false;
+    // ========== Surface Friction Configuration ==========
     
     /**
      * Surface friction coefficient (mu)
@@ -109,18 +93,11 @@ struct SimAppConfig {
      *   - Iron ore dust (dry): 0.45
      *   - Iron ore dust (wet): 0.30
      *   - Mud: 0.25
+     * 
+     * Note: Dynamic tire model (Dugoff) is always enabled.
+     * Kinematic mode has been removed.
      */
     double surface_friction = 0.72;
-    
-    /**
-     * Log tire dynamics to CSV (even when dynamic model is disabled)
-     * 
-     * When true: Always log Fx, Fy, Fz, slip ratios, lambda
-     * When false: Only log tire dynamics if enable_dynamic_model is true
-     * 
-     * Default: true (helps with debugging and comparison)
-     */
-    bool log_tire_dynamics = true; // to be adapted and removed as kinematic will be removed 
     
     // ========== InfluxDB Configuration ==========
     
