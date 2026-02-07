@@ -1,6 +1,6 @@
 // src/plant/tyre_subsystem/tyre_dugoff.cpp
 // FIXED: Added lambda clamping to prevent 1e11 explosion
-#include "tyre_subsystem/tyre_dugoff.hpp"
+#include "tyre_models/tyre_dugoff.hpp"
 #include "utils/logging.hpp"
 #include <cmath>
 #include <algorithm>

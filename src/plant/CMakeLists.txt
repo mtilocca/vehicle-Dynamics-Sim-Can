@@ -55,7 +55,7 @@ set(PLANT_SOURCES
     
     # Tyre subsystem - Dugoff tire force model
     # Separable design: easy to swap with Pacejka, MF-Tyre, etc.
-    tyre_subsystem/tyre_dugoff.cpp
+    tyre_models/tyre_dugoff.cpp
     
     # Vehicle subsystem (Priority 110)
     # Integrates longitudinal velocity, yaw angle, position

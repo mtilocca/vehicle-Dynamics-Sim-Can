@@ -44,7 +44,7 @@ PlantModel::PlantModel(PlantModelParams p)
     wheel_params.wheel.omega_max_radps = 50.0;
     wheel_params.wheel.omega_min_radps = -10.0;
     wheel_params.wheel.v_eps_mps = 0.1;
-    wheel_params.wheel.omega_eps_radps = 0.01;
+    wheel_params.wheel.omega_min_radps = 0.01;
     
     // b) Vehicle geometry (for normal load calculation)
     wheel_params.wheelbase_m = p_.wheelbase_m;
