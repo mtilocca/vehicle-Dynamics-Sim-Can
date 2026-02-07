@@ -19,6 +19,7 @@
 #pragma once
 
 #include "plant/plant_main/physics_subsystem.hpp"
+#include "cmath"
 
 namespace plant {
 
