@@ -1,16 +1,8 @@
 // src/plant/drive_subsystem/drive_plant.cpp
 //
-// DrivePlant Implementation - HYBRID MODEL
+// DrivePlant Implementation - HYBRID MODEL WITH COAST REGEN
 //
-// Key responsibilities:
-// 1. Compute motor torque from command (with power limiting)
-// 2. Populate tau_drive_rl_nm, tau_drive_rr_nm (RWD, 50/50 open diff)
-// 3. Populate tau_brake_*_nm (40/60 front/rear bias)
-// 4. Handle battery energy tracking with regen (✅ ALL REGEN LOGIC PRESERVED)
-// 5. KINEMATIC mode only: integrate velocity, set wheel speeds
-// 6. DYNAMIC mode: Torques only - WheelSubsystem handles wheels, VehicleSubsystem handles velocity
-//
-// Reference: Vehicle_Dynamics_with_Dugoff_Tire_Model.pdf (Section 6, Eq. 77-80)
+// CRITICAL FIX: Restored motor regen drag torque during coast (was removed!)
 
 #include "drive_plant.hpp"
 #include "sim/actuator_cmd.hpp"
@@ -26,28 +18,76 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s)
 
     const bool enabled = cmd.system_enable;
     const double v = s.v_mps;
+    const double v_abs = std::abs(v);
 
     // ========================================================================
-    // STEP 1: Motor Torque Calculation (PDF Eq. 53)
+    // STEP 0: Reset per-tick outputs (prevent stale data)
     // ========================================================================
-    // τ_wheel = τ_motor × N × η
-    // Where: N = gear ratio, η = drivetrain efficiency
+    s.motor_power_kW = 0.0;
+    s.regen_power_kW = 0.0;
+    s.motor_torque_nm = 0.0;
+
+    // ========================================================================
+    // STEP 1: Motor Torque Command with Coast Regen Drag
+    // ========================================================================
     
-    // Clamp motor command to limits
-    double motor_tq_cmd = clamp(cmd.drive_torque_cmd_nm, 
-                                -p_.motor_torque_max_nm, 
-                                +p_.motor_torque_max_nm);
+    // Raw driver/requested torque (clamped)
+    double motor_tq_cmd_raw = clamp(cmd.drive_torque_cmd_nm, 
+                                    -p_.motor_torque_max_nm, 
+                                    +p_.motor_torque_max_nm);
 
-    // Wheel torque from motor (total for rear axle)
+    // Default: if disabled, no positive propulsion allowed
+    double motor_tq_cmd = enabled ? motor_tq_cmd_raw : 0.0;
+
+    // Brake percentage
+    const double brake_pct = clamp(cmd.brake_cmd_pct, 0.0, 100.0);
+
+    // ========================================================================
+    // COAST REGEN DETECTION (even when enabled=false!)
+    // ========================================================================
+    // CRITICAL: This was REMOVED but needs to be RESTORED!
+    // The motor applies a velocity-proportional drag torque during coast
+    // (lift-off) to simulate engine braking + regen charging.
+    
+    const bool coast_conditions =
+        (std::abs(motor_tq_cmd_raw) < 1.0) &&  // no requested torque
+        (brake_pct < 1.0) &&                   // not braking
+        (v_abs > p_.v_stop_eps);               // moving
+
+    bool regen_drag_active = false;
+    
+    if (coast_conditions) {
+        // YAML-driven scaling (tune these parameters)
+        const double regen_drag_max_frac  = 0.15;  // 15% of max torque
+        const double regen_drag_v_ref_mps = 15.0;  // reach max at 15 m/s
+
+        const double regen_drag_max_nm = regen_drag_max_frac * p_.motor_torque_max_nm;
+        const double regen_drag_gain_nm_per_mps = 
+            (regen_drag_v_ref_mps > 1e-6) ? (regen_drag_max_nm / regen_drag_v_ref_mps) : 0.0;
+
+        const double T_regen_drag = 
+            clamp(regen_drag_gain_nm_per_mps * v_abs, 0.0, regen_drag_max_nm);
+
+        // Apply NEGATIVE torque (charging)
+        // IMPORTANT: even in safe-mode, allow negative torque for coast regen
+        motor_tq_cmd = -T_regen_drag;
+        regen_drag_active = (T_regen_drag > 1e-3);
+        
+        LOG_DEBUG("[DrivePlant] Coast regen: v=%.2f m/s, T_drag=%.0f Nm", 
+                  v, T_regen_drag);
+    }
+
+    // Publish motor torque EVERY tick
+    s.motor_torque_nm = motor_tq_cmd;
+
+    // ========================================================================
+    // STEP 2: Wheel Torque from Motor (with power limiting)
+    // ========================================================================
+    
     double wheel_tq_total = motor_tq_cmd * p_.gear_ratio * p_.drivetrain_eff;
 
-    // ========================================================================
-    // STEP 2: Power Limiting
-    // ========================================================================
-    // P = τ × ω, so τ_max = P_max / ω
-    // At low speed, use v_stop_eps to avoid division by zero
-    
-    const double omega = std::max(std::abs(v), p_.v_stop_eps) / p_.wheel_radius_m;
+    // Power limiting: τ_max = P_max / ω
+    const double omega = std::max(v_abs, p_.v_stop_eps) / p_.wheel_radius_m;
     const double wheel_tq_power_max = p_.motor_power_max_w / omega;
     
     wheel_tq_total = clamp(wheel_tq_total, -wheel_tq_power_max, +wheel_tq_power_max);
@@ -55,72 +95,50 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s)
     // ========================================================================
     // STEP 3: Brake Torque Distribution (40% front / 60% rear)
     // ========================================================================
-    // PDF Eq. 79-80: Mining trucks are rear-heavy
     
-    const double brake_pct = clamp(cmd.brake_cmd_pct, 0.0, 100.0);
     const double brake_tq_total = (brake_pct / 100.0) * p_.brake_torque_max_nm;
-    
-    // Distribute to axles (total per axle, then split per wheel)
     const double brake_tq_front_axle = brake_tq_total * p_.brake_bias_front;
     const double brake_tq_rear_axle = brake_tq_total * (1.0 - p_.brake_bias_front);
     
     // Per-wheel brake torque (50/50 left-right)
-    // Brake torque is always positive (opposes motion, WheelDynamics handles sign)
     s.tau_brake_fl_nm = brake_tq_front_axle * 0.5;
     s.tau_brake_fr_nm = brake_tq_front_axle * 0.5;
     s.tau_brake_rl_nm = brake_tq_rear_axle * 0.5;
     s.tau_brake_rr_nm = brake_tq_rear_axle * 0.5;
     
-    // For backward compatibility / logging
     s.brake_force_kN = brake_tq_total / p_.wheel_radius_m / 1000.0;
 
     // ========================================================================
     // STEP 4: Drive Torque Distribution (RWD, 50/50 open diff)
     // ========================================================================
-    // PDF Eq. 77-78: Rear-wheel drive (RWD)
-    // Front wheels: non-driven (tau_drive = 0)
-    // Rear wheels: equal split (open differential)
-    //
-    // Future: Could add limited-slip differential or torque vectoring here
     
     s.tau_drive_fl_nm = 0.0;  // Front-left: non-driven
     s.tau_drive_fr_nm = 0.0;  // Front-right: non-driven
     s.tau_drive_rl_nm = wheel_tq_total * 0.5;  // Rear-left: 50%
     s.tau_drive_rr_nm = wheel_tq_total * 0.5;  // Rear-right: 50%
 
-    LOG_DEBUG("[DrivePlant] v=%.2f m/s, τ_motor=%.0f Nm, τ_wheel_total=%.0f Nm, brake=%.1f%%",
-              v, motor_tq_cmd, wheel_tq_total, brake_pct);
-    LOG_DEBUG("[DrivePlant] τ_drive_rl=%.0f Nm, τ_drive_rr=%.0f Nm, τ_brake_rl=%.0f Nm",
-              s.tau_drive_rl_nm, s.tau_drive_rr_nm, s.tau_brake_rl_nm);
-
     // ========================================================================
-    // STEP 5: Battery Energy Flow (✅ ALL REGEN LOGIC PRESERVED)
+    // STEP 5: Battery Energy Flow (with MOTOR REGEN DRAG)
     // ========================================================================
     
     // Power = Torque × Angular velocity (at motor shaft)
     const double motor_omega = omega * p_.gear_ratio;
     double power_demand_kW = motor_tq_cmd * motor_omega / 1000.0;
 
-    // CRITICAL: Reset battery state fields every tick to avoid stale data
-    s.motor_power_kW = 0.0;
-    s.regen_power_kW = 0.0;
-    s.motor_torque_nm = motor_tq_cmd;
-
-    if (enabled && battery_plant_) {
-        // Case 1: Driving (power consumption)
+    // CRITICAL FIX: Step battery when enabled OR during coast regen
+    if (battery_plant_ && (enabled || regen_drag_active)) {
+        
         if (power_demand_kW > 0.01) {
+            // Case 1: Driving (power consumption)
             double energy_J = power_demand_kW * dt_s * 1000.0;
-            battery_plant_->consume_energy(energy_J, power_demand_kW); // TODO double check 
+            battery_plant_->consume_energy(energy_J, power_demand_kW);
 
             s.motor_power_kW = power_demand_kW;
             s.batt_i = battery_plant_->get_current();
             s.batt_v = battery_plant_->get_voltage();
 
-            LOG_DEBUG("[DrivePlant] Driving: P=%.2f kW, I=%.2f A", 
-                      power_demand_kW, s.batt_i);
-        }
-        // Case 2: Active regenerative braking (charging) ✅
-        else if (power_demand_kW < -0.01) {
+        } else if (power_demand_kW < -0.01) {
+            // Case 2: Active regen (motor braking OR coast regen drag)
             double regen_power_kW = -power_demand_kW * p_.regen_eff_active;
             double energy_J = regen_power_kW * dt_s * 1000.0;
             battery_plant_->store_energy(energy_J, regen_power_kW);
@@ -130,25 +148,13 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s)
             s.batt_i = battery_plant_->get_current();
             s.batt_v = battery_plant_->get_voltage();
 
-            LOG_DEBUG("[DrivePlant] Regen: P=%.2f kW, I=%.2f A", 
-                      regen_power_kW, s.batt_i);
+            LOG_DEBUG("[DrivePlant] Regen: P_motor=%.2f kW, P_regen=%.2f kW, I=%.2f A", 
+                      power_demand_kW, regen_power_kW, s.batt_i);
         }
-        // Case 3: Coasting regen from drag forces ✅ PRESERVED
-        else if (std::abs(v) > p_.v_stop_eps && brake_pct < 1.0) {
-            const double F_drag = p_.drag_c * v * std::abs(v);
-            const double F_roll = p_.roll_c;
-            const double F_res = F_drag + F_roll;
-            
-            double regen_power_kW = F_res * std::abs(v) / 1000.0 * p_.regen_eff_coast;
-            double energy_J = regen_power_kW * dt_s * 1000.0;
-            battery_plant_->store_energy(energy_J, regen_power_kW);
-
-            s.regen_power_kW = regen_power_kW;
-            s.batt_i = battery_plant_->get_current();
-            s.batt_v = battery_plant_->get_voltage();
-            
-            LOG_DEBUG("[DrivePlant] Coast regen: P=%.2f kW", regen_power_kW);
-        }
+        
+        // Refresh battery telemetry EVERY tick we step the battery
+        s.batt_i = battery_plant_->get_current();
+        s.batt_v = battery_plant_->get_voltage();
     }
 
     // ========================================================================
@@ -156,32 +162,19 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s)
     // ========================================================================
     
     if (s.dynamic_model_enabled) {
-        // ====================================================================
-        // DYNAMIC MODE: WheelSubsystem handles wheel speeds
-        // ====================================================================
-        // - We've already populated tau_drive_* and tau_brake_*
-        // - WheelSubsystem will integrate wheel dynamics: Iw·ω̇ = τ - Fx·R
-        // - WheelSubsystem will set omega_*_radps and wheel_*_rps
-        // - VehicleSubsystem will integrate velocity from ΣFx
-        //
-        // ✅ CRITICAL FIX: We do NOT integrate velocity here!
-        // ✅ CRITICAL FIX: We do NOT set wheel_*_rps here!
-        
-        LOG_DEBUG("[DrivePlant] DYNAMIC mode: torques set, WheelSubsystem handles rest");
+        // DYNAMIC MODE: WheelSubsystem + VehicleSubsystem handle integration
+        // We've already populated tau_drive_* and tau_brake_*
+        // Nothing more to do!
         
     } else {
-        // ====================================================================
         // KINEMATIC MODE: Classic V1 behavior (backward compatibility)
-        // ====================================================================
-        // - Integrate velocity directly (no slip, unlimited traction)
-        // - Derive wheel speeds from vehicle velocity: ω = V/R
         
         // Resistive forces
         const double F_drag = p_.drag_c * v * std::abs(v);
         const double F_roll = p_.roll_c * static_cast<double>(sgn(v));
         const double F_res = F_drag + F_roll;
         
-        // Drive force from torque (no traction limiting in kinematic mode)
+        // Drive force from torque
         const double Fx = wheel_tq_total / p_.wheel_radius_m;
         
         // Brake force (opposes motion)
@@ -195,7 +188,7 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s)
         double v_next = v + a * dt_s;
         v_next = clamp(v_next, -p_.v_max_mps, +p_.v_max_mps);
 
-        // Zero-crossing detection (prevent oscillation at standstill)
+        // Zero-crossing detection
         if ((v > 0.0 && v_next < 0.0) || (v < 0.0 && v_next > 0.0)) {
             if (std::abs(v_next) < 0.05)
                 v_next = 0.0;
@@ -217,9 +210,14 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s)
         s.wheel_fr_rps = wheel_rps;
         s.wheel_rl_rps = wheel_rps;
         s.wheel_rr_rps = wheel_rps;
+    }
 
-        LOG_DEBUG("[DrivePlant] KINEMATIC mode: v=%.2f m/s, a=%.2f m/s², ω=%.2f rad/s",
-                  s.v_mps, s.a_long_mps2, wheel_omega);
+    static int cnt = 0;
+    if (cnt++ % 100 == 0) {
+        LOG_DEBUG("[DrivePlant] v=%.2f m/s, τ_motor=%.0f Nm, τ_wheel=%.0f Nm, "
+                  "coast_regen=%d, P_motor=%.2f kW, I=%.2f A",
+                  v, motor_tq_cmd, wheel_tq_total, 
+                  (int)regen_drag_active, s.motor_power_kW, s.batt_i);
     }
 }
 
