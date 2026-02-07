@@ -185,8 +185,9 @@ int SimApp::run_plant() {
 
     // CSV header - COMPREHENSIVE (always includes wheel dynamics)
     csv << "t_s,"
-        // Vehicle state
-        << "x_m,y_m,yaw_deg,v_mps,a_long_mps2,steer_deg,"
+        // Vehicle state (3-DOF: longitudinal, lateral, yaw)
+        << "x_m,y_m,yaw_deg,v_mps,vy_mps,yaw_rate_radps,"
+        << "a_long_mps2,a_lat_mps2,steer_deg,"
         << "delta_fl_deg,delta_fr_deg,"
         // Commands
         << "motor_nm,brake_pct,"
@@ -219,6 +220,8 @@ int SimApp::run_plant() {
         // Slip ratios (dimensionless) - NEW from WheelSubsystem
         << "sigma_x_fl,sigma_x_fr,sigma_x_rl,sigma_x_rr,"
         << "sigma_y_fl,sigma_y_fr,sigma_y_rl,sigma_y_rr,"
+        // Slip angles (rad) - 3-DOF dynamics
+        << "alpha_fl,alpha_fr,alpha_rl,alpha_rr,"
         // Friction utilization (dimensionless) - NEW from WheelSubsystem
         << "lambda_fl,lambda_fr,lambda_rl,lambda_rr,"
         // Surface friction
@@ -461,9 +464,10 @@ int SimApp::run_plant() {
             
             // Base columns
             csv << s.t_s << ","
-                // Vehicle state
+                // Vehicle state (3-DOF)
                 << s.x_m << "," << s.y_m << "," << yaw_deg << ","
-                << s.v_mps << "," << s.a_long_mps2 << "," << steer_deg << ","
+                << s.v_mps << "," << s.vy_mps << "," << s.yaw_rate_radps << ","
+                << s.a_long_mps2 << "," << s.a_lat_mps2 << "," << steer_deg << ","
                 << delta_fl_deg << "," << delta_fr_deg << ","
                 // Commands
                 << cmd.drive_torque_cmd_nm << "," << cmd.brake_cmd_pct << ","
@@ -504,6 +508,8 @@ int SimApp::run_plant() {
                 // Slip ratios (dimensionless) - NEW
                 << s.sigma_x_fl << "," << s.sigma_x_fr << "," << s.sigma_x_rl << "," << s.sigma_x_rr << ","
                 << s.sigma_y_fl << "," << s.sigma_y_fr << "," << s.sigma_y_rl << "," << s.sigma_y_rr << ","
+                // Slip angles (rad) - 3-DOF
+                << s.alpha_fl << "," << s.alpha_fr << "," << s.alpha_rl << "," << s.alpha_rr << ","
                 // Friction utilization (dimensionless) - NEW
                 << s.lambda_fl << "," << s.lambda_fr << "," << s.lambda_rl << "," << s.lambda_rr << ","
                 // Surface friction

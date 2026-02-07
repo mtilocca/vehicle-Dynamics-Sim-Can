@@ -181,6 +181,7 @@ void WheelSubsystem::step(PlantState& s, const sim::ActuatorCmd& /*cmd*/, double
                              double Vx_mps,
                              double Vy_mps,
                              double Fz_n,
+                             double delta_rad,
                              double& out_Fx,
                              double& out_Fy,
                              double& out_sigma_x,
@@ -188,6 +189,7 @@ void WheelSubsystem::step(PlantState& s, const sim::ActuatorCmd& /*cmd*/, double
                              double& out_lambda)
     {
         // Compute tyre forces using Dugoff API (5 args, returns TyreForces)
+        // Forces are in WHEEL frame
         const TyreForces tf = tyre_model_.compute_forces(
             wd.omega_radps(),
             p_.wheel.radius_m,
@@ -196,8 +198,17 @@ void WheelSubsystem::step(PlantState& s, const sim::ActuatorCmd& /*cmd*/, double
             Fz_n
         );
 
-        out_Fx = tf.Fx;
-        out_Fy = tf.Fy;
+        // CRITICAL: Transform forces from wheel frame to vehicle frame
+        // Wheel frame is rotated by +delta (counterclockwise) from vehicle frame
+        // To rotate vector from wheel frame to vehicle frame: rotate by -delta (clockwise)
+        // Rotation by -delta:
+        //   Fx_vehicle = Fx_wheel * cos(delta) + Fy_wheel * sin(delta)
+        //   Fy_vehicle = -Fx_wheel * sin(delta) + Fy_wheel * cos(delta)
+        const double cos_delta = std::cos(delta_rad);
+        const double sin_delta = std::sin(delta_rad);
+
+        out_Fx = tf.Fx * cos_delta + tf.Fy * sin_delta;   // Fixed: + not -
+        out_Fy = -tf.Fx * sin_delta + tf.Fy * cos_delta;  // Fixed: - not +
         out_sigma_x = tf.sigma_x;
         out_sigma_y = tf.sigma_y;
         out_lambda = tf.lambda;
@@ -205,24 +216,60 @@ void WheelSubsystem::step(PlantState& s, const sim::ActuatorCmd& /*cmd*/, double
         // Make brake oppose current wheel rotation (or Vx if omega ~ 0)
         const double tau_brake_term = brake_opposing_torque(tau_brake_nm, wd.omega_radps(), Vx_mps);
 
-        // Integrate wheel omega with the generated Fx load term
-        wd.step(tau_drive_nm, tau_brake_term, out_Fx, dt);
+        // Integrate wheel omega with the WHEEL-FRAME Fx (not vehicle-frame!)
+        wd.step(tau_drive_nm, tau_brake_term, tf.Fx, dt);
     };
 
     // -------------------------------------------------------------------------
     // TIRE FORCES: Process each wheel (slip → Dugoff → forces → ω integration)
+    // Forces are transformed from wheel frame to vehicle frame
     // -------------------------------------------------------------------------
-    process_wheel(wd_fl_, s.tau_drive_fl_nm, s.tau_brake_fl_nm, vx_fl, vy_fl, s.Fz_fl,
+    process_wheel(wd_fl_, s.tau_drive_fl_nm, s.tau_brake_fl_nm, vx_fl, vy_fl, s.Fz_fl, s.delta_fl_rad,
                   s.Fx_fl, s.Fy_fl, s.sigma_x_fl, s.sigma_y_fl, s.lambda_fl);
 
-    process_wheel(wd_fr_, s.tau_drive_fr_nm, s.tau_brake_fr_nm, vx_fr, vy_fr, s.Fz_fr,
+    process_wheel(wd_fr_, s.tau_drive_fr_nm, s.tau_brake_fr_nm, vx_fr, vy_fr, s.Fz_fr, s.delta_fr_rad,
                   s.Fx_fr, s.Fy_fr, s.sigma_x_fr, s.sigma_y_fr, s.lambda_fr);
 
-    process_wheel(wd_rl_, s.tau_drive_rl_nm, s.tau_brake_rl_nm, vx_rl, vy_rl, s.Fz_rl,
+    process_wheel(wd_rl_, s.tau_drive_rl_nm, s.tau_brake_rl_nm, vx_rl, vy_rl, s.Fz_rl, 0.0,  // Rear: no steer
                   s.Fx_rl, s.Fy_rl, s.sigma_x_rl, s.sigma_y_rl, s.lambda_rl);
 
-    process_wheel(wd_rr_, s.tau_drive_rr_nm, s.tau_brake_rr_nm, vx_rr, vy_rr, s.Fz_rr,
+    process_wheel(wd_rr_, s.tau_drive_rr_nm, s.tau_brake_rr_nm, vx_rr, vy_rr, s.Fz_rr, 0.0,  // Rear: no steer
                   s.Fx_rr, s.Fy_rr, s.sigma_x_rr, s.sigma_y_rr, s.lambda_rr);
+
+    // -------------------------------------------------------------------------
+    // PERIODIC LOGGING: Wheel forces and dynamics (every 50 steps)
+    // -------------------------------------------------------------------------
+    static int log_counter = 0;
+    if (++log_counter % 50 == 0) {
+        LOG_INFO("========== WHEEL DYNAMICS (step %d) ==========", log_counter);
+        LOG_INFO("Vehicle state: vx=%.2f m/s, vy=%.2f m/s, yaw_rate=%.3f rad/s",
+                 s.v_mps, s.vy_mps, s.yaw_rate_radps);
+
+        LOG_INFO("Drive torques:  FL=%.1f  FR=%.1f  RL=%.1f  RR=%.1f Nm",
+                 s.tau_drive_fl_nm, s.tau_drive_fr_nm, s.tau_drive_rl_nm, s.tau_drive_rr_nm);
+        LOG_INFO("Brake torques:  FL=%.1f  FR=%.1f  RL=%.1f  RR=%.1f Nm",
+                 s.tau_brake_fl_nm, s.tau_brake_fr_nm, s.tau_brake_rl_nm, s.tau_brake_rr_nm);
+
+        LOG_INFO("Normal loads:   FL=%.0f  FR=%.0f  RL=%.0f  RR=%.0f N",
+                 s.Fz_fl, s.Fz_fr, s.Fz_rl, s.Fz_rr);
+        LOG_INFO("Long forces:    FL=%.0f  FR=%.0f  RL=%.0f  RR=%.0f N",
+                 s.Fx_fl, s.Fx_fr, s.Fx_rl, s.Fx_rr);
+        LOG_INFO("Lat forces:     FL=%.0f  FR=%.0f  RL=%.0f  RR=%.0f N",
+                 s.Fy_fl, s.Fy_fr, s.Fy_rl, s.Fy_rr);
+
+        LOG_INFO("Slip ratios σx: FL=%.3f  FR=%.3f  RL=%.3f  RR=%.3f",
+                 s.sigma_x_fl, s.sigma_x_fr, s.sigma_x_rl, s.sigma_x_rr);
+        LOG_INFO("Slip angles α:  FL=%.3f  FR=%.3f  RL=%.3f  RR=%.3f rad (%.1f° %.1f° %.1f° %.1f°)",
+                 s.alpha_fl, s.alpha_fr, s.alpha_rl, s.alpha_rr,
+                 s.alpha_fl * 180.0 / M_PI, s.alpha_fr * 180.0 / M_PI,
+                 s.alpha_rl * 180.0 / M_PI, s.alpha_rr * 180.0 / M_PI);
+
+        LOG_INFO("Wheel omegas:   FL=%.2f  FR=%.2f  RL=%.2f  RR=%.2f rad/s",
+                 s.omega_fl_radps, s.omega_fr_radps, s.omega_rl_radps, s.omega_rr_radps);
+        LOG_INFO("Friction λ:     FL=%.3f  FR=%.3f  RL=%.3f  RR=%.3f",
+                 s.lambda_fl, s.lambda_fr, s.lambda_rl, s.lambda_rr);
+        LOG_INFO("============================================");
+    }
 
     // Export wheel speeds to PlantState
     s.omega_fl_radps = wd_fl_.omega_radps();

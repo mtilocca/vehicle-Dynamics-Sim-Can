@@ -99,13 +99,30 @@ void DriveSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt)
     //   - tau_brake_*_nm (for WheelSubsystem)
     //   - motor_torque_nm, motor_power_kW (diagnostics)
     //   - In kinematic mode: v_mps, a_long_mps2, wheel_*_rps
-    
+
     drive_.step(s, cmd, dt);
-    
+
     LOG_DEBUG("[DriveSubsystem] v=%.2f m/s, a=%.2f m/s², τ_motor=%.0f Nm, P=%.1f kW",
               s.v_mps, s.a_long_mps2, s.motor_torque_nm, s.motor_power_kW);
     LOG_DEBUG("[DriveSubsystem] τ_drive_rl=%.0f, τ_drive_rr=%.0f, τ_brake_rl=%.0f Nm",
               s.tau_drive_rl_nm, s.tau_drive_rr_nm, s.tau_brake_rl_nm);
+
+    // PERIODIC LOGGING: Torque distribution (every 100 steps)
+    static int log_counter = 0;
+    if (++log_counter % 100 == 0) {
+        LOG_INFO("========== DRIVE SUBSYSTEM (step %d) ==========", log_counter);
+        LOG_INFO("Commands: drive_torque_cmd=%.1f Nm, brake_cmd=%.1f%%",
+                 cmd.drive_torque_cmd_nm, cmd.brake_cmd_pct);
+        LOG_INFO("Motor: torque=%.1f Nm, power=%.1f kW", s.motor_torque_nm, s.motor_power_kW);
+        LOG_INFO("Regen: power=%.1f kW", s.regen_power_kW);
+        LOG_INFO("Drive torques (RWD): FL=%.1f FR=%.1f RL=%.1f RR=%.1f Nm",
+                 s.tau_drive_fl_nm, s.tau_drive_fr_nm, s.tau_drive_rl_nm, s.tau_drive_rr_nm);
+        LOG_INFO("Brake torques:       FL=%.1f FR=%.1f RL=%.1f RR=%.1f Nm",
+                 s.tau_brake_fl_nm, s.tau_brake_fr_nm, s.tau_brake_rl_nm, s.tau_brake_rr_nm);
+        LOG_INFO("Battery: SOC=%.1f%%, V=%.1fV, I=%.1fA",
+                 s.batt_soc_pct, s.batt_v, s.batt_i);
+        LOG_INFO("===============================================");
+    }
 }
 
 void DriveSubsystem::post_step(PlantState& s, const sim::ActuatorCmd& cmd, double dt) {

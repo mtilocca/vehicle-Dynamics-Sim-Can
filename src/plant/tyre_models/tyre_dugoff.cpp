@@ -82,9 +82,11 @@ TyreForces TyreDugoff::compute_forces(
     // ========================================================================
     // Step 5: Compute tire forces
     // ========================================================================
-    
+
     forces.Fx = Cx * forces.sigma_x * f_lambda;
-    forces.Fy = Cy * forces.sigma_y * f_lambda;
+    // CRITICAL: Lateral force opposes slip (negative sign)
+    // If wheel slips left (Vy>0), tire pushes right (Fy<0)
+    forces.Fy = -Cy * forces.sigma_y * f_lambda;
     
     // ========================================================================
     // Verification: Total force should never exceed mu * Fz

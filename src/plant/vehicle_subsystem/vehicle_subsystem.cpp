@@ -98,22 +98,6 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
     const double F_net = Fx_total - F_drag - F_roll;
     const double a_long = F_net / p_.mass_kg;
 
-    // DEBUG LOGGING
-    static int debug_ctr = 0;
-    if (debug_ctr++ % 50 == 0) {
-        LOG_INFO("========== ACCELERATION DEBUG ==========");
-        LOG_INFO("v_mps = %.3f m/s  (dir_latch=%d dir_ref=%d)", s.v_mps, dir_latch_, dir_ref);
-        LOG_INFO("Fx_total = %.1f N (FL=%.1f, FR=%.1f, RL=%.1f, RR=%.1f)",
-                 Fx_total, s.Fx_fl, s.Fx_fr, s.Fx_rl, s.Fx_rr);
-        LOG_INFO("F_drag = %.1f N (opposes motion)", F_drag);
-        LOG_INFO("F_roll = %.1f N (opposes motion)", F_roll);
-        LOG_INFO("F_net = Fx_total - F_drag - F_roll = %.1f - %.1f - %.1f = %.1f N",
-                 Fx_total, F_drag, F_roll, F_net);
-        LOG_INFO("a_long = F_net / mass = %.1f / %.0f = %.6f m/s²",
-                 F_net, p_.mass_kg, a_long);
-        LOG_INFO("========================================");
-    }
-
     double v_next = s.v_mps + a_long * dt;
     v_next = clamp(v_next, -p_.v_max_mps, +p_.v_max_mps);
 
@@ -180,15 +164,15 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
     const double Mz_total = Mz_fl + Mz_fr + Mz_rl + Mz_rr;
 
     // Lateral acceleration (accounting for centripetal coupling)
-    // ay = Fy / m - yaw_rate * vx
+    // In body frame: dvy/dt = Fy/m - yaw_rate * vx (centripetal term)
     const double ay_from_forces = Fy_total / p_.mass_kg;
     const double ay = ay_from_forces - s.yaw_rate_radps * s.v_mps;
 
     // Yaw acceleration
     const double yaw_ddot = Mz_total / p_.yaw_inertia_kgm2;
 
-    // Integrate lateral velocity
-    double vy_next = s.vy_mps + ay_from_forces * dt;
+    // Integrate lateral velocity (MUST include centripetal term for stability)
+    double vy_next = s.vy_mps + ay * dt;
     s.vy_mps = vy_next;
     s.a_lat_mps2 = ay;  // Total lateral acceleration (with centripetal term)
 
@@ -199,6 +183,43 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
     // Normalize yaw angle to [-π, +π]
     while (s.yaw_rad > M_PI) s.yaw_rad -= 2.0 * M_PI;
     while (s.yaw_rad < -M_PI) s.yaw_rad += 2.0 * M_PI;
+
+    // ========================================================================
+    // PERIODIC LOGGING: 3-DOF dynamics (every 50 steps)
+    // ========================================================================
+    static int debug_ctr = 0;
+    if (debug_ctr++ % 50 == 0) {
+        LOG_INFO("========== 3-DOF VEHICLE DYNAMICS (step %d) ==========", debug_ctr);
+
+        // Longitudinal dynamics
+        LOG_INFO("LONGITUDINAL:");
+        LOG_INFO("  vx = %.3f m/s, ax = %.3f m/s² (dir_latch=%d dir_ref=%d)",
+                 s.v_mps, a_long, dir_latch_, dir_ref);
+        LOG_INFO("  Fx_total = %.1f N (FL=%.1f, FR=%.1f, RL=%.1f, RR=%.1f)",
+                 Fx_total, s.Fx_fl, s.Fx_fr, s.Fx_rl, s.Fx_rr);
+        LOG_INFO("  Resistive: F_drag=%.1f N, F_roll=%.1f N", F_drag, F_roll);
+        LOG_INFO("  F_net = %.1f N → ax = %.6f m/s²", F_net, a_long);
+
+        // Lateral dynamics
+        LOG_INFO("LATERAL:");
+        LOG_INFO("  vy = %.3f m/s, ay = %.3f m/s²", s.vy_mps, ay);
+        LOG_INFO("  Fy_total = %.1f N (FL=%.1f, FR=%.1f, RL=%.1f, RR=%.1f)",
+                 Fy_total, s.Fy_fl, s.Fy_fr, s.Fy_rl, s.Fy_rr);
+        LOG_INFO("  ay_from_forces = %.3f m/s² (before centripetal)", ay_from_forces);
+
+        // Yaw dynamics
+        LOG_INFO("YAW:");
+        LOG_INFO("  yaw_rate = %.3f rad/s (%.1f °/s), yaw = %.3f rad (%.1f°)",
+                 s.yaw_rate_radps, s.yaw_rate_radps * 180.0 / M_PI,
+                 s.yaw_rad, s.yaw_rad * 180.0 / M_PI);
+        LOG_INFO("  Mz_total = %.1f N·m (FL=%.1f, FR=%.1f, RL=%.1f, RR=%.1f)",
+                 Mz_total, Mz_fl, Mz_fr, Mz_rl, Mz_rr);
+        LOG_INFO("  yaw_ddot = %.6f rad/s²", yaw_ddot);
+
+        // Position
+        LOG_INFO("POSITION: x=%.2f m, y=%.2f m", s.x_m, s.y_m);
+        LOG_INFO("====================================================");
+    }
 
     // ========================================================================
     // POSITION INTEGRATION (global frame)
