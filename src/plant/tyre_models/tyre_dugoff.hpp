@@ -57,12 +57,13 @@ public:
     
     /**
      * Compute tire forces from slip ratios
-     * 
+     *
      * @param omega Wheel angular velocity [rad/s]
      * @param R Tire effective radius [m]
      * @param Vx Longitudinal velocity [m/s]
      * @param Vy Lateral velocity at tire contact patch [m/s]
      * @param Fz Normal load [N]
+     * @param gear_dir Gear direction: +1 = forward, -1 = reverse, 0 = neutral
      * @return TyreForces structure with Fx, Fy, slip ratios, lambda
      */
     TyreForces compute_forces(
@@ -70,7 +71,8 @@ public:
         double R,
         double Vx,
         double Vy,
-        double Fz
+        double Fz,
+        int gear_dir = 1
     ) const;
     
     /**

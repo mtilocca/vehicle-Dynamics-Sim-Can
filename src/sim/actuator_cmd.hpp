@@ -5,12 +5,21 @@
 
 namespace sim {
 
+// Gear position enum (matches CAN signal encoding)
+enum class GearPosition : uint8_t {
+    NEUTRAL = 0,
+    FORWARD = 1,
+    REVERSE = 2,
+    RESERVED = 3
+};
+
 // Command object updated from CAN RX (ACTUATOR_CMD_1 frame).
 // Keep it POD-ish and deterministic.
 struct ActuatorCmd {
     // From CAN:
     bool     system_enable = false;   // 0/1
-    uint8_t  mode = 0;                // 0..7 (V1: unused but preserved)
+    GearPosition gear_position = GearPosition::FORWARD;  // 0=Neutral, 1=Forward, 2=Reverse
+    uint8_t  mode = 0;                // 0..3 (V1: unused but preserved, reduced from 3 bits to 2)
 
     // Steering command in degrees (matches your CAN map scaling directly)
     double   steer_cmd_deg = 0.0;     // [-500..500] per your map, but you will clamp in SteerPlant

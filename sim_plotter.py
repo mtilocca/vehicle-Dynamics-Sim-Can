@@ -1,18 +1,39 @@
 #!/usr/bin/env python3
 """
-plot_sim.py - Vehicle Dynamics Simulation Plotter
+sim_plotter.py - Vehicle Dynamics Simulation Plotter
 
 Plots simulation results including:
   Figure 1: Vehicle dynamics, battery, and power
   Figure 2: Tire dynamics (Dugoff model outputs)
+  Figure 3: 3-DOF lateral dynamics (if available)
+  Figure 4: Wheel torque distribution (if available)
+  Figure 5: Combined slip analysis (if available)
 
 Usage:
-  python3 plot_sim.py [sim_out.csv]
+  python3 sim_plotter.py [sim_out.csv] [--basic]
+
+Options:
+  --basic    Only plot Figures 1 and 2 (skip advanced 3-DOF plots)
 """
 import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+
+# Import new plotting modules
+try:
+    from plot_utils import (
+        get_battery_columns, has_3dof_data, has_tire_data,
+        print_summary, validate_dataframe
+    )
+    from plot_3dof import (
+        plot_lateral_dynamics, plot_wheel_torques, plot_combined_slip
+    )
+    USE_ADVANCED_PLOTS = True
+except ImportError as e:
+    print(f"[WARN] Advanced plotting modules not found: {e}")
+    print("[WARN] Falling back to basic plots only")
+    USE_ADVANCED_PLOTS = False
 
 
 def plot_vehicle_dynamics(df, has_truth_meas, soc_col, v_col, i_col):
@@ -461,65 +482,100 @@ def plot_tire_dynamics(df):
 
 
 def main():
-    csv_path = sys.argv[1] if len(sys.argv) > 1 else "sim_out.csv"
+    # Parse command line arguments
+    csv_path = "sim_out.csv"
+    basic_only = False
+
+    for arg in sys.argv[1:]:
+        if arg == "--basic":
+            basic_only = True
+        elif not arg.startswith("--"):
+            csv_path = arg
 
     print(f"[INFO] Loading: {csv_path}")
     df = pd.read_csv(csv_path)
     print(f"[INFO] Loaded {len(df)} rows, {len(df.columns)} columns")
 
-    has_truth_meas = 'batt_soc_truth' in df.columns
-
-    if has_truth_meas:
-        soc_col = 'batt_soc_truth'
-        v_col = 'batt_v_truth'
-        i_col = 'batt_i_truth'
+    # Determine battery column naming
+    if USE_ADVANCED_PLOTS:
+        has_truth_meas, soc_col, v_col, i_col = get_battery_columns(df)
+        # Validate dataframe
+        if not validate_dataframe(df, csv_path):
+            return
+        # Print comprehensive summary
+        print_summary(df)
     else:
-        soc_col = 'batt_soc_pct'
-        v_col = 'batt_v'
-        i_col = 'batt_i'
+        # Fallback for basic mode
+        has_truth_meas = 'batt_soc_truth' in df.columns
+        if has_truth_meas:
+            soc_col = 'batt_soc_truth'
+            v_col = 'batt_v_truth'
+            i_col = 'batt_i_truth'
+        else:
+            soc_col = 'batt_soc_pct'
+            v_col = 'batt_v'
+            i_col = 'batt_i'
 
-    required = ["t_s", "x_m", "y_m", "yaw_deg", "v_mps", "steer_deg", "motor_nm",
-                "brake_pct", soc_col, v_col, i_col, "motor_power_kW",
-                "regen_power_kW", "brake_force_kN"]
-    missing = [c for c in required if c not in df.columns]
-    if missing:
-        raise RuntimeError(f"Missing columns in {csv_path}: {missing}.\nGot: {list(df.columns)}")
+        required = ["t_s", "x_m", "y_m", "yaw_deg", "v_mps", "steer_deg", "motor_nm",
+                    "brake_pct", soc_col, v_col, i_col, "motor_power_kW",
+                    "regen_power_kW", "brake_force_kN"]
+        missing = [c for c in required if c not in df.columns]
+        if missing:
+            raise RuntimeError(f"Missing columns in {csv_path}: {missing}.\nGot: {list(df.columns)}")
 
-    if len(df) < 2:
-        print(f"WARNING: Only {len(df)} rows in CSV. Run simulation longer!")
-        return
+        if len(df) < 2:
+            print(f"WARNING: Only {len(df)} rows in CSV. Run simulation longer!")
+            return
 
-    print(f"\n{'='*60}")
-    print("SIMULATION SUMMARY")
-    print(f"{'='*60}")
-    print(f"Duration:     {df['t_s'].max():.1f} s")
-    print(f"Distance:     {np.sqrt(df['x_m'].iloc[-1]**2 + df['y_m'].iloc[-1]**2):.1f} m")
-    print(f"Max Speed:    {df['v_mps'].max():.1f} m/s ({df['v_mps'].max() * 3.6:.1f} km/h)")
-    print(f"Final Speed:  {df['v_mps'].iloc[-1]:.1f} m/s")
-    print(f"SOC Change:   {df[soc_col].iloc[0]:.1f}% → {df[soc_col].iloc[-1]:.1f}%")
+        # Basic summary
+        print(f"\n{'='*60}")
+        print("SIMULATION SUMMARY")
+        print(f"{'='*60}")
+        print(f"Duration:     {df['t_s'].max():.1f} s")
+        print(f"Distance:     {np.sqrt(df['x_m'].iloc[-1]**2 + df['y_m'].iloc[-1]**2):.1f} m")
+        print(f"Max Speed:    {df['v_mps'].max():.1f} m/s ({df['v_mps'].max() * 3.6:.1f} km/h)")
+        print(f"Final Speed:  {df['v_mps'].iloc[-1]:.1f} m/s")
+        print(f"SOC Change:   {df[soc_col].iloc[0]:.1f}% → {df[soc_col].iloc[-1]:.1f}%")
+        print(f"{'='*60}\n")
 
-    has_tire_data = "Fx_rl" in df.columns
-    if has_tire_data:
-        dynamic_mode = df.get("dynamic_model", pd.Series([0])).iloc[0]
-        print(f"Dynamic Model: {'ENABLED' if dynamic_mode else 'DISABLED'}")
-        print(f"Surface μ:    {df['surface_mu'].mean():.2f}")
-
-        Fx_total = df["Fx_rl"] + df["Fx_rr"]
-        print(f"Max Fx_rear:  {Fx_total.max()/1000:.1f} kN")
-
-        lambda_min = df[["lambda_rl", "lambda_rr"]].min().min()
-        if lambda_min < 1.0:
-            print(f"⚠️  TRACTION LIMITED: λ_min = {lambda_min:.2f}")
-    else:
-        print("Tire dynamics: NOT LOGGED (use --dynamic-model)")
-
-    print(f"{'='*60}\n")
-
+    # Generate Figure 1: Vehicle Dynamics & Battery
+    print("[INFO] Generating Figure 1: Vehicle Dynamics & Battery")
     fig1 = plot_vehicle_dynamics(df, has_truth_meas, soc_col, v_col, i_col)
 
-    if has_tire_data:
-        _ = plot_tire_dynamics(df)
+    # Generate Figure 2: Tire Dynamics (if available)
+    tire_data_available = "Fx_rl" in df.columns
+    if tire_data_available:
+        print("[INFO] Generating Figure 2: Tire Dynamics")
+        fig2 = plot_tire_dynamics(df)
+    else:
+        print("[INFO] Skipping Figure 2 (tire data not available)")
 
+    # Generate advanced 3-DOF plots if modules are available and not in basic mode
+    if USE_ADVANCED_PLOTS and not basic_only:
+        # Figure 3: Lateral Dynamics
+        if has_3dof_data(df):
+            print("[INFO] Generating Figure 3: 3-DOF Lateral Dynamics")
+            fig3 = plot_lateral_dynamics(df)
+        else:
+            print("[INFO] Skipping Figure 3 (3-DOF data not available)")
+
+        # Figure 4: Wheel Torques
+        if "tau_drive_rl_nm" in df.columns:
+            print("[INFO] Generating Figure 4: Wheel Torque Distribution")
+            fig4 = plot_wheel_torques(df)
+        else:
+            print("[INFO] Skipping Figure 4 (torque data not available)")
+
+        # Figure 5: Combined Slip
+        if has_tire_data(df):
+            print("[INFO] Generating Figure 5: Combined Slip Analysis")
+            fig5 = plot_combined_slip(df)
+        else:
+            print("[INFO] Skipping Figure 5 (slip data not available)")
+    elif basic_only:
+        print("[INFO] Basic mode: skipping advanced 3-DOF plots")
+
+    print("\n[INFO] All plots generated. Showing...")
     plt.show()
 
 

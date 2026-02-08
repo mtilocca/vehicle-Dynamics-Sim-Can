@@ -149,17 +149,19 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
     const double Fy_total = s.Fy_fl + s.Fy_fr + s.Fy_rl + s.Fy_rr;
 
     // Compute yaw moment about CG
-    // Mz = Σ(Fx_i * y_i - Fy_i * x_i) where (x_i, y_i) is wheel position relative to CG
+    // CRITICAL: Cross product r × F gives Mz = x*Fy - y*Fx (NOT Fx*y - Fy*x!)
+    // Positive Mz = CCW yaw (left turn)
     const double cg_to_rear = p_.wheelbase_m - p_.cg_to_front_m;
     const double half_track = p_.track_m / 2.0;
 
     const double x_f = p_.cg_to_front_m;
     const double x_r = -cg_to_rear;
 
-    const double Mz_fl = s.Fx_fl * (+half_track) - s.Fy_fl * x_f;
-    const double Mz_fr = s.Fx_fr * (-half_track) - s.Fy_fr * x_f;
-    const double Mz_rl = s.Fx_rl * (+half_track) - s.Fy_rl * x_r;
-    const double Mz_rr = s.Fx_rr * (-half_track) - s.Fy_rr * x_r;
+    // Mz = x*Fy - y*Fx for each wheel
+    const double Mz_fl = x_f * s.Fy_fl - (+half_track) * s.Fx_fl;
+    const double Mz_fr = x_f * s.Fy_fr - (-half_track) * s.Fx_fr;
+    const double Mz_rl = x_r * s.Fy_rl - (+half_track) * s.Fx_rl;
+    const double Mz_rr = x_r * s.Fy_rr - (-half_track) * s.Fx_rr;
 
     const double Mz_total = Mz_fl + Mz_fr + Mz_rl + Mz_rr;
 

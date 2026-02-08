@@ -174,6 +174,15 @@ void WheelSubsystem::step(PlantState& s, const sim::ActuatorCmd& /*cmd*/, double
         s.Fz_fl, s.Fz_fr, s.Fz_rl, s.Fz_rr
     );
 
+    // Convert gear_position to direction: Forward=+1, Reverse=-1, Neutral=0
+    int gear_dir = 0;
+    switch (s.gear_position) {
+        case sim::GearPosition::FORWARD: gear_dir = 1; break;
+        case sim::GearPosition::REVERSE: gear_dir = -1; break;
+        case sim::GearPosition::NEUTRAL: gear_dir = 0; break;
+        default: gear_dir = 0; break;
+    }
+
     // --- Per-wheel: slip -> tyre forces (Dugoff) -> wheel omega integration ---
     auto process_wheel = [&](WheelDynamics& wd,
                              double tau_drive_nm,
@@ -188,27 +197,27 @@ void WheelSubsystem::step(PlantState& s, const sim::ActuatorCmd& /*cmd*/, double
                              double& out_sigma_y,
                              double& out_lambda)
     {
-        // Compute tyre forces using Dugoff API (5 args, returns TyreForces)
+        // Compute tyre forces using Dugoff API (6 args including gear_dir)
         // Forces are in WHEEL frame
         const TyreForces tf = tyre_model_.compute_forces(
             wd.omega_radps(),
             p_.wheel.radius_m,
             Vx_mps,
             Vy_mps,
-            Fz_n
+            Fz_n,
+            gear_dir
         );
 
         // CRITICAL: Transform forces from wheel frame to vehicle frame
-        // Wheel frame is rotated by +delta (counterclockwise) from vehicle frame
-        // To rotate vector from wheel frame to vehicle frame: rotate by -delta (clockwise)
-        // Rotation by -delta:
-        //   Fx_vehicle = Fx_wheel * cos(delta) + Fy_wheel * sin(delta)
-        //   Fy_vehicle = -Fx_wheel * sin(delta) + Fy_wheel * cos(delta)
+        // Wheel frame is rotated by +delta (CCW) from vehicle frame
+        // Rotation matrix R(δ) to express wheel-frame vector in vehicle-frame:
+        //   [Fx_veh]   [cos(δ)  -sin(δ)]   [Fx_wheel]
+        //   [Fy_veh] = [sin(δ)   cos(δ)] * [Fy_wheel]
         const double cos_delta = std::cos(delta_rad);
         const double sin_delta = std::sin(delta_rad);
 
-        out_Fx = tf.Fx * cos_delta + tf.Fy * sin_delta;   // Fixed: + not -
-        out_Fy = -tf.Fx * sin_delta + tf.Fy * cos_delta;  // Fixed: - not +
+        out_Fx = tf.Fx * cos_delta - tf.Fy * sin_delta;   // CRITICAL FIX: MINUS sign
+        out_Fy = tf.Fx * sin_delta + tf.Fy * cos_delta;   // CRITICAL FIX: PLUS sign
         out_sigma_x = tf.sigma_x;
         out_sigma_y = tf.sigma_y;
         out_lambda = tf.lambda;

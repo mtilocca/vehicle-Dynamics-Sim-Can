@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdint>
+#include "sim/actuator_cmd.hpp"  // For GearPosition enum
 
 namespace plant {
 
@@ -30,6 +31,9 @@ struct PlantState {
     double steer_rate_radps = 0.0;
     double delta_fl_rad = 0.0;       // front-left wheel angle (Ackermann)
     double delta_fr_rad = 0.0;       // front-right wheel angle (Ackermann)
+
+    // --- Gear Position (from CAN command, used for tire force direction)
+    sim::GearPosition gear_position = sim::GearPosition::FORWARD;  // Neutral, Forward, or Reverse
 
     // --- Wheel speeds (optional V1; if you don't model wheels yet, keep derived)
     double wheel_fl_rps = 0.0;

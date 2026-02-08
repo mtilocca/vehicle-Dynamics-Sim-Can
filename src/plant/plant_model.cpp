@@ -215,6 +215,9 @@ void PlantModel::set_params(const PlantModelParams& p) {
 void PlantModel::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {
     s.t_s += dt_s;
 
+    // Update gear position from CAN command
+    s.gear_position = cmd.gear_position;
+
     // Execute all subsystems in priority order:
     // 50:  Steer   → δFL, δFR
     // 100: Drive   → τ_drive_*, τ_brake_*
