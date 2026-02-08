@@ -57,6 +57,58 @@ This document describes the implementation of a full 3-DOF (longitudinal, latera
 \clearpage
 
 %=============================================================================
+\section*{Nomenclature}
+%=============================================================================
+\addcontentsline{toc}{section}{Nomenclature}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lcl}
+\toprule
+\textbf{Symbol} & \textbf{Unit} & \textbf{Description} \\
+\midrule
+\multicolumn{3}{l}{\textit{Vehicle states}} \\
+$v_x$            & \si{m/s}     & Longitudinal velocity (body frame) \\
+$v_y$            & \si{m/s}     & Lateral velocity (body frame) \\
+$\dot{\psi}$     & \si{rad/s}   & Yaw rate \\
+$x, y$           & \si{m}       & Position (global frame) \\
+$\psi$           & \si{rad}     & Heading / yaw angle \\
+\midrule
+\multicolumn{3}{l}{\textit{Tire / wheel quantities}} \\
+$F_{x,i}$        & \si{N}       & Longitudinal tire force at wheel $i$ \\
+$F_{y,i}$        & \si{N}       & Lateral tire force at wheel $i$ \\
+$F_{z,i}$        & \si{N}       & Normal (vertical) load at wheel $i$ \\
+$\omega_i$       & \si{rad/s}   & Wheel angular velocity \\
+$\sigma_x$       & --           & Longitudinal slip ratio \\
+$\sigma_y$       & --           & Lateral slip ratio (proxy for $\tan\alpha$) \\
+$\alpha$         & \si{rad}     & Tire slip angle \\
+$\lambda$        & --           & Friction utilization parameter (Dugoff) \\
+$\delta$         & \si{rad}     & Wheel steer angle \\
+\midrule
+\multicolumn{3}{l}{\textit{Vehicle parameters}} \\
+$m$              & \si{kg}      & Vehicle mass \\
+$I_z$            & \si{kg.m^2}  & Yaw moment of inertia \\
+$x_f, x_r$      & \si{m}       & CG distance to front / rear axle \\
+$L$              & \si{m}       & Wheelbase ($x_f + x_r$) \\
+$w$              & \si{m}       & Track width \\
+$h_{\text{CG}}$  & \si{m}       & CG height above ground \\
+$R$              & \si{m}       & Tire effective radius \\
+$I_w$            & \si{kg.m^2}  & Wheel rotational inertia \\
+\midrule
+\multicolumn{3}{l}{\textit{Tire model parameters}} \\
+$C_x$            & \si{N}       & Longitudinal slip stiffness \\
+$C_y$            & \si{N}       & Lateral (cornering) stiffness \\
+$\mu$            & --           & Surface friction coefficient \\
+$g_{\text{dir}}$ & --           & Gear direction ($+1$, $-1$, or $0$) \\
+$v_{\min}$       & \si{m/s}     & Low-speed regularisation threshold \\
+\bottomrule
+\end{tabular}
+\caption{Principal symbols used in this document.}
+\end{table}
+
+\clearpage
+
+%=============================================================================
 \section{Introduction}
 %=============================================================================
 
@@ -70,7 +122,7 @@ The base vehicle model (documented in the companion Dugoff tire model document) 
     \item Ackermann steering geometry for front wheels
 \end{itemize}
 
-This document extends the model to **full planar motion (3-DOF)**:
+This document extends the model to \textbf{full planar motion (3-DOF)}:
 \begin{equation}
 \text{State: } \bm{x} = [v_x, v_y, \dot{\psi}, x, y, \psi]^\top
 \end{equation}
@@ -107,7 +159,7 @@ The 3-DOF model enables realistic testing of:
 
 \subsection{Equations of Motion}
 
-The vehicle is modeled as a rigid body in the plane with three degrees of freedom. All velocities and accelerations are expressed in the **body-fixed frame** (origin at CG, x-axis forward, y-axis left).
+The vehicle is modeled as a rigid body in the plane with three degrees of freedom. All velocities and accelerations are expressed in the \textbf{body-fixed frame} (origin at CG, x-axis forward, y-axis left).
 
 \subsubsection{Longitudinal Dynamics}
 
@@ -123,7 +175,7 @@ F_{\text{drag}} &= c_d v_x |v_x| \\
 F_{\text{roll}} &= c_r \cdot \text{sgn}(v_x)
 \end{align}
 
-\textbf{Critical Note:} The term $m v_y \dot{\psi}$ is the **centrifugal force** arising from the rotating reference frame. It is often omitted in simplified models, leading to instability.
+\textbf{Critical Note:} The term $m v_y \dot{\psi}$ is the \textbf{centrifugal force} arising from the rotating reference frame. It is often omitted in simplified models, leading to instability.
 
 \subsubsection{Lateral Dynamics}
 
@@ -137,7 +189,7 @@ where:
 F_{y,\text{total}} = F_{y,fl} + F_{y,fr} + F_{y,rl} + F_{y,rr}
 \end{equation}
 
-The term $-m v_x \dot{\psi}$ is the **centripetal acceleration** in the body frame. This coupling between longitudinal and lateral dynamics is **essential for stability**.
+The term $-m v_x \dot{\psi}$ is the \textbf{centripetal acceleration} in the body frame. This coupling between longitudinal and lateral dynamics is \textbf{essential for stability}.
 
 \subsubsection{Yaw Dynamics}
 
@@ -187,12 +239,12 @@ Each wheel experiences a different velocity due to:
     \item Yaw rate $\dot{\psi}$ causing tangential velocity at offset from CG
 \end{enumerate}
 
-The velocity at wheel $i$ in the **vehicle frame** is:
+The velocity at wheel $i$ in the \textbf{vehicle frame} is:
 \begin{equation}
 \bm{v}_i = \begin{bmatrix} v_x \\ v_y \end{bmatrix} + \begin{bmatrix} -\dot{\psi} y_i \\ \dot{\psi} x_i \end{bmatrix} = \begin{bmatrix} v_x - \dot{\psi} y_i \\ v_y + \dot{\psi} x_i \end{bmatrix}
 \end{equation}
 
-For steered wheels (front), we must transform this to the **wheel frame** (aligned with wheel heading):
+For steered wheels (front), we must transform this to the \textbf{wheel frame} (aligned with wheel heading):
 
 \begin{equation}
 \begin{bmatrix} v_{x,w} \\ v_{y,w} \end{bmatrix} = \begin{bmatrix} \cos\delta & \sin\delta \\ -\sin\delta & \cos\delta \end{bmatrix} \begin{bmatrix} v_x - \dot{\psi} y_i \\ v_y + \dot{\psi} x_i \end{bmatrix}
@@ -216,7 +268,7 @@ Note: We use $|v_{x,w}|$ (absolute value) to handle both forward and reverse mot
 
 \subsection{Rotation Matrix for Steered Wheels}
 
-The Dugoff tire model computes forces $[F_x, F_y]^\top$ in the **wheel coordinate frame** (aligned with the wheel's heading). For steered wheels, these forces must be transformed to the **vehicle frame** before summing.
+The Dugoff tire model computes forces $[F_x, F_y]^\top$ in the \textbf{wheel coordinate frame} (aligned with the wheel's heading). For steered wheels, these forces must be transformed to the \textbf{vehicle frame} before summing.
 
 The standard 2D rotation matrix to express a wheel-frame vector in vehicle-frame coordinates is:
 
@@ -239,7 +291,7 @@ F_{y,veh} &= F_{x,wheel} \sin\delta + F_{y,wheel} \cos\delta
 
 \subsection{Fundamental Principle}
 
-Tire forces must **oppose slip** in all directions. This is the essence of friction.
+Tire forces must \textbf{oppose slip} in all directions. This is the essence of friction.
 
 \subsection{Longitudinal Force}
 
@@ -258,7 +310,7 @@ F_x = -g_{\text{dir}} \cdot C_x \sigma_x f(\lambda)
 \label{eq:fx_formula}
 \end{equation}
 
-where $g_{\text{dir}}$ is the **gear direction** from CAN command:
+where $g_{\text{dir}}$ is the \textbf{gear direction} from CAN command:
 \begin{itemize}
     \item Forward: $g_{\text{dir}} = +1$
     \item Reverse: $g_{\text{dir}} = -1$
@@ -281,7 +333,71 @@ F_y = -C_y \sigma_y f(\lambda)
 
 where $\sigma_y = V_y / |V_x|$ is the lateral slip ratio (small-angle approximation of slip angle).
 
-Lateral force is **independent** of gear direction. It always opposes lateral slip regardless of forward/reverse motion. The negative sign ensures the force resists slip: if the wheel slips left ($\sigma_y > 0$), the force pushes right ($F_y < 0$).
+Lateral force is \textbf{independent} of gear direction. It always opposes lateral slip regardless of forward/reverse motion. The negative sign ensures the force resists slip: if the wheel slips left ($\sigma_y > 0$), the force pushes right ($F_y < 0$).
+
+%=============================================================================
+\section{Dugoff Tire Model Summary}
+%=============================================================================
+
+This section provides a self-contained summary of the Dugoff tire model used to compute $F_{x,i}$ and $F_{y,i}$. A full derivation is given in the companion document~\cite{dugoff_doc}.
+
+\subsection{Fundamental Equations}
+
+The Dugoff model computes tire forces as the product of a linear slip stiffness, the slip ratio, and a nonlinear saturation function:
+
+\begin{align}
+F_x &= -g_{\text{dir}} \cdot C_x \sigma_x \, f(\lambda) \\
+F_y &= -C_y \sigma_y \, f(\lambda)
+\end{align}
+
+The sign conventions are detailed in Section~5. The negative signs ensure forces oppose slip.
+
+\subsection{Friction Utilisation Parameter}
+
+The parameter $\lambda$ measures how close the tyre is to its friction limit:
+
+\begin{equation}
+\lambda = \frac{\mu F_z}{2\sqrt{(C_x \sigma_x)^2 + (C_y \sigma_y)^2}}
+\end{equation}
+
+When $\lambda \geq 1$ the tyre operates in the \emph{linear} (grip-available) regime; when $\lambda < 1$ the available friction is exceeded and forces saturate.
+
+\subsection{Saturation Function}
+
+\begin{equation}
+f(\lambda) = \begin{cases}
+(2 - \lambda)\lambda, & \lambda < 1 \quad \text{(saturated / sliding)} \\
+1,                     & \lambda \geq 1 \quad \text{(linear / grip available)}
+\end{cases}
+\end{equation}
+
+This function is continuous at $\lambda=1$ and smoothly reduces the force magnitude as the friction circle is approached. It guarantees the resultant tyre force never exceeds $\mu F_z$:
+
+\begin{equation}
+\sqrt{F_x^2 + F_y^2} \leq \mu F_z
+\end{equation}
+
+\subsection{Load-Dependent Stiffness}
+
+Slip stiffness scales linearly with normal load:
+
+\begin{align}
+C_x(F_z) &= C_{x,\text{base}} \cdot \frac{F_z}{F_{z,\text{ref}}} \\[4pt]
+C_y(F_z) &= C_{y,\text{base}} \cdot \frac{F_z}{F_{z,\text{ref}}}
+\end{align}
+
+where $F_{z,\text{ref}}$ is a reference load (typically one-quarter static weight). This coupling means load transfer during braking or cornering directly affects available grip at each wheel.
+
+\subsection{Wheel Rotational Dynamics}
+
+Each wheel integrates angular velocity from the net torque:
+
+\begin{equation}
+I_w \dot{\omega}_i = \tau_{\text{drive},i} - \tau_{\text{brake},i} - F_{x,i} R
+\label{eq:wheel_dynamics}
+\end{equation}
+
+The feedback term $-F_{x,i} R$ couples the tyre force back into wheel speed, enabling natural slip development, wheel spin under excess drive torque, and wheel lock under heavy braking.
 
 %=============================================================================
 \section{Yaw Moment Calculation}
@@ -316,14 +432,14 @@ In the vehicle body frame (rotating with the vehicle), both longitudinal and lat
 \dot{v}_y &= \frac{F_y}{m} - v_x \dot{\psi} \quad &\text{(centripetal acceleration)}
 \end{align}
 
-The terms $v_y \dot{\psi}$ and $-v_x \dot{\psi}$ arise from the non-inertial (rotating) reference frame. They are **essential for stability** and must be included in the integration.
+The terms $v_y \dot{\psi}$ and $-v_x \dot{\psi}$ arise from the non-inertial (rotating) reference frame. They are \textbf{essential for stability} and must be included in the integration.
 
 \subsection{Physical Interpretation}
 
 When the vehicle turns (yaw rate $\dot{\psi} \neq 0$):
 \begin{itemize}
-    \item **Centrifugal effect** ($v_y \dot{\psi}$): Lateral velocity creates an apparent longitudinal acceleration in the body frame
-    \item **Centripetal effect** ($-v_x \dot{\psi}$): Longitudinal velocity requires centripetal acceleration to maintain circular motion
+    \item \textbf{Centrifugal effect} ($v_y \dot{\psi}$): Lateral velocity creates an apparent longitudinal acceleration in the body frame
+    \item \textbf{Centripetal effect} ($-v_x \dot{\psi}$): Longitudinal velocity requires centripetal acceleration to maintain circular motion
 \end{itemize}
 
 These terms couple the longitudinal and lateral dynamics, making the 3-DOF model fundamentally different from independent 1-DOF models.
@@ -334,7 +450,7 @@ These terms couple the longitudinal and lateral dynamics, making the 3-DOF model
 
 \subsection{Gear Selector Implementation}
 
-To properly handle forward/reverse motion, an explicit **gear selector** was implemented via CAN (matching real autonomous vehicle architecture).
+To properly handle forward/reverse motion, an explicit \textbf{gear selector} was implemented via CAN (matching real autonomous vehicle architecture).
 
 \subsubsection{CAN Signal Definition}
 
@@ -382,7 +498,7 @@ The gear position is:
 
 \subsection{Subsystem Execution Order}
 
-The plant model uses a **priority-ordered subsystem manager**:
+The plant model uses a \textbf{priority-ordered subsystem manager}:
 
 \begin{table}[H]
 \centering
@@ -405,71 +521,88 @@ Lower priority numbers execute first, ensuring correct data dependencies.
 %=============================================================================
 \section{System Block Diagram}
 %=============================================================================
-% In your preamble (IMPORTANT)
-% \usepackage{tikz}
-% \usetikzlibrary{positioning,arrows.meta,calc}
 
 \begin{figure}[H]
 \centering
+\resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-    node distance=1.6cm and 1.4cm,
-    block/.style={rectangle, draw, fill=blue!20, text width=3.1cm, text centered, rounded corners, minimum height=1cm},
-    can/.style={rectangle, draw, fill=orange!30, text width=2.9cm, text centered, minimum height=0.9cm},
-    state/.style={rectangle, draw, fill=yellow!20, text width=4.2cm, text centered, rounded corners, minimum height=1.2cm},
-    arrow/.style={-Stealth, thick},
-    fb/.style={-Stealth, thick, dashed}
+    node distance=1.3cm and 1.4cm,
+    block/.style={rectangle, draw, fill=blue!12, text width=3cm,
+                  text centered, rounded corners, minimum height=0.9cm, font=\small},
+    can/.style={rectangle, draw, fill=orange!25, text width=2.6cm,
+                text centered, minimum height=0.8cm, font=\small},
+    state/.style={rectangle, draw, fill=yellow!15, text width=3.8cm,
+                  text centered, rounded corners, minimum height=7.5cm, font=\small},
+    arrow/.style={-Stealth, semithick},
+    fb/.style={-Stealth, semithick, dashed, blue!60}
 ]
 
-% --- Top row: CAN RX path ---
-\node[can] (canrx) {CAN RX\\ACTUATOR\_CMD};
+% ---- Top row: CAN RX path ----
+\node[can] (canrx) {CAN RX\\{\scriptsize ACTUATOR\_CMD\_1}};
 \node[block, right=of canrx] (decoder) {CAN Decoder};
-\node[block, right=of decoder] (actcmd) {ActuatorCmd\\Struct};
+\node[block, right=of decoder] (actcmd) {ActuatorCmd};
 
-% --- Left column: Subsystems (priority cascade) ---
-\node[block, below=1.2cm of actcmd] (steer)   {Steer\\(Priority 50)};
-\node[block, below=of steer]        (drive)   {Drive\\(Priority 100)};
-\node[block, below=of drive]        (wheel)   {Wheel\\(Priority 105)};
-\node[block, below=of wheel]        (vehicle) {Vehicle\\(Priority 110)};
-\node[block, below=of vehicle]      (battery) {Battery\\(Priority 150)};
+% ---- Subsystem cascade (left column) ----
+\node[block, below=1.1cm of actcmd] (steer)   {Steer\\{\scriptsize Priority 50}};
+\node[block, below=of steer]        (drive)   {Drive\\{\scriptsize Priority 100}};
+\node[block, below=of drive]        (wheel)   {Wheel + Dugoff\\{\scriptsize Priority 105}};
+\node[block, below=of wheel]        (vehicle) {Vehicle 3-DOF\\{\scriptsize Priority 110}};
+\node[block, below=of vehicle]      (battery) {Battery\\{\scriptsize Priority 150}};
 
-% --- Right: PlantState centered on wheel/vehicle ---
-\node[state, right=4.2cm of wheel] (plantstate)
-{PlantState\\
-$(v_x, v_y, r)$\\
-$(x, y, \psi)$\\
-$(F_{x,i}, F_{y,i}, F_{z,i}, \omega_i)$};
+% ---- PlantState (right column, vertically centered) ----
+\coordinate (mid) at ($(wheel.east)!0.5!(vehicle.east)$);
+\node[state, right=4.0cm of mid] (ps) {
+    \textbf{PlantState}\\[6pt]
+    {\scriptsize Kinematics: $v_x,\; v_y,\; \dot{\psi}$}\\[2pt]
+    {\scriptsize Pose: $x,\; y,\; \psi$}\\[2pt]
+    {\scriptsize Steering: $\delta_{fl},\; \delta_{fr}$}\\[2pt]
+    {\scriptsize Tyre forces: $F_{x,i},\; F_{y,i},\; F_{z,i}$}\\[2pt]
+    {\scriptsize Wheels: $\omega_i,\; \sigma_{x,i},\; \alpha_i$}\\[2pt]
+    {\scriptsize Torques: $\tau_{\text{d},i},\; \tau_{\text{b},i}$}\\[2pt]
+    {\scriptsize Energy: SOC, $V$, $I$}
+};
 
-% --- Top-right: CAN TX path ---
-\node[block, above=1.2cm of plantstate] (packer) {State Packer};
-\node[can, right=of packer] (cantx) {CAN TX\\VEHICLE\_STATE};
+% ---- Top-right: CAN TX path ----
+\node[block, above=1.1cm of ps] (packer) {State Packer};
+\node[can, right=1.2cm of packer] (cantx) {CAN TX\\{\scriptsize VEHICLE\_STATE}};
 
-% --- Forward input flow ---
+% ======== Forward flow ========
 \draw[arrow] (canrx) -- (decoder);
 \draw[arrow] (decoder) -- (actcmd);
 \draw[arrow] (actcmd) -- (steer);
 
-% --- Subsystem cascade (command propagation) ---
-\draw[arrow] (steer)  -- node[right, font=\scriptsize] {$\delta_{fl},\ \delta_{fr}$} (drive);
-\draw[arrow] (drive)  -- node[right, font=\scriptsize] {$\tau_{drive,i},\ \tau_{brake,i}$} (wheel);
-\draw[arrow] (wheel)  -- node[right, font=\scriptsize] {$F_{x,i},\ F_{y,i}$} (vehicle);
-\draw[arrow] (vehicle) -- (battery);
+% ======== Subsystem cascade ========
+\draw[arrow] (steer)   -- node[right, font=\scriptsize]{$\delta_{fl},\;\delta_{fr}$} (drive);
+\draw[arrow] (drive)   -- node[right, font=\scriptsize]{$\tau_{\text{d},i},\;\tau_{\text{b},i}$} (wheel);
+\draw[arrow] (wheel)   -- node[right, font=\scriptsize]{$F_{x,i},\;F_{y,i}$} (vehicle);
+\draw[arrow] (vehicle) -- node[right, font=\scriptsize]{$P_{\text{elec}}$} (battery);
 
-% --- Subsystems update PlantState (write-back) ---
-\draw[arrow] (wheel.east)   -- ++(0.8,0) |- (plantstate.west);
-\draw[arrow] (vehicle.east) -- ++(0.8,0) |- (plantstate.west);
-\draw[arrow] (battery.east) -- ++(0.8,0) |- (plantstate.west);
+% ======== Write-back: subsystem → PlantState (solid) ========
+% Staggered entry points on ps.west; vertical segments near subsystem column
+\draw[arrow] (steer.east)   -- ++(1.2,0) |- ([yshift= 3.0cm]ps.west);
+\draw[arrow] (drive.east)   -- ++(0.9,0) |- ([yshift= 1.8cm]ps.west);
+\draw[arrow] (wheel.east)   -- ++(0.5,0) |- ([yshift= 0.6cm]ps.west);
+\draw[arrow] (vehicle.east) -- ++(0.5,0) |- ([yshift=-0.8cm]ps.west);
+\draw[arrow] (battery.east) -- ++(0.9,0) |- ([yshift=-2.5cm]ps.west);
 
-% --- PlantState feedback into subsystems (read) ---
-\draw[fb] (plantstate.west) -- ++(-0.8,0) |- (wheel.east);
-\draw[fb] (plantstate.west) -- ++(-0.8,0) |- (vehicle.east);
-\draw[fb] (plantstate.west) -- ++(-0.8,0) |- (battery.east);
+% ======== Feedback: PlantState → subsystem (dashed blue) ========
+% Staggered exit points on ps.west; vertical segments near PlantState column
+\draw[fb] ([yshift= 2.4cm]ps.west) -- ++(-2.4,0) |- (drive.east);
+\draw[fb] ([yshift= 1.2cm]ps.west) -- ++(-2.0,0) |- ([yshift=-3pt]wheel.east);
+\draw[fb] ([yshift=-0.2cm]ps.west) -- ++(-2.0,0) |- ([yshift=-3pt]vehicle.east);
+\draw[fb] ([yshift=-1.6cm]ps.west) -- ++(-2.0,0) |- ([yshift=-3pt]battery.east);
 
-% --- Output flow ---
-\draw[arrow] (plantstate) -- (packer);
+% ======== CAN output flow ========
+\draw[arrow] (ps) -- (packer);
 \draw[arrow] (packer) -- (cantx);
 
 \end{tikzpicture}
-\caption{3-DOF plant model architecture with CAN closed-loop control. Subsystems execute in priority order, writing into PlantState (solid arrows) and reading feedback from PlantState (dashed arrows).}
+}% end resizebox
+\caption{3-DOF plant model architecture with CAN-based closed-loop control.
+Subsystems execute in priority order (lower number $=$ first).
+Solid arrows denote write-back into the shared \texttt{PlantState};
+dashed blue arrows denote feedback reads.
+The CAN TX path packs selected state variables for the external controller.}
 \end{figure}
 
 
@@ -576,5 +709,15 @@ Potential extensions include:
     \item Enhanced tire models (Pacejka MF, TameTire)
     \item Validation against real vehicle telemetry
 \end{itemize}
+
+%=============================================================================
+% References
+%=============================================================================
+\begin{thebibliography}{9}
+\bibitem{dugoff_doc}
+M.~Tilocca,
+\textit{Vehicle Dynamics, Battery, and Sensor Models (Dugoff Tire + Sensor Simulation)},
+Version~2.1, January 2026.
+\end{thebibliography}
 
 \end{document}
