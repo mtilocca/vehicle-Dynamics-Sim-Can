@@ -23,25 +23,10 @@ set(SIM_SOURCES
 )
 
 # ----------------------------------------------------------------------------
-# CAN interface sources (temporary - TODO: create can library)
-# ----------------------------------------------------------------------------
-# These will eventually move to a separate can library, but for now
-# we include them directly to avoid circular dependencies during development
-# ----------------------------------------------------------------------------
-
-set(CAN_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/can/socketcan_iface.cpp      # Linux SocketCAN interface
-    ${CMAKE_SOURCE_DIR}/src/can/can_map.cpp              # CAN signal database
-    ${CMAKE_SOURCE_DIR}/src/can/can_codec.cpp            # Signal encoding/decoding
-    ${CMAKE_SOURCE_DIR}/src/can/tx_scheduler.cpp         # Multi-rate frame transmission
-    ${CMAKE_SOURCE_DIR}/src/can/actuator_cmd_decoder.cpp # CAN RX command parsing
-)
-
-# ----------------------------------------------------------------------------
 # Create simulation executable
 # ----------------------------------------------------------------------------
 
-add_executable(sim_main ${SIM_SOURCES} ${CAN_SOURCES})
+add_executable(sim_main ${SIM_SOURCES})
 
 # ----------------------------------------------------------------------------
 # Include directories
@@ -104,11 +89,13 @@ endif()
 # ============================================================================
 # Dependency graph:
 #   sim_main → plant → utils (includes libcurl for InfluxDB)
+#   sim_main → can → utils (CAN communication layer)
 #   sim_main → config (YAML vehicle loading)
 # ============================================================================
 
 target_link_libraries(sim_main PRIVATE
     plant   # Plant model and subsystems
+    can     # CAN communication layer
     config  # Vehicle configuration loader (YAML)
     utils   # Logging, bitpacking, InfluxDB (includes libcurl)
 )
@@ -133,6 +120,4 @@ install(TARGETS sim_main
 
 message(STATUS "Simulation executable configured:")
 message(STATUS "  - Target: sim_main")
-message(STATUS "  - Dependencies: plant, config, utils, Lua")
-message(STATUS "  - CAN sources: ${CAN_SOURCES}")
-message(STATUS "  - Future: Move CAN sources to separate library")
+message(STATUS "  - Dependencies: plant, can, config, utils, Lua")

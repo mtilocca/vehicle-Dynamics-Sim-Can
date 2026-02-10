@@ -67,9 +67,9 @@ include_directories(
 # Build order is crucial due to library dependencies:
 #   1. utils      (no dependencies)
 #   2. plant      (depends on utils)
-#   3. config     (depends on plant, utils, yaml-cpp)
-#   4. sim        (depends on plant, config, utils, Lua)
-#   5. can        (utility tools, depends on utils)
+#   3. can        (depends on utils)
+#   4. config     (depends on plant, utils, yaml-cpp)
+#   5. sim        (depends on plant, can, config, utils, Lua)
 #   6. test       (depends on all of the above)
 # ============================================================================
 
@@ -81,14 +81,14 @@ add_subdirectory(utils)
 # 2. Plant library (vehicle dynamics and subsystems)
 add_subdirectory(src/plant)
 
-# 3. Config library (YAML vehicle configuration)
+# 3. CAN library (communication layer)
+add_subdirectory(src/can)
+
+# 4. Config library (YAML vehicle configuration)
 add_subdirectory(src/config)
 
-# 4. Simulation executable
+# 5. Simulation executable
 add_subdirectory(src/sim)
-
-# 5. CAN utility tools (vcan_listener, vcan_random_sender)
-add_subdirectory(src/can)
 
 # ============================================================================
 # Testing Configuration
@@ -142,9 +142,9 @@ message(STATUS "  Install prefix: ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "  Testing: ${BUILD_TESTING}")
 message(STATUS "")
 message(STATUS "=== Build Targets ===")
-message(STATUS "  Libraries: utils, plant, config")
+message(STATUS "  Libraries: utils, plant, can, config")
 message(STATUS "  Executables: sim_main, vcan_listener, vcan_random_sender")
-message(STATUS "  Tests: 6 test executables (if BUILD_TESTING=ON)")
+message(STATUS "  Tests: 7 test executables (if BUILD_TESTING=ON)")
 message(STATUS "")
 message(STATUS "=== Build Commands ===")
 message(STATUS "  Configure: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release")

@@ -44,11 +44,9 @@ endfunction()
 
 add_simulation_test(test_plant_state_packer
     SOURCES
-        ${CMAKE_SOURCE_DIR}/src/can/can_map.cpp
-        ${CMAKE_SOURCE_DIR}/src/can/can_codec.cpp
         ${CMAKE_SOURCE_DIR}/src/sim/plant_state_packer.cpp
     LIBRARIES
-        utils
+        can utils
 )
 
 # Pass source directory to test at compile time for finding can_map.csv
@@ -101,11 +99,8 @@ add_test(NAME vehicle_config
 # ============================================================================
 
 add_simulation_test(test_can_codec
-    SOURCES
-        ${CMAKE_SOURCE_DIR}/src/can/can_map.cpp
-        ${CMAKE_SOURCE_DIR}/src/can/can_codec.cpp
     LIBRARIES
-        utils
+        can utils
 )
 
 add_test(NAME can_codec
