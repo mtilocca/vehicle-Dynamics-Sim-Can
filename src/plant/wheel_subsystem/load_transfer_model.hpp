@@ -58,13 +58,16 @@ struct LoadTransferModel {
 
         // Front axle
         const double Fz_front_total = Fz_front_static - delta_Fz_long;
-        Fz_fl = Fz_front_total / 2.0 + delta_Fz_lat / 2.0;
-        Fz_fr = Fz_front_total / 2.0 - delta_Fz_lat / 2.0;
+        // PDF Eq. 43-44: ΔFz_left = -m*ay*hCG/w, ΔFz_right = +m*ay*hCG/w
+        // During left turn (ay > 0): centrifugal pushes body RIGHT
+        //   → left side UNLOADS (-), right side LOADS (+)
+        Fz_fl = Fz_front_total / 2.0 - delta_Fz_lat / 2.0;
+        Fz_fr = Fz_front_total / 2.0 + delta_Fz_lat / 2.0;
 
         // Rear axle
         const double Fz_rear_total = Fz_rear_static + delta_Fz_long;
-        Fz_rl = Fz_rear_total / 2.0 + delta_Fz_lat / 2.0;
-        Fz_rr = Fz_rear_total / 2.0 - delta_Fz_lat / 2.0;
+        Fz_rl = Fz_rear_total / 2.0 - delta_Fz_lat / 2.0;
+        Fz_rr = Fz_rear_total / 2.0 + delta_Fz_lat / 2.0;
 
         // Clamp to prevent negative normal loads (wheel lift-off)
         constexpr double Fz_min = 100.0;  // Minimum normal load (N)

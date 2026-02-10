@@ -96,7 +96,11 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
     compute_resistive_forces(s.v_mps, dir_ref, F_drag, F_roll);
 
     const double F_net = Fx_total - F_drag - F_roll;
-    const double a_long = F_net / p_.mass_kg;
+
+    // PDF Eq. 2/36: v̇x = Fx/m + vy*ψ̇ (centrifugal coupling in rotating body frame)
+    // The term vy*yaw_rate arises from the non-inertial reference frame and couples
+    // longitudinal and lateral dynamics. Essential for stability in combined maneuvers.
+    const double a_long = F_net / p_.mass_kg + s.vy_mps * s.yaw_rate_radps;
 
     double v_next = s.v_mps + a_long * dt;
     v_next = clamp(v_next, -p_.v_max_mps, +p_.v_max_mps);

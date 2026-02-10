@@ -168,8 +168,16 @@ void WheelSubsystem::step(PlantState& s, const sim::ActuatorCmd& /*cmd*/, double
     // -------------------------------------------------------------------------
     // NORMAL LOADS: Compute Fz with load transfer
     // -------------------------------------------------------------------------
+    // CRITICAL: Use centripetal (inertial) lateral acceleration for load transfer,
+    // NOT the body-frame a_lat (which approaches 0 in steady cornering).
+    // The lateral tire forces create the centripetal force that rolls the body
+    // and transfers load. Using previous step's Fy values (explicit Euler).
+    // PDF Eq. 43-44: ΔFz_lat = m * ay_centripetal * hCG / w
+    const double ay_for_load_transfer =
+        (s.Fy_fl + s.Fy_fr + s.Fy_rl + s.Fy_rr) / p_.mass_kg;
+
     LoadTransferModel::compute(
-        p_.mass_kg, s.a_long_mps2, s.a_lat_mps2,
+        p_.mass_kg, s.a_long_mps2, ay_for_load_transfer,
         p_.wheelbase_m, p_.track_m, p_.cg_height_m, p_.cg_to_front_m,
         s.Fz_fl, s.Fz_fr, s.Fz_rl, s.Fz_rr
     );
