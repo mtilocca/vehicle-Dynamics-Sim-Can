@@ -6,7 +6,20 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <cstring>
 #include <getopt.h>
+
+// Parse log level string (case-insensitive) → LogLevel enum
+// Returns true on success, false on invalid input
+bool parse_log_level(const char* str, utils::LogLevel& out) {
+    if (strcasecmp(str, "trace") == 0) { out = utils::LogLevel::Trace; return true; }
+    if (strcasecmp(str, "debug") == 0) { out = utils::LogLevel::Debug; return true; }
+    if (strcasecmp(str, "info")  == 0) { out = utils::LogLevel::Info;  return true; }
+    if (strcasecmp(str, "warn")  == 0) { out = utils::LogLevel::Warn;  return true; }
+    if (strcasecmp(str, "error") == 0) { out = utils::LogLevel::Error; return true; }
+    if (strcasecmp(str, "off")   == 0) { out = utils::LogLevel::Off;   return true; }
+    return false;
+}
 
 // Parse timing section from JSON (handles both old and new formats)
 bool load_timing_from_json(const std::string& scenario_path, sim::SimAppConfig& cfg) {
@@ -121,6 +134,9 @@ void print_usage(const char* prog_name) {
     printf("  --dt SEC              Timestep in seconds (default: from JSON)\n");
     printf("  --duration SEC        Simulation duration in seconds (default: from JSON)\n");
     printf("  --vehicle PATH        Vehicle config YAML (default: from JSON or built-in)\n");
+    printf("  --can-map PATH        CAN signal map CSV (default: config/can_map.csv)\n");
+    printf("  --log-level LEVEL     Log verbosity: trace, debug, info, warn, error, off\n");
+    printf("                        (default: info)\n");
     printf("  --help, -h            Show this help\n");
     
     printf("\nSurface Friction:\n");
@@ -206,7 +222,8 @@ int main(int argc, char** argv) {
     cfg.influx_interval_s = 0.25;  // 250ms = 4Hz
     
     std::string vehicle_config_path = "";
-    
+    utils::LogLevel log_level = utils::LogLevel::Info;
+
     // ========================================================================
     // Command-line parsing
     // ========================================================================
@@ -215,6 +232,7 @@ int main(int argc, char** argv) {
         {"can-tx",          no_argument,       0, 't'},
         {"no-can-tx",       no_argument,       0, 'T'},
         {"can-iface",       required_argument, 0, 'i'},
+        {"can-map",         required_argument, 0, 'M'},
         {"can-timeout",     required_argument, 0, 'x'},
         {"real-time",       no_argument,       0, 'R'},
         {"fast",            no_argument,       0, 'F'},
@@ -222,6 +240,7 @@ int main(int argc, char** argv) {
         {"duration",        required_argument, 0, 'D'},
         {"vehicle",         required_argument, 0, 'v'},
         {"surface-mu",      required_argument, 0, 'm'},
+        {"log-level",       required_argument, 0, 'L'},
         // InfluxDB options
         {"influx",          no_argument,       0, 'I'},
         {"influx-url",      required_argument, 0, 'U'},
@@ -250,6 +269,9 @@ int main(int argc, char** argv) {
                 break;
             case 'i':
                 cfg.can_interface = optarg;
+                break;
+            case 'M':
+                cfg.can_map_path = optarg;
                 break;
             case 'x':
                 cfg.can_rx_timeout_s = std::atof(optarg);
@@ -280,6 +302,13 @@ int main(int argc, char** argv) {
                 break;
             case 'v':
                 vehicle_config_path = optarg;
+                break;
+            case 'L':
+                if (!parse_log_level(optarg, log_level)) {
+                    fprintf(stderr, "Error: Invalid log level: '%s'\n", optarg);
+                    fprintf(stderr, "  Valid levels: trace, debug, info, warn, error, off\n");
+                    return 1;
+                }
                 break;
             case 'm':
                 cfg.surface_friction = std::atof(optarg);
@@ -334,7 +363,7 @@ int main(int argc, char** argv) {
         cfg.enable_influx = false;
     }
 
-    utils::set_level(utils::LogLevel::Info);
+    utils::set_level(log_level);
 
     // ========================================================================
     // Load timing and vehicle configuration
