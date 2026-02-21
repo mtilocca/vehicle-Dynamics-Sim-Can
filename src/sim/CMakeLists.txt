@@ -1,123 +1,36 @@
 cmake_minimum_required(VERSION 3.16)
 
 # ============================================================================
-# Simulation Executable - Main Application
+# Simulation Executable
 # ============================================================================
-# The sim_main executable orchestrates:
-#   - Lua scenario runtime
-#   - Plant model stepping
-#   - CAN TX/RX interfaces
-#   - Sensor simulation
-#   - InfluxDB telemetry logging
-# ============================================================================
-
-# ----------------------------------------------------------------------------
-# Core simulation sources
-# ----------------------------------------------------------------------------
 
 set(SIM_SOURCES
-    sim_main.cpp                # Entry point and CLI argument parsing
-    sim_app.cpp                 # Main simulation loop and orchestration
-    lua_runtime.cpp             # Lua scenario interpreter
-    plant_state_packer.cpp      # PlantState → CAN frame conversion
+    sim_main.cpp            # Entry point and CLI argument parsing
+    sim_app.cpp             # Main simulation loop (CAN closed-loop + InfluxDB)
+    plant_state_packer.cpp  # PlantState → CAN frame conversion (visitor pattern)
 )
-
-# ----------------------------------------------------------------------------
-# Create simulation executable
-# ----------------------------------------------------------------------------
 
 add_executable(sim_main ${SIM_SOURCES})
 
-# ----------------------------------------------------------------------------
-# Include directories
-# ----------------------------------------------------------------------------
-
 target_include_directories(sim_main PRIVATE
-    ${CMAKE_SOURCE_DIR}           # Root for absolute includes
-    ${CMAKE_SOURCE_DIR}/src       # Source root for relative includes
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src
 )
 
-# ============================================================================
-# Lua Dependency - Cross-platform configuration
-# ============================================================================
-# Windows (vcpkg): Use CMake's FindLua
-# Unix: Prefer pkg-config for lua5.4/lua5.3
-# ============================================================================
-
-if(WIN32)
-    # Windows: Use find_package (vcpkg provides LUA_INCLUDE_DIR, LUA_LIBRARIES)
-    find_package(Lua REQUIRED)
-    message(STATUS "Found Lua via find_package: ${LUA_VERSION_STRING}")
-    
-    if(DEFINED LUA_INCLUDE_DIR)
-        target_include_directories(sim_main PRIVATE ${LUA_INCLUDE_DIR})
-    endif()
-    
-    if(DEFINED LUA_LIBRARIES)
-        target_link_libraries(sim_main PRIVATE ${LUA_LIBRARIES})
-    endif()
-    
-else()
-    # Unix: Use pkg-config (try 5.4 first, fallback to 5.3)
-    find_package(PkgConfig REQUIRED)
-    
-    pkg_check_modules(LUA54 QUIET lua5.4)
-    pkg_check_modules(LUA53 QUIET lua5.3)
-    
-    if(LUA54_FOUND)
-        target_include_directories(sim_main PRIVATE ${LUA54_INCLUDE_DIRS})
-        target_link_libraries(sim_main PRIVATE ${LUA54_LIBRARIES})
-        target_compile_options(sim_main PRIVATE ${LUA54_CFLAGS_OTHER})
-        message(STATUS "Found Lua 5.4 via pkg-config")
-    elseif(LUA53_FOUND)
-        target_include_directories(sim_main PRIVATE ${LUA53_INCLUDE_DIRS})
-        target_link_libraries(sim_main PRIVATE ${LUA53_LIBRARIES})
-        target_compile_options(sim_main PRIVATE ${LUA53_CFLAGS_OTHER})
-        message(STATUS "Found Lua 5.3 via pkg-config")
-    else()
-        message(FATAL_ERROR 
-            "Lua not found via pkg-config (tried lua5.4 and lua5.3). "
-            "Install liblua5.4-dev or liblua5.3-dev:\n"
-            "  Ubuntu/Debian: sudo apt-get install liblua5.4-dev\n"
-            "  Fedora: sudo dnf install lua-devel"
-        )
-    endif()
-endif()
-
-# ============================================================================
-# Link Libraries
-# ============================================================================
 # Dependency graph:
-#   sim_main → plant → utils (includes libcurl for InfluxDB)
-#   sim_main → can → utils (CAN communication layer)
-#   sim_main → config (YAML vehicle loading)
-# ============================================================================
-
+#   sim_main → plant (vehicle dynamics subsystems)
+#            → can   (CAN TX/RX, signal codec)
+#            → config (YAML vehicle loading)
+#            → utils (logging, InfluxDB client via libcurl)
 target_link_libraries(sim_main PRIVATE
-    plant   # Plant model and subsystems
-    can     # CAN communication layer
-    config  # Vehicle configuration loader (YAML)
-    utils   # Logging, bitpacking, InfluxDB (includes libcurl)
+    plant
+    can
+    config
+    utils
 )
-
-# ============================================================================
-# Compiler Features
-# ============================================================================
 
 target_compile_features(sim_main PRIVATE cxx_std_17)
 
-# ============================================================================
-# Installation
-# ============================================================================
+install(TARGETS sim_main RUNTIME DESTINATION bin)
 
-install(TARGETS sim_main
-    RUNTIME DESTINATION bin
-)
-
-# ============================================================================
-# Configuration Summary
-# ============================================================================
-
-message(STATUS "Simulation executable configured:")
-message(STATUS "  - Target: sim_main")
-message(STATUS "  - Dependencies: plant, can, config, utils, Lua")
+message(STATUS "sim_main configured (CAN closed-loop, InfluxDB optional)")

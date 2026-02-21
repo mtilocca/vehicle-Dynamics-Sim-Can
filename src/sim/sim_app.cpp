@@ -1,11 +1,9 @@
-// src/sim/sim_app.cpp - HYBRID TORQUE-SLIP MODEL ONLY (KINEMATIC REMOVED)
+// src/sim/sim_app.cpp - Simplified: CAN closed-loop + optional InfluxDB
 #include "can/actuator_cmd_decoder.hpp"
 #include "sim/sim_app.hpp"
 #include "sim/actuator_cmd.hpp"
 #include "sim/plant_state_packer.hpp"
 #include "sim/timing_controller.hpp"
-#include "sensors/sensor_bank.hpp"
-#include "can/sensor_state_packer.hpp"
 #include "can/socketcan_iface.hpp"
 #include "can/tx_scheduler.hpp"
 #include "can/can_map.hpp"
@@ -23,7 +21,7 @@
 
 namespace sim {
 
-SimApp::SimApp(SimAppConfig cfg) : cfg_(cfg), lua_() {
+SimApp::SimApp(SimAppConfig cfg) : cfg_(cfg) {
     if (cfg_.enable_debug_log_file) {
         utils::open_log_file(cfg_.debug_log_path);
     }
@@ -31,7 +29,7 @@ SimApp::SimApp(SimAppConfig cfg) : cfg_(cfg), lua_() {
 
 int SimApp::run_plant() {
     const double dt = cfg_.dt_s;
-    
+
     // ========================================================================
     // Timing controller
     // ========================================================================
@@ -39,137 +37,77 @@ int SimApp::run_plant() {
     double spin_threshold_us = (dt * 1e6) * 0.05;
     spin_threshold_us = std::max(20.0, std::min(100.0, spin_threshold_us));
     timer.set_spin_threshold_us(spin_threshold_us);
-    
-    LOG_INFO("[Timing] dt=%.4fs (%.0f us), spin_threshold=%.0f us", 
+
+    LOG_INFO("[SimApp] dt=%.4fs (%.0f us), spin_threshold=%.0f us",
              dt, dt * 1e6, spin_threshold_us);
-    
+
     // ========================================================================
     // Plant model initialization
     // ========================================================================
     plant::PlantModelParams pmp;
-    
+
     if (cfg_.vehicle_params.has_value()) {
         pmp = cfg_.vehicle_params.value();
         LOG_INFO("[SimApp] Using vehicle params from YAML config");
     } else {
-        // Use hardcoded defaults if no YAML provided 
-        pmp.wheelbase_m = 2.8;
-        pmp.track_width_m = 1.6;
+        // Hardcoded defaults (XCMG XDE320-like)
+        pmp.wheelbase_m   = 6.30;
+        pmp.track_width_m = 7.20;
+
         pmp.steer.delta_max_deg = 35.0;
-        
-        pmp.battery_params.capacity_kWh = 60.0;
-        pmp.battery_params.efficiency_charge = 0.95;
-        pmp.battery_params.efficiency_discharge = 0.95;
-        pmp.battery_params.max_charge_power_kW = 50.0;
-        pmp.battery_params.max_discharge_power_kW = 150.0;
-        pmp.battery_params.min_soc = 0.05;
-        pmp.battery_params.max_soc = 0.95;
-        
-        pmp.motor_params.max_power_kW = 300.0;
-        pmp.motor_params.max_torque_nm = 4000.0;
-        pmp.motor_params.efficiency = 0.92;
-        
-        pmp.drive.mass_kg = 1800.0;
-        pmp.drive.wheel_radius_m = 0.33;
-        pmp.drive.drag_c = 0.35;
-        pmp.drive.roll_c = 40.0;
-        pmp.drive.motor_torque_max_nm = 4000.0;
-        pmp.drive.brake_torque_max_nm = 4000.0;
-        pmp.drive.gear_ratio = 9.0;
-        pmp.drive.drivetrain_eff = 0.92;
-        pmp.drive.motor_power_max_w = 300000.0;
-        pmp.drive.v_stop_eps = 0.3;
-        pmp.drive.v_max_mps = 60.0;
-        
-        LOG_INFO("[SimApp] No YAML provided - Using default vehicle params");
+
+        pmp.drive.mass_kg            = 218000.0;
+        pmp.drive.wheel_radius_m     = 1.93;
+        pmp.drive.drag_c             = 2.5;
+        pmp.drive.roll_c             = 1500.0;
+        pmp.drive.motor_torque_max_nm = 9500.0;
+        pmp.drive.motor_power_max_w   = 2800000.0;
+        pmp.drive.brake_torque_max_nm = 80000.0;
+        pmp.drive.gear_ratio          = 25.0;
+        pmp.drive.drivetrain_eff      = 0.92;
+        pmp.drive.v_stop_eps          = 0.5;
+        pmp.drive.v_max_mps           = 17.78;
+        pmp.drive.Cy_front_Npm        = 2500000.0;
+        pmp.drive.Cy_rear_Npm         = 2000000.0;
+
+        pmp.geometry.cg_height_m     = 3.20;
+        pmp.geometry.cg_to_front_m   = 2.52;
+        pmp.geometry.cg_to_rear_m    = 3.78;
+        pmp.geometry.yaw_inertia_kgm2 = 8500000.0;
+
+        LOG_INFO("[SimApp] Using hardcoded default vehicle params");
     }
-    
-    // ========================================================================
-    // Dynamic model configuration (ALWAYS ENABLED)
-    // ========================================================================
-    pmp.dynamic_config.enabled = true;  // Always use dynamic model
-    pmp.dynamic_config.surface_mu = cfg_.surface_friction;
-    
-    LOG_INFO("[SimApp] Dynamic tire model: ENABLED (Dugoff)");
+
+    // Apply surface friction override
+    pmp.drive.mu_surface = cfg_.surface_friction;
     LOG_INFO("[SimApp] Surface friction: mu=%.2f", cfg_.surface_friction);
 
     plant::PlantModel plant_model(pmp);
     plant::PlantState s{};
-    s.batt_soc_pct = 50.0;
-    s.batt_v = pmp.battery_params.nominal_voltage_v; 
-    s.dynamic_model_enabled = true;  // Always true
-    s.surface_mu = cfg_.surface_friction;
-
-    // ========================================================================
-    // Complete sensor bank initialization
-    // ========================================================================
-    sensors::SensorBankConfig sensor_cfg{};
-    
-    // Enable all sensors
-    sensor_cfg.enable_battery_sensor = true;
-    sensor_cfg.enable_wheel_sensor = true;
-    sensor_cfg.enable_imu_sensor = true;
-    sensor_cfg.enable_gnss_sensor = true;
-    sensor_cfg.enable_radar_sensor = true;
-    
-    // Battery sensor config
-    sensor_cfg.battery_params.voltage_noise_stddev = 0.5;
-    sensor_cfg.battery_params.current_noise_stddev = 0.2;
-    sensor_cfg.battery_params.soc_noise_stddev = 0.5;
-    sensor_cfg.battery_params.voltage_update_hz = 100.0;
-    sensor_cfg.battery_params.current_update_hz = 100.0;
-    sensor_cfg.battery_params.soc_update_hz = 1.0;
-    
-    // Wheel sensor config
-    sensor_cfg.wheel_params.ticks_per_revolution = 48;
-    sensor_cfg.wheel_params.noise_stddev_pct = 0.5;
-    sensor_cfg.wheel_params.update_hz = 100.0;
-    
-    // IMU config
-    sensor_cfg.imu_params.gyro_noise_stddev = 0.1;
-    sensor_cfg.imu_params.accel_noise_stddev = 0.05;
-    sensor_cfg.imu_params.update_hz = 100.0;
-    
-    // GNSS config
-    sensor_cfg.gnss_params.position_noise_stddev = 2.0;
-    sensor_cfg.gnss_params.velocity_noise_stddev = 0.1;
-    sensor_cfg.gnss_params.update_hz = 10.0;
-    
-    // Radar config
-    sensor_cfg.radar_params.range_noise_stddev = 0.2;
-    sensor_cfg.radar_params.doppler_noise_stddev = 0.1;
-    sensor_cfg.radar_params.update_hz = 20.0;
-    sensor_cfg.radar_params.weather_condition = sensors::RadarWeatherCondition::CLEAR;
-    
-    sensors::SensorBank sensor_bank(sensor_cfg);
-    LOG_INFO("[Sensors] Initialized %zu sensors", sensor_bank.sensor_count());
 
     // ========================================================================
     // InfluxDB setup
     // ========================================================================
     std::unique_ptr<utils::InfluxClient> influx_client;
-    
-    // Validation: InfluxDB requires real-time mode
+
     if (cfg_.enable_influx && !cfg_.real_time_mode) {
-        LOG_WARN("[InfluxDB] InfluxDB logging requires --real-time mode. Disabling InfluxDB.");
+        LOG_WARN("[InfluxDB] InfluxDB requires --real-time mode. Disabling.");
         cfg_.enable_influx = false;
     }
-    
+
     if (cfg_.enable_influx) {
         try {
-            utils::InfluxClient::Config influx_config;
-            influx_config.enabled = true;
-            influx_config.url = cfg_.influx_url;
-            influx_config.token = cfg_.influx_token;
-            influx_config.org = cfg_.influx_org;
-            influx_config.bucket = cfg_.influx_bucket;
-            influx_config.write_interval_s = cfg_.influx_interval_s;
-            
-            influx_client = std::make_unique<utils::InfluxClient>(influx_config);
-            LOG_INFO("[InfluxDB] Logging enabled");
+            utils::InfluxClient::Config ic;
+            ic.enabled          = true;
+            ic.url              = cfg_.influx_url;
+            ic.token            = cfg_.influx_token;
+            ic.org              = cfg_.influx_org;
+            ic.bucket           = cfg_.influx_bucket;
+            ic.write_interval_s = cfg_.influx_interval_s;
+            influx_client = std::make_unique<utils::InfluxClient>(ic);
+            LOG_INFO("[InfluxDB] Logging enabled to %s/%s", cfg_.influx_org.c_str(), cfg_.influx_bucket.c_str());
         } catch (const std::exception& e) {
-            LOG_ERROR("[InfluxDB] Failed to initialize client: %s", e.what());
-            LOG_WARN("[InfluxDB] Continuing without InfluxDB logging");
+            LOG_ERROR("[InfluxDB] Init failed: %s — continuing without InfluxDB", e.what());
             cfg_.enable_influx = false;
         }
     }
@@ -183,156 +121,78 @@ int SimApp::run_plant() {
         return 1;
     }
 
-    // CSV header - COMPREHENSIVE (always includes wheel dynamics)
     csv << "t_s,"
-        // Vehicle state (3-DOF: longitudinal, lateral, yaw)
-        << "x_m,y_m,yaw_deg,v_mps,vy_mps,yaw_rate_radps,"
-        << "a_long_mps2,a_lat_mps2,steer_deg,"
-        << "delta_fl_deg,delta_fr_deg,"
-        // Commands
-        << "motor_nm,brake_pct,"
-        // Battery (truth)
-        << "batt_soc_truth,batt_v_truth,batt_i_truth,"
-        // Wheel speeds (truth) - legacy RPS
-        << "wheel_fl_rps_truth,wheel_fr_rps_truth,wheel_rl_rps_truth,wheel_rr_rps_truth,"
-        // Wheel speeds (rad/s) - NEW from WheelSubsystem
-        << "omega_fl_radps,omega_fr_radps,omega_rl_radps,omega_rr_radps,"
-        // Drive/brake torques (NEW from DriveSubsystem)
-        << "tau_drive_rl_nm,tau_drive_rr_nm,"
-        << "tau_brake_fl_nm,tau_brake_fr_nm,tau_brake_rl_nm,tau_brake_rr_nm,"
-        // Power tracking
-        << "motor_power_kW,regen_power_kW,brake_force_kN,"
-        // Sensors (measured)
-        << "batt_soc_meas,batt_v_meas,batt_i_meas,batt_temp_meas,"
-        << "wheel_fl_rps_meas,wheel_fr_rps_meas,wheel_rl_rps_meas,wheel_rr_rps_meas,"
-        << "imu_gx_rps,imu_gy_rps,imu_gz_rps,"
-        << "imu_ax_mps2,imu_ay_mps2,imu_az_mps2,"
-        << "imu_temp_c,imu_status,"
-        << "gnss_lat_deg,gnss_lon_deg,gnss_alt_m,"
-        << "gnss_vn_mps,gnss_ve_mps,"
-        << "gnss_fix_type,gnss_sat_count,"
-        << "radar_target_range_m,radar_target_rel_vel_mps,radar_target_angle_deg,radar_status,"
-        // Tire forces (N) - NEW from WheelSubsystem
-        << "Fx_fl,Fx_fr,Fx_rl,Fx_rr,"
-        << "Fy_fl,Fy_fr,Fy_rl,Fy_rr,"
-        // Normal loads (N) - NEW from WheelSubsystem
-        << "Fz_fl,Fz_fr,Fz_rl,Fz_rr,"
-        // Slip ratios (dimensionless) - NEW from WheelSubsystem
-        << "sigma_x_fl,sigma_x_fr,sigma_x_rl,sigma_x_rr,"
-        << "sigma_y_fl,sigma_y_fr,sigma_y_rl,sigma_y_rr,"
-        // Slip angles (rad) - 3-DOF dynamics
-        << "alpha_fl,alpha_fr,alpha_rl,alpha_rr,"
-        // Friction utilization (dimensionless) - NEW from WheelSubsystem
-        << "lambda_fl,lambda_fr,lambda_rl,lambda_rr,"
-        // Surface friction
-        << "surface_mu,"
-        // Timing
-        << "loop_time_us,wall_time_s,time_drift_ms";
-    
-    csv << "\n";
+        "x_m,y_m,yaw_deg,v_mps,vy_mps,yaw_rate_radps,"
+        "a_long_mps2,a_lat_mps2,"
+        "steer_deg,delta_fl_deg,delta_fr_deg,"
+        "motor_nm_cmd,brake_pct_cmd,motor_torque_nm,brake_force_kN,"
+        "wheel_fl_rps,wheel_fr_rps,wheel_rl_rps,wheel_rr_rps,"
+        "loop_time_us,wall_time_s\n";
     csv << std::fixed << std::setprecision(6);
-
-    // ---- Loop control ----
-    ActuatorCmd cmd{};
-    cmd.system_enable = true;
-
-    const int max_iters = (cfg_.duration_s > 0.0) ?
-        static_cast<int>(cfg_.duration_s / dt) : 0;
-
-    const double log_period_s = (cfg_.log_hz > 0.0) ?
-        1.0 / cfg_.log_hz : 0.1;
-    double next_log = 0.0;
 
     // ========================================================================
     // CAN setup
     // ========================================================================
     can::SocketCanIface can_iface;
-    can::TxScheduler tx_scheduler;
-    can::CanMap can_map;
+    can::TxScheduler    tx_scheduler;
+    can::CanMap         can_map;
     bool can_ready = false;
 
     if (cfg_.enable_can_tx || cfg_.enable_can_rx) {
-        if (can_map.load(cfg_.can_map_path)) {
-            if (can_iface.open(cfg_.can_interface)) {
-                if (cfg_.enable_can_tx) {
-                    tx_scheduler.init(can_map.tx_frames());
-                }
-                can_ready = true;
-                LOG_INFO("CAN interface opened: %s", cfg_.can_interface.c_str());
-                if (cfg_.enable_can_tx) {
-                    LOG_INFO("CAN TX enabled (%zu frames)", can_map.tx_frames().size());
-                }
-            } else {
-                LOG_WARN("Failed to open CAN interface: %s", cfg_.can_interface.c_str());
+        if (can_map.load(cfg_.can_map_path) && can_iface.open(cfg_.can_interface)) {
+            if (cfg_.enable_can_tx) {
+                tx_scheduler.init(can_map.tx_frames());
             }
+            can_ready = true;
+            LOG_INFO("[CAN] Interface opened: %s (%zu TX frames)",
+                     cfg_.can_interface.c_str(), can_map.tx_frames().size());
         } else {
-            LOG_WARN("Failed to load CAN map: %s", cfg_.can_map_path.c_str());
+            LOG_WARN("[CAN] Failed to open interface or load map — CAN disabled");
         }
     }
 
     // ========================================================================
-    // CAN RX setup
+    // CAN RX decoder (closed-loop mode)
     // ========================================================================
     std::unique_ptr<can::ActuatorCmdDecoder> can_rx_decoder;
     double last_can_rx_time = -999.0;
-    bool can_rx_active = false;
-    
+    bool   can_rx_active    = false;
+
     if (cfg_.enable_can_rx) {
         if (!can_ready) {
-            LOG_ERROR("CAN RX requested but CAN interface not ready");
+            LOG_ERROR("[CAN RX] Requested but CAN not ready — aborting");
             return -1;
         }
-        
         try {
             can_rx_decoder = std::make_unique<can::ActuatorCmdDecoder>(
                 can_map, cfg_.actuator_cmd_frame_name);
             can_rx_active = true;
-            LOG_INFO("CAN RX enabled: frame=%s id=0x%03X timeout=%.2fs", 
+            LOG_INFO("[CAN RX] Enabled on frame %s (0x%03X), timeout=%.2fs",
                      cfg_.actuator_cmd_frame_name.c_str(),
                      can_rx_decoder->get_frame_id(),
                      cfg_.can_rx_timeout_s);
         } catch (const std::exception& e) {
-            LOG_ERROR("Failed to initialize CAN RX: %s", e.what());
+            LOG_ERROR("[CAN RX] Init failed: %s", e.what());
             return -1;
-        }
-    }
-
-    // ========================================================================
-    // Lua scenario setup
-    // ========================================================================
-    if (cfg_.use_lua_scenario && !can_rx_active) {
-        if (!lua_.init(cfg_.lua_script_path, cfg_.scenario_json_path)) {
-            LOG_WARN("Failed to init Lua runtime");
-            LOG_INFO("Falling back to open-loop default commands");
-        } else {
-            lua_ready_ = true;
-            LOG_INFO("Lua scenario loaded: %s", cfg_.lua_script_path.c_str());
         }
     }
 
     // ========================================================================
     // Main loop
     // ========================================================================
-    LOG_INFO("Starting simulation loop (duration=%.1fs, dt=%.4fs)", cfg_.duration_s, dt);
-    if (can_rx_active) {
-        LOG_INFO("Mode: CLOSED-LOOP (waiting for CAN commands on 0x%03X)", 
-                 can_rx_decoder->get_frame_id());
-    } else if (lua_ready_) {
-        LOG_INFO("Mode: OPEN-LOOP (Lua scenario)");
-    } else {
-        LOG_INFO("Mode: OPEN-LOOP (hardcoded defaults)");
-    }
-    
-    LOG_INFO("Tire Model: DYNAMIC (Dugoff)");
-    LOG_INFO("Surface friction: mu=%.2f", cfg_.surface_friction);
-    
-    if (influx_client && influx_client->is_enabled()) {
-        LOG_INFO("InfluxDB: Logging at %.0fms intervals to %s/%s", 
-                 cfg_.influx_interval_s * 1000.0,
-                 cfg_.influx_org.c_str(), 
-                 cfg_.influx_bucket.c_str());
-    }
-    
+    ActuatorCmd cmd{};
+    cmd.system_enable = true;   // Enabled by default; controller can override via CAN
+
+    const int max_iters = (cfg_.duration_s > 0.0)
+        ? static_cast<int>(cfg_.duration_s / dt) : 0;
+
+    const double log_period_s = (cfg_.log_hz > 0.0) ? 1.0 / cfg_.log_hz : 0.1;
+    double next_log = 0.0;
+
+    LOG_INFO("[SimApp] Starting loop (duration=%.1fs, dt=%.4fs, log=%.1fHz)",
+             cfg_.duration_s, dt, cfg_.log_hz);
+    LOG_INFO("[SimApp] Mode: %s", can_rx_active ? "CLOSED-LOOP (CAN RX)" : "OPEN-LOOP (zero cmd)");
+
     timer.reset();
 
     for (int iter = 0; (max_iters == 0) || (iter < max_iters); ++iter) {
@@ -340,51 +200,24 @@ int SimApp::run_plant() {
         const double t = cfg_.real_time_mode ? timer.get_sim_time() : (iter * dt);
 
         // ====================================================================
-        // Generate actuator command
+        // Actuator command
         // ====================================================================
-        
         if (can_rx_active && can_rx_decoder) {
-            // CLOSED-LOOP MODE
             struct can_frame rx_frame;
-            bool got_new_command = false;
-            int frames_read = 0;
-            
             while (can_iface.read_nonblocking(rx_frame)) {
-                frames_read++;
                 if (can_rx_decoder->decode(rx_frame, cmd, t)) {
                     last_can_rx_time = t;
-                    got_new_command = true;
                 }
             }
-            
-            if (got_new_command && frames_read > 1) {
-                LOG_TRACE("CAN RX: Read %d frames at t=%.3f (using latest)", frames_read, t);
-            }
-            
-            const double time_since_last_rx = t - last_can_rx_time;
-            if (time_since_last_rx > cfg_.can_rx_timeout_s) {
-                if (got_new_command || (iter % 1000 == 0)) {
-                    LOG_WARN("[t=%.2f] CAN RX timeout (%.2fs since last msg), entering safe mode",
-                             t, time_since_last_rx);
+            // Safety: reset to zero on timeout
+            if ((t - last_can_rx_time) > cfg_.can_rx_timeout_s) {
+                if (iter % 1000 == 0) {
+                    LOG_WARN("[t=%.2f] CAN RX timeout (%.2fs) — safe mode", t, t - last_can_rx_time);
                 }
                 cmd.reset();
             }
-            
-        } else if (lua_ready_) {
-            // OPEN-LOOP MODE: Lua
-            if (!lua_.get_actuator_cmd(t, s, cmd)) {
-                LOG_WARN("[t=%.2f] Lua get_actuator_cmd failed, using defaults", t);
-                lua_ready_ = false;
-            }
         }
-        
-        if (!lua_ready_ && !can_rx_active) {
-            // FALLBACK: Hardcoded
-            cmd.drive_torque_cmd_nm = cfg_.motor_torque_nm;
-            cmd.brake_cmd_pct = cfg_.brake_pct;
-            cmd.steer_cmd_deg = cfg_.steer_amp_deg * 
-                                std::sin(2.0 * M_PI * cfg_.steer_freq_hz * t);
-        }
+        // else: cmd stays at zero (system_enable=true, zero torque/steer/brake)
 
         // ====================================================================
         // Step plant
@@ -393,60 +226,29 @@ int SimApp::run_plant() {
         s.t_s = t;
 
         // ====================================================================
-        // Step sensors
-        // ====================================================================
-        sensor_bank.step(t, s, dt);
-        auto sensor_out = sensor_bank.get_output(t);
-
-        // ====================================================================
-        // Write to InfluxDB
+        // InfluxDB
         // ====================================================================
         if (influx_client && influx_client->is_enabled()) {
-            influx_client->write_data_point(s, sensor_out, cmd, t);
+            // Write simplified vehicle truth data
+            influx_client->write_vehicle_truth(s, t);
         }
 
         // ====================================================================
-        // CAN TX
+        // CAN TX — plant-state frames only (0x220, 0x221, 0x300–0x3F0)
         // ====================================================================
         if (can_ready && cfg_.enable_can_tx) {
-            auto now = std::chrono::steady_clock::now();
+            auto now       = std::chrono::steady_clock::now();
             auto due_indices = tx_scheduler.due(now);
-            
+
             for (size_t idx : due_indices) {
                 const auto& frame_def = can_map.tx_frames()[idx];
                 struct can_frame frame;
-                frame.can_id = frame_def.frame_id;
+                frame.can_id  = frame_def.frame_id;
                 frame.can_dlc = 8;
-                
-                switch (frame_def.frame_id) {
-                    case 0x200:
-                        can::SensorStatePacker::pack_imu_acc(sensor_out, frame.data);
-                        break;
-                    case 0x201:
-                        can::SensorStatePacker::pack_imu_gyr(sensor_out, frame.data);
-                        break;
-                    case 0x210:
-                        can::SensorStatePacker::pack_gnss_ll(sensor_out, frame.data);
-                        break;
-                    case 0x211:
-                        can::SensorStatePacker::pack_gnss_av(sensor_out, frame.data);
-                        break;
-                    case 0x220:
-                        can::SensorStatePacker::pack_wheel_speeds(sensor_out, frame.data);
-                        break;
-                    case 0x230:
-                        can::SensorStatePacker::pack_battery(sensor_out, frame.data);
-                        break;
-                    case 0x240:
-                        can::SensorStatePacker::pack_radar(sensor_out, frame.data);
-                        break;
-                    default:
-                        auto signals = sim::PlantStatePacker::pack(s, frame_def);
-                        signals["loop_time_us"] = timer.get_last_loop_time_us();
-                        can::CanCodec::encode_from_map(frame_def, signals, frame);
-                        break;
-                }
-                
+
+                auto signals = sim::PlantStatePacker::pack(s, frame_def);
+                signals["loop_time_us"] = timer.get_last_loop_time_us();
+                can::CanCodec::encode_from_map(frame_def, signals, frame);
                 can_iface.write_frame(frame);
             }
         }
@@ -454,72 +256,26 @@ int SimApp::run_plant() {
         timer.update_loop_stats();
 
         // ====================================================================
-        // Log to CSV - COMPREHENSIVE WHEEL SUBSYSTEM DATA
+        // CSV logging
         // ====================================================================
         if (t >= next_log) {
-            double steer_deg = s.steer_virtual_rad * 180.0 / M_PI;
-            double delta_fl_deg = s.delta_fl_rad * 180.0 / M_PI;
-            double delta_fr_deg = s.delta_fr_rad * 180.0 / M_PI;
-            double yaw_deg = s.yaw_rad * 180.0 / M_PI;
-            
-            // Base columns
+            const double yaw_deg      = s.yaw_rad * 180.0 / M_PI;
+            const double steer_deg    = s.steer_virtual_rad * 180.0 / M_PI;
+            const double delta_fl_deg = s.delta_fl_rad * 180.0 / M_PI;
+            const double delta_fr_deg = s.delta_fr_rad * 180.0 / M_PI;
+
             csv << s.t_s << ","
-                // Vehicle state (3-DOF)
                 << s.x_m << "," << s.y_m << "," << yaw_deg << ","
                 << s.v_mps << "," << s.vy_mps << "," << s.yaw_rate_radps << ","
-                << s.a_long_mps2 << "," << s.a_lat_mps2 << "," << steer_deg << ","
-                << delta_fl_deg << "," << delta_fr_deg << ","
-                // Commands
+                << s.a_long_mps2 << "," << s.a_lat_mps2 << ","
+                << steer_deg << "," << delta_fl_deg << "," << delta_fr_deg << ","
                 << cmd.drive_torque_cmd_nm << "," << cmd.brake_cmd_pct << ","
-                // Battery (truth)
-                << s.batt_soc_pct << "," << s.batt_v << "," << s.batt_i << ","
-                // Wheel speeds (truth) - legacy RPS
-                << s.wheel_fl_rps << "," << s.wheel_fr_rps << "," 
+                << s.motor_torque_nm << "," << s.brake_force_kN << ","
+                << s.wheel_fl_rps << "," << s.wheel_fr_rps << ","
                 << s.wheel_rl_rps << "," << s.wheel_rr_rps << ","
-                // Wheel speeds (rad/s) - NEW
-                << s.omega_fl_radps << "," << s.omega_fr_radps << ","
-                << s.omega_rl_radps << "," << s.omega_rr_radps << ","
-                // Drive/brake torques - NEW
-                << s.tau_drive_rl_nm << "," << s.tau_drive_rr_nm << ","
-                << s.tau_brake_fl_nm << "," << s.tau_brake_fr_nm << ","
-                << s.tau_brake_rl_nm << "," << s.tau_brake_rr_nm << ","
-                // Power tracking
-                << s.motor_power_kW << "," << s.regen_power_kW << "," << s.brake_force_kN << ","
-                // Sensors (measured)
-                << sensor_out.batt_soc_meas << "," << sensor_out.batt_v_meas << "," 
-                << sensor_out.batt_i_meas << "," << sensor_out.batt_temp_meas << ","
-                << sensor_out.wheel_fl_rps_meas << "," << sensor_out.wheel_fr_rps_meas << ","
-                << sensor_out.wheel_rl_rps_meas << "," << sensor_out.wheel_rr_rps_meas << ","
-                << sensor_out.imu_gx_rps << "," << sensor_out.imu_gy_rps << "," << sensor_out.imu_gz_rps << ","
-                << sensor_out.imu_ax_mps2 << "," << sensor_out.imu_ay_mps2 << "," << sensor_out.imu_az_mps2 << ","
-                << sensor_out.imu_temp_c << "," << static_cast<int>(sensor_out.imu_status) << ","
-                << sensor_out.gnss_lat_deg << "," << sensor_out.gnss_lon_deg << "," << sensor_out.gnss_alt_m << ","
-                << sensor_out.gnss_vn_mps << "," << sensor_out.gnss_ve_mps << ","
-                << static_cast<int>(sensor_out.gnss_fix_type) << "," << static_cast<int>(sensor_out.gnss_sat_count) << ","
-                << sensor_out.radar_target_range_m << "," 
-                << sensor_out.radar_target_rel_vel_mps << "," 
-                << sensor_out.radar_target_angle_deg << "," 
-                << static_cast<int>(sensor_out.radar_status) << ","
-                // Tire forces (N) - NEW
-                << s.Fx_fl << "," << s.Fx_fr << "," << s.Fx_rl << "," << s.Fx_rr << ","
-                << s.Fy_fl << "," << s.Fy_fr << "," << s.Fy_rl << "," << s.Fy_rr << ","
-                // Normal loads (N) - NEW
-                << s.Fz_fl << "," << s.Fz_fr << "," << s.Fz_rl << "," << s.Fz_rr << ","
-                // Slip ratios (dimensionless) - NEW
-                << s.sigma_x_fl << "," << s.sigma_x_fr << "," << s.sigma_x_rl << "," << s.sigma_x_rr << ","
-                << s.sigma_y_fl << "," << s.sigma_y_fr << "," << s.sigma_y_rl << "," << s.sigma_y_rr << ","
-                // Slip angles (rad) - 3-DOF
-                << s.alpha_fl << "," << s.alpha_fr << "," << s.alpha_rl << "," << s.alpha_rr << ","
-                // Friction utilization (dimensionless) - NEW
-                << s.lambda_fl << "," << s.lambda_fr << "," << s.lambda_rl << "," << s.lambda_rr << ","
-                // Surface friction
-                << s.surface_mu << ","
-                // Timing
                 << timer.get_last_loop_time_us() << ","
-                << timer.get_wall_time() << ","
-                << (timer.get_time_drift() * 1000.0);
-            
-            csv << "\n";
+                << timer.get_wall_time()
+                << "\n";
 
             next_log += log_period_s;
         }
@@ -529,62 +285,35 @@ int SimApp::run_plant() {
         // ====================================================================
         if (cfg_.real_time_mode) {
             bool on_time = timer.wait_for_next_step();
-            
             if (!on_time && (iter % 1000 == 0)) {
                 auto stats = timer.get_stats();
-                LOG_WARN("[t=%.2f] Deadline miss! Total misses: %zu, Max lateness: %.1f us",
+                LOG_WARN("[t=%.2f] Deadline miss! total=%zu, max_late=%.1f us",
                          t, stats.deadline_misses, stats.max_lateness_us);
             }
         }
     }
 
     // ========================================================================
-    // Final statistics and cleanup
+    // Cleanup and statistics
     // ========================================================================
-    
-    // Flush InfluxDB
     if (influx_client) {
         influx_client->flush();
         LOG_INFO("[InfluxDB] Data flushed");
     }
-    
-    // CAN RX summary
-    if (can_rx_active) {
-        const double total_time = cfg_.duration_s;
-        const double time_since_last = total_time - last_can_rx_time;
-        LOG_INFO("========================================");
-        LOG_INFO("CAN RX Summary");
-        LOG_INFO("========================================");
-        LOG_INFO("Last CAN message at: t=%.2fs (%.2fs ago)",
-                 last_can_rx_time, time_since_last);
-        if (last_can_rx_time < 0) {
-            LOG_WARN("No CAN messages received during simulation!");
-        }
-    }
-    
-    // Timing statistics
+
     auto stats = timer.get_stats();
-    
     LOG_INFO("========================================");
-    LOG_INFO("Timing Statistics");
-    LOG_INFO("========================================");
-    LOG_INFO("Total steps: %zu", stats.total_steps);
-    LOG_INFO("Deadline misses: %zu (%.2f%%)", 
+    LOG_INFO("Simulation complete");
+    LOG_INFO("Steps: %zu, Deadline misses: %zu (%.2f%%)",
+             stats.total_steps,
              stats.deadline_misses,
-             100.0 * stats.deadline_misses / stats.total_steps);
-    LOG_INFO("Max loop time: %.1f us (%.1f%% of dt)",
-             stats.max_loop_time_us,
-             100.0 * stats.max_loop_time_us / (dt * 1e6));
-    LOG_INFO("Max lateness: %.1f us", stats.max_lateness_us);
-    if (stats.deadline_misses > 0) {
-        LOG_INFO("Avg lateness: %.1f us", stats.avg_lateness_us);
-    }
+             100.0 * stats.deadline_misses / std::max(stats.total_steps, (size_t)1));
+    LOG_INFO("Max loop time: %.1f us, Max lateness: %.1f us",
+             stats.max_loop_time_us, stats.max_lateness_us);
     LOG_INFO("Final time drift: %.3f ms", timer.get_time_drift() * 1000.0);
+    LOG_INFO("CSV written to: %s", cfg_.csv_log_path.c_str());
     LOG_INFO("========================================");
 
-    LOG_INFO("Simulation complete. CSV written to: %s", cfg_.csv_log_path.c_str());
-    LOG_INFO("Wheel subsystem logging: 38 new columns (omega, torques, forces, slip, friction)");
-    
     csv.close();
     return 0;
 }

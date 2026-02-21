@@ -73,15 +73,6 @@ void PlantStatePacker::add_derived_signals(
     }
     
     // ========================================================================
-    // BATTERY STATE (0x230)
-    // ========================================================================
-    if (frame_has_signal(frame_def, "batt_power_kw")) {
-        // P = V * I
-        const double power_kw = (state.batt_v * state.batt_i) / 1000.0;
-        signals["batt_power_kw"] = power_kw;
-    }
-    
-    // ========================================================================
     // BRAKE STATE (0x320)
     // ========================================================================
     if (frame_has_signal(frame_def, "brake_pct_actual")) {
@@ -102,8 +93,7 @@ void PlantStatePacker::add_derived_signals(
     }
     
     if (frame_has_signal(frame_def, "yaw_rate_dps")) {
-        // Use steer_rate as proxy for yaw rate
-        signals["yaw_rate_dps"] = state.steer_rate_radps * 180.0 / M_PI;
+        signals["yaw_rate_dps"] = state.yaw_rate_radps * 180.0 / M_PI;
     }
     
     // ========================================================================

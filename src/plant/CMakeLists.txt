@@ -34,42 +34,20 @@ cmake_minimum_required(VERSION 3.16)
 set(PLANT_SOURCES
     # Top-level plant model orchestration
     plant_model.cpp
-    
-    # Battery subsystem (Priority 150)
-    battery_subsystem/battery_plant.cpp
-    battery_subsystem/battery_subsystem.cpp
-    
-    # Drive subsystem (Priority 100)
+
+    # Drive subsystem (Priority 100) — torque→force, linear cornering, wheel speeds
     drive_subsystem/drive_plant.cpp
     drive_subsystem/drive_subsystem.cpp
-    
-    # Steer subsystem (Priority 50)
+
+    # Steer subsystem (Priority 50) — Ackermann geometry, rate limiting
     steer_subsystem/steer_plant.cpp
     steer_subsystem/steer_subsystem.cpp
-    
-    # Wheel subsystem (Priority 105)
-    # Integrates wheel rotational dynamics (Iw·ω̇ = τ - Fx·R)
-    # Computes tire forces via Dugoff model
-    wheel_subsystem/wheel_dynamics.cpp
-    wheel_subsystem/wheel_subsystem.cpp
-    
-    # Tyre subsystem - Dugoff tire force model
-    # Separable design: easy to swap with Pacejka, MF-Tyre, etc.
-    tyre_models/tyre_dugoff.cpp
-    
-    # Vehicle subsystem (Priority 110)
-    # Integrates longitudinal velocity, yaw angle, position
-    # Replaces legacy VehicleBicycleAckermann
+
+    # Vehicle subsystem (Priority 110) — 3-DOF rigid body integration
     vehicle_subsystem/vehicle_subsystem.cpp
-    
-    # Subsystem manager - Priority-based execution
+
+    # Subsystem manager — priority-based execution
     subsystem_manager/subsystem_manager.cpp
-    
-    # Future subsystems (add when implemented):
-    # thermal_subsystem/thermal_plant.cpp
-    # thermal_subsystem/thermal_subsystem.cpp
-    # aero_subsystem/aero_plant.cpp
-    # aero_subsystem/aero_subsystem.cpp
 )
 
 # ----------------------------------------------------------------------------
@@ -111,22 +89,4 @@ target_compile_features(plant PUBLIC cxx_std_17)
 # Configuration summary
 # ----------------------------------------------------------------------------
 
-message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-message(STATUS "Plant Library - Hybrid Torque-Slip Model")
-message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-message(STATUS "Subsystems (execution order):")
-message(STATUS "  50  - Steer    : Ackermann geometry")
-message(STATUS "  100 - Drive    : Torque distribution + regen")
-message(STATUS "  105 - Wheel    : Rotational dynamics + Dugoff tire model")
-message(STATUS "  110 - Vehicle  : Longitudinal/yaw/position integration")
-message(STATUS "  150 - Battery  : Energy management")
-message(STATUS "")
-message(STATUS "Architecture:")
-message(STATUS "  ✓ Hybrid torque-slip model (PDF Section 8)")
-message(STATUS "  ✓ Closed-loop feedback: τ → ω → σx → Fx → v")
-message(STATUS "  ✓ Modular tire models (Dugoff, future: Pacejka)")
-message(STATUS "  ✓ Natural traction limiting via friction saturation")
-message(STATUS "  ✗ Kinematic mode removed (dynamic only)")
-message(STATUS "")
-message(STATUS "Source files: ${PLANT_SOURCES}")
-message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+message(STATUS "Plant Library configured — subsystems: Steer(50) Drive(100) Vehicle(110)")

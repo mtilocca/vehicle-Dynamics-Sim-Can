@@ -4,7 +4,6 @@
 #include <string>
 #include <optional>
 
-#include "sim/lua_runtime.hpp"
 #include "plant/plant_main/plant_state.hpp"
 #include "plant/plant_model.hpp"
 
@@ -12,141 +11,41 @@ namespace sim {
 
 struct SimAppConfig {
     // Core sim timing
-    double dt_s = 0.01;
-    double duration_s = 20.0;
-    double log_hz = 10.0;
+    double dt_s       = 0.01;
+    double duration_s = 0.0;   // 0 = run indefinitely
+    double log_hz     = 10.0;
 
-    // Real-time mode
-    bool real_time_mode = true;  // Enable real-time pacing (true = wall-clock time)
-
-    // Default open-loop (used when Lua scenario disabled or fails)
-    double motor_torque_nm = 1200.0;
-    double brake_pct = 0.0;
-    double steer_amp_deg = 10.0;
-    double steer_freq_hz = 0.2;
-
-    // Scenario via Lua
-    bool use_lua_scenario = false;
-    std::string lua_script_path;       // e.g. "config/lua/scenario.lua"
-    std::string scenario_json_path;    // e.g. "config/scenarios/brake_test.json"
+    // Real-time mode (1:1 wall-clock pacing)
+    bool real_time_mode = true;
 
     // Output files
-    std::string csv_log_path = "sim_out.csv";
-    std::string debug_log_path = "sim_debug.log"; 
-    
-    // Logging control
+    std::string csv_log_path   = "sim_out.csv";
+    std::string debug_log_path = "sim_debug.log";
     bool enable_debug_log_file = true;
 
     // CAN configuration
-    bool enable_can_tx = true;                      // Enable CAN transmission
-    std::string can_interface = "vcan0";            // CAN interface name
-    std::string can_map_path = "config/can_map.csv"; // Path to CAN map
-    
-    // ========== CAN RX for closed-loop control ==========
-    
-    /**
-     * Enable CAN RX for closed-loop control
-     * 
-     * When true:
-     * - Simulator listens for ACTUATOR_CMD_1 frames on CAN
-     * - Lua scenario is automatically disabled
-     * - Actuator commands come from external controller (e.g., Go)
-     * 
-     * When false (default):
-     * - Use Lua/JSON scenarios (open-loop)
-     */
+    bool enable_can_tx = true;
+    std::string can_interface = "vcan0";
+    std::string can_map_path  = "config/can_map.csv";
+
+    // CAN RX — closed-loop control from external controller
     bool enable_can_rx = false;
-    
-    /**
-     * CAN frame name to listen for actuator commands
-     * Must exist in can_map.csv as RX frame
-     * Default: "ACTUATOR_CMD_1" (frame ID 0x100)
-     */
     std::string actuator_cmd_frame_name = "ACTUATOR_CMD_1";
-    
-    /**
-     * CAN RX timeout (seconds)
-     * 
-     * If no CAN messages received for this duration, simulator enters safe mode:
-     * - Zero torque
-     * - Zero brake
-     * - Zero steering
-     * - System disabled
-     * 
-     * Typical values: 0.1 - 1.0 seconds
-     * Default: 0.5 seconds (10 missed frames at 20 Hz)
-     */
     double can_rx_timeout_s = 0.5;
-    
-    // Vehicle configuration (optional - if not set, uses hardcoded defaults)
+
+    // Vehicle configuration (optional — uses hardcoded defaults if not set)
     std::optional<plant::PlantModelParams> vehicle_params;
-    
-    // ========== Surface Friction Configuration ==========
-    
-    /**
-     * Surface friction coefficient (mu)
-     * 
-     * Common values (Pilbara mining conditions):
-     *   - Dry pavement: 0.85
-     *   - Gravel compact: 0.72 (default)
-     *   - Gravel loose: 0.55
-     *   - Iron ore dust (dry): 0.45
-     *   - Iron ore dust (wet): 0.30
-     *   - Mud: 0.25
-     * 
-     * Note: Dynamic tire model (Dugoff) is always enabled.
-     * Kinematic mode has been removed.
-     */
+
+    // Surface friction coefficient (written to DriveParams.mu_surface)
     double surface_friction = 0.72;
-    
-    // ========== InfluxDB Configuration ==========
-    
-    /**
-     * Enable InfluxDB time-series logging
-     * 
-     * When true:
-     * - Logs all simulation data to InfluxDB at specified interval
-     * - Only works in real-time mode (ignored if real_time_mode = false)
-     * - Uses same field names as CSV logging
-     * 
-     * Organization: Autonomy
-     * Bucket: vehicle-sim
-     * Default write interval: 250ms (4Hz)
-     */
-    bool enable_influx = false;
-    
-    /**
-     * InfluxDB server URL
-     * Default: http://localhost:8086 (local instance)
-     */
-    std::string influx_url = "http://localhost:8086";
-    
-    /**
-     * InfluxDB authentication token
-     * Leave empty for safety reasons
-     */
-    std::string influx_token = "";
-    
-    /**
-     * InfluxDB organization name
-     * Default: Autonomy (matches VER Team - Autonomy)
-     */
-    std::string influx_org = "Autonomy";
-    
-    /**
-     * InfluxDB bucket name
-     * Default: vehicle-sim
-     */
+
+    // InfluxDB time-series logging (optional, requires real-time mode)
+    bool enable_influx       = false;
+    std::string influx_url    = "http://localhost:8086";
+    std::string influx_token  = "";
+    std::string influx_org    = "Autonomy";
     std::string influx_bucket = "vehicle-sim";
-    
-    /**
-     * InfluxDB write interval in seconds
-     * Default: 0.25 seconds (250ms = 4Hz)
-     * 
-     * Balances data granularity with network overhead.
-     * Higher frequency = more data, more network traffic.
-     */
-    double influx_interval_s = 0.25;
+    double influx_interval_s  = 0.25;
 };
 
 class SimApp {
@@ -157,9 +56,6 @@ public:
 
 private:
     SimAppConfig cfg_;
-
-    LuaRuntime lua_;
-    bool lua_ready_ = false;
 };
 
 } // namespace sim

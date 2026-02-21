@@ -1,53 +1,40 @@
-// src/plant/plant_model.hpp - UPDATED
+// src/plant/plant_model.hpp
 #pragma once
 
 #include "plant/plant_main/plant_state.hpp"
 #include "plant/subsystem_manager/subsystem_manager.hpp"
 #include "plant/steer_subsystem/steer_plant.hpp"
 #include "plant/drive_subsystem/drive_plant.hpp"
-#include "plant/battery_subsystem/battery_plant.hpp"
 
 namespace sim { struct ActuatorCmd; }
 
 namespace plant {
 
-// NEW: Geometry parameters for load transfer and 3-DOF dynamics
+// CG geometry — used by VehicleSubsystem (3-DOF) and DriveSubsystem (weight distribution)
 struct VehicleGeometry {
-    double cg_height_m = 0.5;      // CoG height above ground [m]
-    double cg_to_front_m = 1.4;    // Distance from CoG to front axle [m]
-    double cg_to_rear_m = 1.4;     // Distance from CoG to rear axle [m] (should match L - cg_to_front)
-    double yaw_inertia_kgm2 = 5000.0; // Yaw moment of inertia Iz [kg·m²]
-};
-
-// NEW: Dynamic model configuration
-struct DynamicModelConfig {
-    bool enabled = false;          // Enable Dugoff tire model (vs kinematic)
-    double surface_mu = 0.72;      // Surface friction coefficient
+    double cg_height_m      = 3.20;
+    double cg_to_front_m    = 2.52;   // lf
+    double cg_to_rear_m     = 3.78;   // lr (= wheelbase - lf)
+    double yaw_inertia_kgm2 = 8500000.0;
 };
 
 struct PlantModelParams {
     SteerParams steer{};
     DriveParams drive{};
-    BatteryPlantParams battery_params{};
-    MotorParams motor_params{};
 
-    double wheelbase_m = 2.8;
-    double track_width_m = 1.6;
-    
-    // NEW: Geometry and dynamics
+    double wheelbase_m   = 6.30;
+    double track_width_m = 7.20;
+
     VehicleGeometry geometry{};
-    DynamicModelConfig dynamic_config{};
 };
 
 /**
- * PlantModel - Main vehicle physics orchestrator
- * 
+ * PlantModel - Vehicle physics orchestrator
+ *
  * Subsystem execution order (priority-based):
- *   50:  SteerSubsystem     → δFL, δFR (Ackermann)
- *   100: DriveSubsystem     → τdrive_*, τbrake_*
- *   105: WheelSubsystem     → ω, Fx, Fy, Fz, σ, λ (Dugoff)
- *   110: VehicleSubsystem   → v, ψ, x, y
- *   150: BatterySubsystem   → SOC, V, I
+ *   50:  SteerSubsystem   → δFL, δFR (Ackermann geometry)
+ *  100:  DriveSubsystem   → Fx/Fy/Fz per wheel, wheel speeds (simple model)
+ *  110:  VehicleSubsystem → v, ψ, x, y (3-DOF rigid body)
  */
 class PlantModel {
 public:
@@ -58,9 +45,7 @@ public:
 
     void step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s);
 
-    // Access to subsystem manager (for advanced control)
     SubsystemManager& subsystem_manager() { return subsystem_mgr_; }
-    const SubsystemManager& subsystem_manager() const { return subsystem_mgr_; }
 
 private:
     PlantModelParams p_;

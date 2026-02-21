@@ -83,14 +83,7 @@ plant::PlantState create_test_state() {
     s.delta_fl_rad = 0.19;
     s.delta_fr_rad = 0.16;
     
-    s.batt_soc_pct = 75.5;
-    s.batt_v = 385.0;
-    s.batt_i = 150.0;
-    s.batt_temp_c = 28.5;
-    
     s.motor_torque_nm = 1200.0;
-    s.motor_power_kW = 80.5;
-    s.regen_power_kW = 0.0;
     s.brake_force_kN = 0.0;
     
     s.wheel_fl_rps = 25.2;
@@ -110,12 +103,11 @@ void test_visitor_enumeration(TestResult& result) {
     
     int field_count = 0;
     bool found_speed = false;
-    bool found_soc = false;
     bool found_torque = false;
-    
+
     auto visitor = plant::make_visitor([&](const char* name, double value) {
         ++field_count;
-        
+
         std::string n(name);
         if (n == "vehicle_speed_mps") {
             found_speed = true;
@@ -123,14 +115,6 @@ void test_visitor_enumeration(TestResult& result) {
                 result.pass("vehicle_speed_mps = 25.0");
             } else {
                 result.fail("vehicle_speed_mps incorrect");
-            }
-        }
-        else if (n == "batt_soc_pct") {
-            found_soc = true;
-            if (is_close(value, 75.5)) {
-                result.pass("batt_soc_pct = 75.5");
-            } else {
-                result.fail("batt_soc_pct incorrect");
             }
         }
         else if (n == "motor_torque_nm") {
@@ -142,17 +126,16 @@ void test_visitor_enumeration(TestResult& result) {
             }
         }
     });
-    
+
     state.accept_fields(visitor);
-    
-    if (field_count >= 20) {
+
+    if (field_count >= 15) {
         result.pass("Visitor enumerated " + std::to_string(field_count) + " fields");
     } else {
         result.fail("Too few fields enumerated: " + std::to_string(field_count));
     }
-    
+
     if (!found_speed) result.fail("vehicle_speed_mps not found");
-    if (!found_soc) result.fail("batt_soc_pct not found");
     if (!found_torque) result.fail("motor_torque_nm not found");
 }
 
@@ -261,26 +244,6 @@ void test_derived_signals(TestResult& result, const can::CanMap& map) {
         }
     }
     
-    // Test battery power calculation (0x230)
-    const can::FrameDef* batt_frame = map.find_tx_frame(0x230);
-    if (batt_frame) {
-        can::SignalMap signals = sim::PlantStatePacker::pack(state, *batt_frame);
-        
-        auto it = signals.find("batt_power_kw");
-        if (it != signals.end()) {
-            // Expected: V * I / 1000 = 385 * 150 / 1000 = 57.75 kW
-            double expected_power = (state.batt_v * state.batt_i) / 1000.0;
-            
-            if (is_close(it->second, expected_power)) {
-                result.pass("batt_power_kw calculated correctly: " + 
-                           std::to_string(it->second) + " kW");
-            } else {
-                result.fail("batt_power_kw incorrect");
-            }
-        } else {
-            result.fail("batt_power_kw not found in BATT_STATE");
-        }
-    }
 }
 
 int main(int argc, char** argv) {
