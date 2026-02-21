@@ -136,7 +136,7 @@ VehicleConfig VehicleConfig::get_default() {
     vehicle.params.drive.drag_c = 2.5;
     vehicle.params.drive.roll_c = 1500.0;
 
-    vehicle.params.drive.v_max_mps  = 17.78;
+    vehicle.params.drive.v_max_mps  = 16.667;  // 60 km/h
     vehicle.params.drive.v_stop_eps = 0.5;
 
     vehicle.params.drive.mu_surface   = 0.72;

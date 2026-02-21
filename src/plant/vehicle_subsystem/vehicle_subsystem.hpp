@@ -26,8 +26,10 @@ struct VehicleParams {
     double roll_c = 1500.0;             // Rolling resistance [N]
 
     // Speed Limits
-    double v_stop_eps = 0.3;            // Standstill threshold [m/s]
-    double v_max_mps = 60.0;            // Maximum velocity [m/s]
+    double v_stop_eps    = 0.3;         // Standstill threshold [m/s]
+    double v_max_mps     = 16.667;      // Maximum forward velocity [m/s] (60 km/h)
+    double v_max_rev_mps = 5.556;       // Maximum reverse velocity [m/s] (20 km/h)
+    double v_lat_max_mps = 8.0;         // Lateral velocity clamp (prevents divergence)
 
     // Reverse / intent handling
     bool allow_reverse = true;          // Allow vehicle to drive in reverse

@@ -42,7 +42,9 @@ PlantModel::PlantModel(PlantModelParams p)
         vp.yaw_inertia_kgm2 = p_.geometry.yaw_inertia_kgm2;
         vp.drag_c           = p_.drive.drag_c;
         vp.roll_c           = p_.drive.roll_c;
-        vp.v_max_mps        = p_.drive.v_max_mps;
+        vp.v_max_mps        = p_.drive.v_max_mps;      // forward limit (60 km/h)
+        vp.v_max_rev_mps    = 20.0 / 3.6;              // reverse limit (20 km/h)
+        vp.v_lat_max_mps    = 8.0;                     // vy clamp
         vp.v_stop_eps       = p_.drive.v_stop_eps;
 
         subsystem_mgr_.register_subsystem(std::make_unique<VehicleSubsystem>(vp));
@@ -78,7 +80,9 @@ void PlantModel::set_params(const PlantModelParams& p) {
         vp.yaw_inertia_kgm2 = p_.geometry.yaw_inertia_kgm2;
         vp.drag_c           = p_.drive.drag_c;
         vp.roll_c           = p_.drive.roll_c;
-        vp.v_max_mps        = p_.drive.v_max_mps;
+        vp.v_max_mps        = p_.drive.v_max_mps;      // forward limit (60 km/h)
+        vp.v_max_rev_mps    = 20.0 / 3.6;              // reverse limit (20 km/h)
+        vp.v_lat_max_mps    = 8.0;                     // vy clamp
         vp.v_stop_eps       = p_.drive.v_stop_eps;
         static_cast<VehicleSubsystem*>(vehicle)->set_params(vp);
     }

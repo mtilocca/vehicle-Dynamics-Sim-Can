@@ -16,6 +16,7 @@ Plots 6 panels (2×3):
 
 import sys
 import argparse
+from typing import Optional
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -28,7 +29,7 @@ def load_csv(path: str) -> pd.DataFrame:
     return df
 
 
-def plot(df: pd.DataFrame, save_path: str | None = None) -> None:
+def plot(df: pd.DataFrame, save_path: Optional[str] = None) -> None:
     t = df["t_s"]
 
     fig = plt.figure(figsize=(16, 10))
@@ -83,8 +84,7 @@ def plot(df: pd.DataFrame, save_path: str | None = None) -> None:
     ax3.grid(True, alpha=0.3)
 
     ax3r = ax3.twinx()
-    ax3r.plot(t, np.degrees(df["yaw_deg"]) if "yaw_rad" in df.columns else df["yaw_deg"],
-              "k-", linewidth=1.2, label="Yaw [°]")
+    ax3r.plot(t, df["yaw_deg"], "k-", linewidth=1.2, label="Yaw [°]")
     ax3r.set_ylabel("Yaw [°]", color="k")
     ax3r.tick_params(axis="y", labelcolor="k")
 

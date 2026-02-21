@@ -103,7 +103,7 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
     const double a_long = F_net / p_.mass_kg + s.vy_mps * s.yaw_rate_radps;
 
     double v_next = s.v_mps + a_long * dt;
-    v_next = clamp(v_next, -p_.v_max_mps, +p_.v_max_mps);
+    v_next = clamp(v_next, -p_.v_max_rev_mps, +p_.v_max_mps);
 
     // ========================================================================
     // ZERO-CROSSING + INTENT GATING
@@ -178,8 +178,9 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
     const double yaw_ddot = Mz_total / p_.yaw_inertia_kgm2;
 
     // Integrate lateral velocity (MUST include centripetal term for stability)
+    // Clamp vy to prevent divergence in the linear tire model at large slip angles.
     double vy_next = s.vy_mps + ay * dt;
-    s.vy_mps = vy_next;
+    s.vy_mps = clamp(vy_next, -p_.v_lat_max_mps, +p_.v_lat_max_mps);
     s.a_lat_mps2 = ay;  // Total lateral acceleration (with centripetal term)
 
     // Integrate yaw rate

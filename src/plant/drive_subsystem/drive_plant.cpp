@@ -101,14 +101,22 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s)
     // ========================================================================
     // STEP 6: Lateral forces (linear cornering: Fy opposes slip, hence negative)
     // Full axle stiffness split 50/50 per wheel.
+    // Friction-circle saturation: |Fy| ≤ √((μ·Fz)² − Fx²) prevents divergence.
     // ========================================================================
-    const double Fy_front_wheel = -(p_.Cy_front_Npm / 2.0) * alpha_f;
-    const double Fy_rear_wheel  = -(p_.Cy_rear_Npm  / 2.0) * alpha_r;
+    const double Fy_front_raw = -(p_.Cy_front_Npm / 2.0) * alpha_f;
+    const double Fy_rear_raw  = -(p_.Cy_rear_Npm  / 2.0) * alpha_r;
 
-    s.Fy_fl = Fy_front_wheel;
-    s.Fy_fr = Fy_front_wheel;
-    s.Fy_rl = Fy_rear_wheel;
-    s.Fy_rr = Fy_rear_wheel;
+    auto fy_cap = [&](double fy_raw, double Fz, double Fx) -> double {
+        const double mu_fz  = p_.mu_surface * Fz;
+        const double fx_sq  = Fx * Fx;
+        const double avail  = std::sqrt(std::max(0.0, mu_fz * mu_fz - fx_sq));
+        return clamp(fy_raw, -avail, avail);
+    };
+
+    s.Fy_fl = fy_cap(Fy_front_raw, s.Fz_fl, s.Fx_fl);
+    s.Fy_fr = fy_cap(Fy_front_raw, s.Fz_fr, s.Fx_fr);
+    s.Fy_rl = fy_cap(Fy_rear_raw,  s.Fz_rl, s.Fx_rl);
+    s.Fy_rr = fy_cap(Fy_rear_raw,  s.Fz_rr, s.Fx_rr);
 
     // ========================================================================
     // STEP 7: Wheel speeds (no-slip derivation)
@@ -130,7 +138,7 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s)
         LOG_DEBUG("[DrivePlant] vx=%.2f m/s, F_traction=%.0f N, F_brake=%.0f N, "
                   "alpha_f=%.3f rad, alpha_r=%.3f rad, Fy_f=%.0f N, Fy_r=%.0f N",
                   vx, F_traction, F_brake_total,
-                  alpha_f, alpha_r, Fy_front_wheel * 2.0, Fy_rear_wheel * 2.0);
+                  alpha_f, alpha_r, (s.Fy_fl + s.Fy_fr), (s.Fy_rl + s.Fy_rr));
     }
 }
 

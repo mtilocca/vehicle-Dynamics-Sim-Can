@@ -37,7 +37,7 @@ vehicle:
 
   # Operational limits
   limits:
-    v_max_mps: 17.78                   # 64 km/h (real XCMG spec)
+    v_max_mps: 16.667                  # 60 km/h forward (reverse capped at 20 km/h)
     v_stop_eps: 0.5                    # Standstill speed threshold [m/s]
 
   # Linear tyre model parameters
