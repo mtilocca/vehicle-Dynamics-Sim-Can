@@ -223,7 +223,15 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
     //   vy ≈ v * tan(beta), beta = atan((lr/L) * tan(delta))
     // -----------------------------------------------------------------------
     const double v_kin_eps = std::max(p_.v_kinematic_blend_mps, std::max(2.0 * p_.v_stop_eps, 1e-3));
-    const double dyn_weight = clamp(std::abs(s.v_mps) / v_kin_eps, 0.0, 1.0);
+    const double v_abs = std::abs(s.v_mps);
+
+    // Deadband: pure kinematic below 0.5 m/s and up to 4 km/h.
+    const double v_kin_pure_mps = 4.0 / 3.6;
+    double dyn_weight = 0.0;
+    if (v_abs > v_kin_pure_mps) {
+        const double denom = std::max(v_kin_eps - v_kin_pure_mps, 1e-3);
+        dyn_weight = clamp((v_abs - v_kin_pure_mps) / denom, 0.0, 1.0);
+    }
     const double delta = s.steer_virtual_rad;
     const double L = p_.wheelbase_m;
     if (std::abs(L) > 1e-6) {
