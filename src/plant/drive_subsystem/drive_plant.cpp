@@ -87,16 +87,25 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s)
     // STEP 5: Slip angles (linear bicycle model)
     // alpha = delta - atan2(vy_wheel, |vx|)  (positive alpha → force opposes it)
     // Guard against near-zero vx to avoid division issues.
+    //
+    // IMPORTANT — speed-dependent lateral force scaling:
+    // The linear tire model assumes rolling contact. At standstill (vx→0) the
+    // slip-angle formula diverges (huge α from ψ̇/vx), producing enormous Fy
+    // that drives yaw rate runaway. Fix: linearly blend α to zero as vx→0.
+    // This matches physical reality: lateral force from rolling tires → 0 at rest.
     // ========================================================================
     const double vx_safe = std::max(vx_abs, p_.v_stop_eps);
+
+    // Blend slip angles to zero at standstill: full effect at v_stop_eps, zero at v=0
+    const double alpha_scale = std::min(1.0, vx_abs / p_.v_stop_eps);
 
     const double delta_f = s.steer_virtual_rad;  // front axle average steer angle
 
     // Front slip angle: α_f = δ - (vy + lf·ψ̇)/vx
-    const double alpha_f = delta_f - (vy + lf * psi_dot) / vx_safe;
+    const double alpha_f = (delta_f - (vy + lf * psi_dot) / vx_safe) * alpha_scale;
 
     // Rear slip angle: α_r = -(vy - lr·ψ̇)/vx
-    const double alpha_r = -(vy - lr * psi_dot) / vx_safe;
+    const double alpha_r = -(vy - lr * psi_dot) / vx_safe * alpha_scale;
 
     // ========================================================================
     // STEP 6: Lateral forces (linear cornering: Fy opposes slip, hence negative)

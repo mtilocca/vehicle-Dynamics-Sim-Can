@@ -90,7 +90,7 @@ def plot(df: pd.DataFrame, save_path: Optional[str] = None) -> None:
 
     lines3  = ax3.get_lines() + ax3r.get_lines()
     labels3 = [l.get_label() for l in lines3]
-    ax3.legend(lines3, labels3, fontsize=8, loc="best")
+    ax3.legend(lines3, labels3, fontsize=8, loc="lower left")
 
     # ------------------------------------------------------------------
     # Panel 4 — Motor torque & brake force

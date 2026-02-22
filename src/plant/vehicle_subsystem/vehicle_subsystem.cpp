@@ -141,6 +141,23 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
         v_next = 0.0;
     }
 
+    // ========================================================================
+    // GEAR-POSITION HARD CLAMP
+    // Regardless of centrifugal coupling or any other force, the selected gear
+    // defines the allowed motion direction:
+    //   FORWARD gear  → vehicle must not go backward (v ≥ 0)
+    //   REVERSE gear  → vehicle must not go forward  (v ≤ 0)
+    //   NEUTRAL gear  → no drivetrain lock (vehicle free to roll either way)
+    // This prevents braking overshoot and centrifugal coupling from causing
+    // unintended direction reversal.
+    // ========================================================================
+    const sim::GearPosition gear = cmd.gear_position;
+    if (gear == sim::GearPosition::FORWARD && v_next < 0.0) {
+        v_next = 0.0;
+    } else if (gear == sim::GearPosition::REVERSE && v_next > 0.0) {
+        v_next = 0.0;
+    }
+
     // Update longitudinal state
     s.v_mps = v_next;
     s.a_long_mps2 = a_long;
@@ -185,6 +202,24 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
 
     // Integrate yaw rate
     s.yaw_rate_radps += yaw_ddot * dt;
+
+    // -----------------------------------------------------------------------
+    // Standstill damping for vy and yaw_rate
+    //
+    // At v ≈ 0 the rolling-contact tire model breaks down: lateral forces go
+    // to zero (via alpha_scale in drive_plant) but any vy / ψ̇ already built
+    // up has no integrator reset and no physical rolling friction to dissipate.
+    // Apply a decay proportional to how stopped the vehicle is so both states
+    // bleed off naturally when the truck comes to rest.
+    //
+    // Decay rate 2/s at v=0, zero at v ≥ v_stop_eps.
+    // Half-life at standstill ≈ 0.35 s → vy and ψ̇ reach <2% within ~2 s.
+    // -----------------------------------------------------------------------
+    const double damp_scale = 1.0 - std::min(1.0, std::abs(s.v_mps) / p_.v_stop_eps);
+    const double damp_coeff = 2.0;  // [1/s]
+    s.vy_mps         *= (1.0 - damp_coeff * damp_scale * dt);
+    s.yaw_rate_radps *= (1.0 - damp_coeff * damp_scale * dt);
+
     s.yaw_rad += s.yaw_rate_radps * dt;
 
     // Normalize yaw angle to [-π, +π]

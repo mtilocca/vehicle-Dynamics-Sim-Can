@@ -33,3 +33,27 @@ target_compile_features(sim_main PRIVATE cxx_std_17)
 
 install(TARGETS sim_main RUNTIME DESTINATION bin)
 
+# ============================================================================
+# Closed-loop controller executable
+# ============================================================================
+# Standalone bang-bang speed controller + steer scheduler.
+# Listens to plant state on vcan0, sends ACTUATOR_CMD_1.
+# Edit controller_schedule.hpp to change test scenario.
+# Usage: ./build/src/sim/closed_loop_control_script [iface] [can_map]
+
+add_executable(closed_loop_control_script
+    closed_loop_control_script.cpp
+)
+
+target_include_directories(closed_loop_control_script PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(closed_loop_control_script PRIVATE
+    can
+    utils
+)
+
+target_compile_features(closed_loop_control_script PRIVATE cxx_std_17)
+

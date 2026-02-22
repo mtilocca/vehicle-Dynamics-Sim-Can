@@ -20,7 +20,7 @@ vehicle:
 
   # Electric drivetrain
   drivetrain:
-    motor_torque_max_nm: 9500.0        # Input shaft torque (before gear ratio)
+    motor_torque_max_nm: 95000.0        # Input shaft torque (before gear ratio)
     motor_power_max_w: 2800000.0       # 2.8 MW peak
     gear_ratio: 25.0                   # Wheel-to-motor reduction
     efficiency: 0.92                   # Drivetrain efficiency
@@ -31,9 +31,12 @@ vehicle:
     brake_bias_front: 0.40             # Front axle share of total brake force
 
   # Resistive forces
+  # Crr ≈ 0.007 for truck tyres on gravel → F_roll = 0.007 × 218000 × 9.81 ≈ 14,961 N
+  # Drag: Cd ≈ 0.6, A ≈ 9 m², ρ = 1.225 kg/m³ → drag_c = Cd×A×ρ/2 ≈ 3.31 N/(m/s)²
+  # At 10 km/h: total F_resist ≈ 15,100 N → decel ≈ 0.069 m/s² → coasts to 0 in ~40 s
   resistance:
-    drag_coefficient: 2.5              # Aerodynamic drag [N/(m/s)²]
-    rolling_resistance: 1500.0         # Rolling resistance force [N]
+    drag_coefficient: 3.3              # Aerodynamic drag [N/(m/s)²]  (was 2.5 — too low)
+    rolling_resistance: 15000.0        # Rolling resistance force [N]  (was 1500 — Crr was 0.0007, now 0.007)
 
   # Operational limits
   limits:
