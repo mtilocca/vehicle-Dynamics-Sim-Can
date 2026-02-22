@@ -46,7 +46,7 @@ def plot(df: pd.DataFrame, save_path: Optional[str] = None) -> None:
     ax1.set_xlabel("x [m]")
     ax1.set_ylabel("y [m]")
     ax1.set_title("Trajectory")
-    ax1.legend(fontsize=8)
+    ax1.legend(fontsize=8, loc="best")
     ax1.set_aspect("equal", adjustable="datalim")
     ax1.grid(True, alpha=0.3)
 
@@ -68,7 +68,7 @@ def plot(df: pd.DataFrame, save_path: Optional[str] = None) -> None:
 
     lines2  = ax2.get_lines() + ax2r.get_lines()
     labels2 = [l.get_label() for l in lines2]
-    ax2.legend(lines2, labels2, fontsize=8, loc="upper left")
+    ax2.legend(lines2, labels2, fontsize=8, loc='best')
 
     # ------------------------------------------------------------------
     # Panel 3 — Steering angles & yaw
@@ -90,7 +90,7 @@ def plot(df: pd.DataFrame, save_path: Optional[str] = None) -> None:
 
     lines3  = ax3.get_lines() + ax3r.get_lines()
     labels3 = [l.get_label() for l in lines3]
-    ax3.legend(lines3, labels3, fontsize=8, loc="upper left")
+    ax3.legend(lines3, labels3, fontsize=8, loc="best")
 
     # ------------------------------------------------------------------
     # Panel 4 — Motor torque & brake force
@@ -111,7 +111,7 @@ def plot(df: pd.DataFrame, save_path: Optional[str] = None) -> None:
 
     lines4  = ax4.get_lines() + ax4r.get_lines()
     labels4 = [l.get_label() for l in lines4]
-    ax4.legend(lines4, labels4, fontsize=8, loc="upper left")
+    ax4.legend(lines4, labels4, fontsize=8, loc="best")
 
     # ------------------------------------------------------------------
     # Panel 5 — Wheel speeds
@@ -124,7 +124,7 @@ def plot(df: pd.DataFrame, save_path: Optional[str] = None) -> None:
     ax5.set_xlabel("time [s]")
     ax5.set_ylabel("Wheel speed [RPM]")
     ax5.set_title("Wheel Speeds")
-    ax5.legend(fontsize=8, loc="upper left")
+    ax5.legend(fontsize=8, loc="best")
     ax5.grid(True, alpha=0.3)
 
     # ------------------------------------------------------------------
@@ -145,7 +145,7 @@ def plot(df: pd.DataFrame, save_path: Optional[str] = None) -> None:
 
     lines6  = ax6.get_lines() + ax6r.get_lines()
     labels6 = [l.get_label() for l in lines6]
-    ax6.legend(lines6, labels6, fontsize=8, loc="upper left")
+    ax6.legend(lines6, labels6, fontsize=8, loc="best")
 
     if save_path:
         plt.savefig(save_path, dpi=150, bbox_inches="tight")
