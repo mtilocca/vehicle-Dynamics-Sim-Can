@@ -2,9 +2,9 @@
 # 320-tonne payload electric mining haul truck (Pilbara, Western Australia)
 
 vehicle:
-  name: "XCMG XDE320 Electric"
+  name: "HEavy Duty Generic Truck"
   description: "320-tonne electric dump truck — simplified 3-DOF plant model"
-  manufacturer: "XCMG"
+  manufacturer: "Any"
   year: 2025
 
   # Physical dimensions and mass
