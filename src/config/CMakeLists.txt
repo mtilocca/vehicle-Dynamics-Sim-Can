@@ -28,12 +28,10 @@ if (YAML_CPP_FOUND)
     target_include_directories(config PRIVATE ${YAML_CPP_INCLUDE_DIRS})
     target_link_libraries(config PRIVATE ${YAML_CPP_LIBRARIES})
     target_compile_options(config PRIVATE ${YAML_CPP_CFLAGS_OTHER})
-    message(STATUS "Found yaml-cpp via pkg-config: ${YAML_CPP_VERSION}")
 else()
     # Try CMake find_package
     find_package(yaml-cpp REQUIRED)
     target_link_libraries(config PRIVATE yaml-cpp)
-    message(STATUS "Found yaml-cpp via find_package")
 endif()
 
 # Link to utils for logging

@@ -16,8 +16,8 @@ cmake_minimum_required(VERSION 3.16)
 #   can_codec.hpp/cpp            - Signal bit-level encode/decode
 #   socketcan_iface.hpp/cpp      - Linux SocketCAN send/receive
 #   tx_scheduler.hpp/cpp         - Periodic CAN TX scheduling
-#   actuator_cmd_decoder.hpp/cpp - ACTUATOR_CMD_1 → ActuatorCmd
-#   sensor_state_packer.hpp      - PlantState → sensor CAN frames (header-only)
+#   actuator_cmd_decoder.hpp/cpp - ACTUATOR_CMD_1  ActuatorCmd
+#   sensor_state_packer.hpp      - PlantState  sensor CAN frames (header-only)
 # ============================================================================
 
 # ----------------------------------------------------------------------------
@@ -86,6 +86,4 @@ target_link_libraries(vcan_listener PRIVATE can)
 message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 message(STATUS "CAN Library - Communication Layer")
 message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-message(STATUS "Source files: ${CAN_LIB_SOURCES}")
 message(STATUS "Executables: vcan_random_sender, vcan_listener")
-message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")

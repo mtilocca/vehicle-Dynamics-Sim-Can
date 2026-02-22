@@ -18,10 +18,10 @@ target_include_directories(sim_main PRIVATE
 )
 
 # Dependency graph:
-#   sim_main → plant (vehicle dynamics subsystems)
-#            → can   (CAN TX/RX, signal codec)
-#            → config (YAML vehicle loading)
-#            → utils (logging, InfluxDB client via libcurl)
+#   sim_main  plant (vehicle dynamics subsystems)
+#             can   (CAN TX/RX, signal codec)
+#             config (YAML vehicle loading)
+#             utils (logging, InfluxDB client via libcurl)
 target_link_libraries(sim_main PRIVATE
     plant
     can
@@ -33,4 +33,3 @@ target_compile_features(sim_main PRIVATE cxx_std_17)
 
 install(TARGETS sim_main RUNTIME DESTINATION bin)
 
-message(STATUS "sim_main configured (CAN closed-loop, InfluxDB optional)")

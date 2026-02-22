@@ -9,22 +9,13 @@ cmake_minimum_required(VERSION 3.16)
 #   100 - DriveSubsystem    : Powertrain torque distribution
 #   105 - WheelSubsystem    : Wheel dynamics + tire forces (Dugoff)
 #   110 - VehicleSubsystem  : Longitudinal/yaw/position integration
-#   150 - BatterySubsystem  : Energy management
 #
 # Directory Structure:
 #   plant_main/         - Core interfaces (PlantState, PhysicsSubsystem)
-#   battery_subsystem/  - Battery physics and energy management
 #   drive_subsystem/    - Drivetrain and torque distribution
 #   steer_subsystem/    - Steering kinematics and Ackermann geometry
-#   wheel_subsystem/    - Wheel rotational dynamics and tire slip
-#   tyre_subsystem/     - Tire force models (Dugoff, future: Pacejka)
 #   vehicle_subsystem/  - Vehicle longitudinal, yaw, position integration
 #   subsystem_manager/  - Subsystem orchestration and lifecycle
-#
-# Future Subsystems:
-#   thermal_subsystem/  - Thermal management (battery, motor, brakes)
-#   aero_subsystem/     - Aerodynamic forces (drag, downforce)
-#   suspension_subsystem/ - Load transfer, ride dynamics
 # ============================================================================
 
 # ----------------------------------------------------------------------------
@@ -89,4 +80,4 @@ target_compile_features(plant PUBLIC cxx_std_17)
 # Configuration summary
 # ----------------------------------------------------------------------------
 
-message(STATUS "Plant Library configured — subsystems: Steer(50) Drive(100) Vehicle(110)")
+message(STATUS "Plant Library configured — subsystems Priority: Steer(50) Drive(100) Vehicle(110)")

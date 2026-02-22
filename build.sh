@@ -7,7 +7,6 @@ CMAKE_GENERATOR=""   # leave empty to use default
 BUILD_TYPE="Debug"   # Debug or Release
 # --------------------------------
 
-echo "==> Building plant-sensor-can-sim"
 echo "    Build type: ${BUILD_TYPE}"
 echo "    Build dir : ${BUILD_DIR}"
 echo
@@ -26,8 +25,7 @@ else
 fi
 
 # Build
-echo "==> Building"
 cmake --build "${BUILD_DIR}" -j "$(nproc)"
 
 echo
-echo "==> Build complete"
+echo "=== build successful ==="
