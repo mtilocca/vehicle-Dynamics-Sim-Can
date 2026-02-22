@@ -31,6 +31,8 @@ def load_csv(path: str) -> pd.DataFrame:
 
 def plot(df: pd.DataFrame, save_path: Optional[str] = None) -> None:
     t = df["t_s"]
+    coupling = df["vy_mps"] * df["yaw_rate_radps"]
+    a_long_force = df["a_long_mps2"] - coupling
 
     fig = plt.figure(figsize=(16, 10))
     fig.suptitle("Vehicle Dynamics Simulation — 3-DOF Plant", fontsize=14, fontweight="bold")
@@ -63,6 +65,8 @@ def plot(df: pd.DataFrame, save_path: Optional[str] = None) -> None:
 
     ax2r = ax2.twinx()
     ax2r.plot(t, df["a_long_mps2"], "r--", linewidth=1.2, label="a_long [m/s²]")
+    ax2r.plot(t, coupling, "m-.", linewidth=1.0, label="vy*yaw_rate [m/s²]")
+    ax2r.plot(t, a_long_force, "g:", linewidth=1.2, label="a_long - vy*yaw_rate [m/s²]")
     ax2r.set_ylabel("a_long [m/s²]", color="r")
     ax2r.tick_params(axis="y", labelcolor="r")
 

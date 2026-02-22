@@ -16,7 +16,7 @@ vehicle:
     cg_height_m: 3.20                  # Estimated centre-of-gravity height
     cg_to_front_axle_m: 2.52          # CoG → front axle (40 % of wheelbase)
     cg_to_rear_axle_m: 3.78           # CoG → rear axle  (60 % of wheelbase)
-    yaw_inertia_kgm2: 8500000.0        # Yaw moment of inertia (8.5e6 kg·m²)
+    yaw_inertia_kgm2: 6800000.0        # Yaw moment of inertia (6.8e6 kg·m²)
 
   # Electric drivetrain
   drivetrain:
@@ -42,12 +42,14 @@ vehicle:
   limits:
     v_max_mps: 16.667                  # 60 km/h forward (reverse capped at 20 km/h)
     v_stop_eps: 0.5                    # Standstill speed threshold [m/s]
+    v_kinematic_blend_mps: 3.0         # Low-speed kinematic blend threshold [m/s]
 
   # Linear tyre model parameters
   dynamics:
     mu_surface: 0.72                   # Surface friction coefficient (compact gravel)
     Cy_front_Npm: 2500000.0            # Front axle cornering stiffness [N/rad]
-    Cy_rear_Npm: 2000000.0             # Rear axle cornering stiffness [N/rad]
+    Cy_rear_Npm: 2600000.0             # Rear axle cornering stiffness [N/rad]
+    tire_relax_tau_s: 0.3              # Tire relaxation time constant [s]
 
 # Surface friction reference values:
 #   0.85  dry pavement

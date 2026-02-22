@@ -44,8 +44,9 @@ PlantModel::PlantModel(PlantModelParams p)
         vp.roll_c           = p_.drive.roll_c;
         vp.v_max_mps        = p_.drive.v_max_mps;      // forward limit (60 km/h)
         vp.v_max_rev_mps    = 20.0 / 3.6;              // reverse limit (20 km/h)
-        vp.v_lat_max_mps    = 2.0;                     // vy clamp (≈16° sideslip at 7 m/s)
+        vp.v_lat_max_mps    = 1.0;                     // vy clamp (≈8° sideslip at 7 m/s)
         vp.v_stop_eps       = p_.drive.v_stop_eps;
+        vp.v_kinematic_blend_mps = p_.drive.v_kinematic_blend_mps;
 
         subsystem_mgr_.register_subsystem(std::make_unique<VehicleSubsystem>(vp));
     }
@@ -82,8 +83,9 @@ void PlantModel::set_params(const PlantModelParams& p) {
         vp.roll_c           = p_.drive.roll_c;
         vp.v_max_mps        = p_.drive.v_max_mps;      // forward limit (60 km/h)
         vp.v_max_rev_mps    = 20.0 / 3.6;              // reverse limit (20 km/h)
-        vp.v_lat_max_mps    = 2.0;                     // vy clamp (≈16° sideslip at 7 m/s)
+        vp.v_lat_max_mps    = 1.0;                     // vy clamp (≈8° sideslip at 7 m/s)
         vp.v_stop_eps       = p_.drive.v_stop_eps;
+        vp.v_kinematic_blend_mps = p_.drive.v_kinematic_blend_mps;
         static_cast<VehicleSubsystem*>(vehicle)->set_params(vp);
     }
 }

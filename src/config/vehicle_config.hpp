@@ -14,8 +14,8 @@ namespace config {
  *   vehicle.drivetrain → motor_torque_max, motor_power_max, gear_ratio, efficiency
  *   vehicle.brakes     → brake_torque_max, brake_bias_front
  *   vehicle.resistance → drag_coefficient, rolling_resistance
- *   vehicle.limits     → v_max_mps, v_stop_eps
- *   vehicle.dynamics   → mu_surface, Cy_front_Npm, Cy_rear_Npm
+ *   vehicle.limits     → v_max_mps, v_stop_eps, v_kinematic_blend_mps
+ *   vehicle.dynamics   → mu_surface, Cy_front_Npm, Cy_rear_Npm, tire_relax_tau_s
  *
  * Usage:
  *   auto cfg = VehicleConfig::load("config/vehicles/heavy_truck.yaml");

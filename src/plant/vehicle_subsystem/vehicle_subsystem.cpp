@@ -100,7 +100,12 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
     // PDF Eq. 2/36: v̇x = Fx/m + vy*ψ̇ (centrifugal coupling in rotating body frame)
     // The term vy*yaw_rate arises from the non-inertial reference frame and couples
     // longitudinal and lateral dynamics. Essential for stability in combined maneuvers.
-    const double a_long = F_net / p_.mass_kg + s.vy_mps * s.yaw_rate_radps;
+    //
+    // At very low speed this coupling can dominate and look like "hard braking".
+    // Fade it in with speed so v≈0 does not create non-physical spikes.
+    const double v_coup_eps = std::max(4.0 * p_.v_stop_eps, 1e-3);
+    const double coupling_scale = clamp(std::abs(s.v_mps) / v_coup_eps, 0.0, 1.0);
+    const double a_long = F_net / p_.mass_kg + (s.vy_mps * s.yaw_rate_radps) * coupling_scale;
 
     double v_next = s.v_mps + a_long * dt;
     v_next = clamp(v_next, -p_.v_max_rev_mps, +p_.v_max_mps);
@@ -192,7 +197,13 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
     const double ay = ay_from_forces - s.yaw_rate_radps * s.v_mps;
 
     // Yaw acceleration
-    const double yaw_ddot = Mz_total / p_.yaw_inertia_kgm2;
+    double yaw_ddot = Mz_total / p_.yaw_inertia_kgm2;
+
+    // Low-speed yaw damping to reduce oscillations in the simplified model.
+    const double v_yaw_eps = std::max(2.0 * p_.v_stop_eps, 1e-3);
+    const double yaw_damp_scale = 1.0 - clamp(std::abs(s.v_mps) / v_yaw_eps, 0.0, 1.0);
+    const double yaw_damp_coeff = 2.5;  // [1/s], applied strongest near standstill
+    yaw_ddot -= yaw_damp_coeff * yaw_damp_scale * s.yaw_rate_radps;
 
     // Integrate lateral velocity (MUST include centripetal term for stability)
     // Clamp vy to prevent divergence in the linear tire model at large slip angles.
@@ -202,6 +213,29 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
 
     // Integrate yaw rate
     s.yaw_rate_radps += yaw_ddot * dt;
+
+    // -----------------------------------------------------------------------
+    // Low-speed kinematic blend
+    //
+    // At very low speeds, the dynamic model can exhibit unrealistic yaw
+    // oscillations. Blend toward a kinematic bicycle model:
+    //   yaw_rate = v/L * tan(delta)
+    //   vy ≈ v * tan(beta), beta = atan((lr/L) * tan(delta))
+    // -----------------------------------------------------------------------
+    const double v_kin_eps = std::max(p_.v_kinematic_blend_mps, std::max(2.0 * p_.v_stop_eps, 1e-3));
+    const double dyn_weight = clamp(std::abs(s.v_mps) / v_kin_eps, 0.0, 1.0);
+    const double delta = s.steer_virtual_rad;
+    const double L = p_.wheelbase_m;
+    if (std::abs(L) > 1e-6) {
+        const double lr = p_.wheelbase_m - p_.cg_to_front_m;
+        const double tan_delta = std::tan(delta);
+        const double beta = std::atan((lr / L) * tan_delta);
+        const double yaw_rate_kin = (s.v_mps / L) * tan_delta;
+        const double vy_kin = s.v_mps * std::tan(beta);
+
+        s.yaw_rate_radps = dyn_weight * s.yaw_rate_radps + (1.0 - dyn_weight) * yaw_rate_kin;
+        s.vy_mps        = dyn_weight * s.vy_mps        + (1.0 - dyn_weight) * vy_kin;
+    }
 
     // -----------------------------------------------------------------------
     // Standstill damping for vy and yaw_rate
@@ -216,7 +250,7 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
     // Half-life at standstill ≈ 0.35 s → vy and ψ̇ reach <2% within ~2 s.
     // -----------------------------------------------------------------------
     const double damp_scale = 1.0 - std::min(1.0, std::abs(s.v_mps) / p_.v_stop_eps);
-    const double damp_coeff = 2.0;  // [1/s]
+    const double damp_coeff = 5.0;  // [1/s]
     s.vy_mps         *= (1.0 - damp_coeff * damp_scale * dt);
     s.yaw_rate_radps *= (1.0 - damp_coeff * damp_scale * dt);
 

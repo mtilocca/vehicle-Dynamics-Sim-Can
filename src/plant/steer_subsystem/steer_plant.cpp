@@ -34,15 +34,25 @@ void SteerPlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s) {
     // ========================================================================
     // At high speed, reduce max steering to improve stability
     // and prevent rollover risk for mining trucks
-    
-    double ratio = 1.0;
+    //
+    // At very low speed, also reduce steering authority to avoid yaw-rate
+    // oscillations in the simplified linear tire model.
+
+    double ratio_highv = 1.0;
     if (s.v_mps > p_.v_steer_limit_start_mps) {
         const double v0 = p_.v_steer_limit_start_mps;
         const double v1 = std::max(p_.v_steer_limit_end_mps, v0 + 1e-6);
         const double alpha = clamp((s.v_mps - v0) / (v1 - v0), 0.0, 1.0);
-        ratio = (1.0 - alpha) + alpha * p_.steer_limit_ratio_highv;
+        ratio_highv = (1.0 - alpha) + alpha * p_.steer_limit_ratio_highv;
     }
 
+    // Low-speed steering clamp: ramp from 10% at standstill to 100% at 2 m/s.
+    const double v_low0 = 0.0;
+    const double v_low1 = 2.0;
+    const double alpha_low = clamp((s.v_mps - v_low0) / (v_low1 - v_low0), 0.0, 1.0);
+    const double ratio_lowv = 0.1 + 0.9 * alpha_low;
+
+    const double ratio = std::min(ratio_highv, ratio_lowv);
     const double delta_max_rad = base_delta_max_rad * ratio;
     const double delta_des_rad = clamp(delta_cmd_rad, -delta_max_rad, +delta_max_rad);
 

@@ -30,6 +30,7 @@ struct VehicleParams {
     double v_max_mps     = 16.667;      // Maximum forward velocity [m/s] (60 km/h)
     double v_max_rev_mps = 5.556;       // Maximum reverse velocity [m/s] (20 km/h)
     double v_lat_max_mps = 8.0;         // Lateral velocity clamp (prevents divergence)
+    double v_kinematic_blend_mps = 3.0; // Low-speed kinematic blend threshold [m/s]
 
     // Reverse / intent handling
     bool allow_reverse = true;          // Allow vehicle to drive in reverse

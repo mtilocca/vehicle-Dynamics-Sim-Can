@@ -101,7 +101,7 @@ static constexpr double TARGET_SPEED_REV_MPS = 3.0;   // ~11 km/h
 static constexpr double TORQUE_FRACTION_REV = 0.50;
 
 /// Steer angle during reverse U-turn [deg]  (+15° right steer for curve)
-static constexpr double REV_STEER_DEG = +15.0;
+static constexpr double REV_STEER_DEG = +22.0;
 
 /// Duration of the reverse steer event [s]
 static constexpr double REV_STEER_DUR_S = 15.0;

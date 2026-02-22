@@ -51,6 +51,7 @@ struct DriveParams {
     // Speed limits
     double v_stop_eps = 0.3;
     double v_max_mps  = 60.0;
+    double v_kinematic_blend_mps = 3.0;  // Low-speed kinematic blend threshold [m/s]
 
     // Simple friction limit for traction
     double mu_surface = 0.72;
@@ -58,6 +59,9 @@ struct DriveParams {
     // Linear cornering stiffness [N/rad] per axle (total, split 50/50 per wheel)
     double Cy_front_Npm = 2500000.0;  // front axle total
     double Cy_rear_Npm  = 2000000.0;  // rear axle total
+
+    // Tire relaxation (first-order lag on lateral forces)
+    double tire_relax_tau_s = 0.3;   // [s]
 
     // CG geometry (needed for weight distribution and slip angles)
     double cg_to_front_m = 2.52;   // lf: CG → front axle [m]

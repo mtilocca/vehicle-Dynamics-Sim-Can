@@ -111,9 +111,17 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s)
     // STEP 6: Lateral forces (linear cornering: Fy opposes slip, hence negative)
     // Full axle stiffness split 50/50 per wheel.
     // Friction-circle saturation: |Fy| ≤ √((μ·Fz)² − Fx²) prevents divergence.
+    //
+    // Additional low-speed stiffness fade:
+    // At very low speed the linear tire model can create unrealistic lateral
+    // response. Scale effective cornering stiffness with speed to reduce
+    // vy/yaw buildup near standstill.
     // ========================================================================
-    const double Fy_front_raw = -(p_.Cy_front_Npm / 2.0) * alpha_f;
-    const double Fy_rear_raw  = -(p_.Cy_rear_Npm  / 2.0) * alpha_r;
+    const double v_lat_eps = std::max(4.0 * p_.v_stop_eps, 1e-3);
+    const double lat_scale = clamp(vx_abs / v_lat_eps, 0.0, 1.0);
+
+    const double Fy_front_raw = -(p_.Cy_front_Npm / 2.0) * alpha_f * lat_scale;
+    const double Fy_rear_raw  = -(p_.Cy_rear_Npm  / 2.0) * alpha_r * lat_scale;
 
     auto fy_cap = [&](double fy_raw, double Fz, double Fx) -> double {
         const double mu_fz  = p_.mu_surface * Fz;
@@ -122,10 +130,19 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s)
         return clamp(fy_raw, -avail, avail);
     };
 
-    s.Fy_fl = fy_cap(Fy_front_raw, s.Fz_fl, s.Fx_fl);
-    s.Fy_fr = fy_cap(Fy_front_raw, s.Fz_fr, s.Fx_fr);
-    s.Fy_rl = fy_cap(Fy_rear_raw,  s.Fz_rl, s.Fx_rl);
-    s.Fy_rr = fy_cap(Fy_rear_raw,  s.Fz_rr, s.Fx_rr);
+    const double Fy_fl_target = fy_cap(Fy_front_raw, s.Fz_fl, s.Fx_fl);
+    const double Fy_fr_target = fy_cap(Fy_front_raw, s.Fz_fr, s.Fx_fr);
+    const double Fy_rl_target = fy_cap(Fy_rear_raw,  s.Fz_rl, s.Fx_rl);
+    const double Fy_rr_target = fy_cap(Fy_rear_raw,  s.Fz_rr, s.Fx_rr);
+
+    // First-order lag on lateral forces to emulate tire relaxation length.
+    const double tau_fy = std::max(0.0, p_.tire_relax_tau_s);
+    const double alpha_fy = clamp(dt_s / (tau_fy + dt_s), 0.0, 1.0);
+
+    s.Fy_fl = s.Fy_fl + alpha_fy * (Fy_fl_target - s.Fy_fl);
+    s.Fy_fr = s.Fy_fr + alpha_fy * (Fy_fr_target - s.Fy_fr);
+    s.Fy_rl = s.Fy_rl + alpha_fy * (Fy_rl_target - s.Fy_rl);
+    s.Fy_rr = s.Fy_rr + alpha_fy * (Fy_rr_target - s.Fy_rr);
 
     // ========================================================================
     // STEP 7: Wheel speeds (no-slip derivation)

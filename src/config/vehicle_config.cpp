@@ -84,6 +84,7 @@ VehicleConfig VehicleConfig::load(const std::string& yaml_path) {
             auto lim = cfg["vehicle"]["limits"];
             vehicle.params.drive.v_max_mps  = lim["v_max_mps"].as<double>(17.78);
             vehicle.params.drive.v_stop_eps = lim["v_stop_eps"].as<double>(0.5);
+            vehicle.params.drive.v_kinematic_blend_mps = lim["v_kinematic_blend_mps"].as<double>(3.0);
         }
 
         // ------------------------------------------------------------------
@@ -94,6 +95,7 @@ VehicleConfig VehicleConfig::load(const std::string& yaml_path) {
             vehicle.params.drive.mu_surface   = dyn["mu_surface"].as<double>(0.72);
             vehicle.params.drive.Cy_front_Npm = dyn["Cy_front_Npm"].as<double>(2500000.0);
             vehicle.params.drive.Cy_rear_Npm  = dyn["Cy_rear_Npm"].as<double>(2000000.0);
+            vehicle.params.drive.tire_relax_tau_s = dyn["tire_relax_tau_s"].as<double>(0.3);
         }
 
         vehicle.validate();
@@ -138,10 +140,12 @@ VehicleConfig VehicleConfig::get_default() {
 
     vehicle.params.drive.v_max_mps  = 16.667;  // 60 km/h
     vehicle.params.drive.v_stop_eps = 0.5;
+    vehicle.params.drive.v_kinematic_blend_mps = 3.0;
 
     vehicle.params.drive.mu_surface   = 0.72;
     vehicle.params.drive.Cy_front_Npm = 2500000.0;
     vehicle.params.drive.Cy_rear_Npm  = 2000000.0;
+    vehicle.params.drive.tire_relax_tau_s = 0.3;
 
     return vehicle;
 }

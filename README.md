@@ -419,6 +419,14 @@ The framework supports multiple vehicle profiles via YAML configuration:
   config/scenarios/brake_test.json
 ```
 
+### Low-Speed Modeling Notes
+
+- The simulator blends to a **kinematic bicycle** model below `v_kinematic_blend_mps` to stabilize low-speed maneuvers.
+- Lateral tire forces include a **first-order relaxation lag** controlled by `tire_relax_tau_s`.
+- Both parameters are configurable per vehicle in YAML:
+  - `vehicle.limits.v_kinematic_blend_mps`
+  - `vehicle.dynamics.tire_relax_tau_s`
+
 ---
 
 ## CAN Bus Integration
