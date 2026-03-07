@@ -1,26 +1,24 @@
 // src/sim/closed_loop_control_script.cpp
 //
-// Closed-loop speed + steer controller for the vehicle dynamics simulator.
+// Closed-loop speed + steer controller — gentle slalom at 5 m/s (~90 s).
 //
 // Connects to vcan0, listens to plant-state CAN frames, and sends
 // ACTUATOR_CMD_1 commands following a phase state machine.
 //
 // Phase sequence:
-//   WAIT_CAN   → first CAN frame received
-//   ACCEL      → positive torque until v ≥ target*(1-TOL)            [speed-based exit]
-//   CRUISE     → hold speed, steer=0, for CRUISE_DUR_S               [time-based exit]
-//   STEER_L    → hold speed, steer=STEER_LEFT_DEG, for STEER_DUR_S  [time-based exit]
-//   SETTLE1    → hold speed, steer=0, for SETTLE_DUR_S               [time-based exit]
-//   STEER_R    → hold speed, steer=STEER_RIGHT_DEG, for STEER_DUR_S [time-based exit]
-//   SETTLE2    → hold speed, steer=0, for SETTLE_DUR_S               [time-based exit]
-//   BRAKE_STOP → gear=FORWARD, brake=100%, until |v| < 0.1 m/s       [speed-based exit]
-//   REV_ACCEL  → gear=REVERSE, negative torque, until v ≤ -spd_rev   [speed-based exit]
-//   REV_STEER  → hold reverse speed, steer=REV_STEER_DEG             [time-based exit]
-//   REV_SETTLE → hold reverse speed, steer=0                          [time-based exit]
-//   REV_BRAKE  → gear=REVERSE, brake=100%, until |v| < 0.1 m/s       [speed-based exit]
-//   FWD2_ACCEL → gear=FORWARD, torque until v ≥ TARGET_FWD2*(1-TOL)  [speed-based exit]
-//   FWD2_COAST → zero torque & brake, coast to 0 via drag+rolling    [speed or time exit]
-//   STOPPED    → send zeros and exit
+//   WAIT_CAN  → first CAN frame received
+//   ACCEL     → forward torque until v ≥ target*(1-TOL)          [speed-based exit, ~10 s]
+//   CRUISE    → hold speed, steer=0                               [CRUISE_DUR_S = 5 s]
+//   STEER_L   → hold speed, steer=STEER_LEFT_DEG  (gate 1)      [STEER_DUR_S = 10 s]
+//   SETTLE1   → hold speed, steer=0                               [SETTLE_DUR_S = 5 s]
+//   STEER_R   → hold speed, steer=STEER_RIGHT_DEG (gate 2)      [STEER_DUR_S = 10 s]
+//   SETTLE2   → hold speed, steer=0                               [SETTLE_DUR_S = 5 s]
+//   STEER_L2  → hold speed, steer=STEER_LEFT_DEG  (gate 3)      [STEER_DUR_S = 10 s]
+//   SETTLE3   → hold speed, steer=0                               [SETTLE_DUR_S = 5 s]
+//   STEER_R2  → hold speed, steer=STEER_RIGHT_DEG (gate 4)      [STEER_DUR_S = 10 s]
+//   SETTLE4   → hold speed, steer=0                               [SETTLE_DUR_S = 5 s]
+//   BRAKE_STOP→ brake=BRAKE_PCT_DECEL until |v| < 0.1 m/s        [speed-based exit, ~15 s]
+//   STOPPED   → send zeros and exit
 //
 // Usage:
 //   ./build/src/sim/closed_loop_control_script [vcan_iface] [can_map_path]
@@ -55,21 +53,19 @@ static double elapsed_s(const Clock::time_point& t0)
 // Phase state machine
 // ---------------------------------------------------------------------------
 enum class Phase {
-    WAIT_CAN,    // No CAN data received yet
-    ACCEL,       // Accelerate forward to target speed
-    CRUISE,      // Hold speed straight (settle before first steer)
-    STEER_L,     // Hold speed, steer left
-    SETTLE1,     // Hold speed, steer=0 (settle after left steer)
-    STEER_R,     // Hold speed, steer right
-    SETTLE2,     // Hold speed, steer=0 (settle after right steer)
-    BRAKE_STOP,  // Brake to full stop from forward (gear=FORWARD)
-    REV_ACCEL,   // Accelerate backward (gear=REVERSE, negative torque)
-    REV_STEER,   // Hold reverse speed + steer (U-turn)
-    REV_SETTLE,  // Hold reverse speed, steer=0 (settle before brake)
-    REV_BRAKE,   // Brake to full stop from reverse (gear=REVERSE)
-    FWD2_ACCEL,  // Accelerate forward to 10 km/h target
-    FWD2_COAST,  // Release everything — coast to 0 via drag + rolling resistance
-    STOPPED      // Done — send zeros and exit
+    WAIT_CAN,   // No CAN data received yet
+    ACCEL,      // Accelerate to target speed
+    CRUISE,     // Straight at target speed (settle before slalom)
+    STEER_L,    // Gate 1: steer left
+    SETTLE1,    // Straight at target speed
+    STEER_R,    // Gate 2: steer right
+    SETTLE2,    // Straight at target speed
+    STEER_L2,   // Gate 3: steer left
+    SETTLE3,    // Straight at target speed
+    STEER_R2,   // Gate 4: steer right
+    SETTLE4,    // Straight at target speed
+    BRAKE_STOP, // Brake to full stop
+    STOPPED     // Done — send zeros and exit
 };
 
 static const char* phase_name(Phase p)
@@ -82,13 +78,11 @@ static const char* phase_name(Phase p)
         case Phase::SETTLE1:    return "SETTLE1";
         case Phase::STEER_R:    return "STEER_R";
         case Phase::SETTLE2:    return "SETTLE2";
+        case Phase::STEER_L2:   return "STEER_L2";
+        case Phase::SETTLE3:    return "SETTLE3";
+        case Phase::STEER_R2:   return "STEER_R2";
+        case Phase::SETTLE4:    return "SETTLE4";
         case Phase::BRAKE_STOP: return "BRAKE_STOP";
-        case Phase::REV_ACCEL:  return "REV_ACCEL";
-        case Phase::REV_STEER:  return "REV_STEER";
-        case Phase::REV_SETTLE: return "REV_SETTLE";
-        case Phase::REV_BRAKE:  return "REV_BRAKE";
-        case Phase::FWD2_ACCEL: return "FWD2_ACCEL";
-        case Phase::FWD2_COAST: return "FWD2_COAST";
         case Phase::STOPPED:    return "STOPPED";
     }
     return "?";
@@ -159,35 +153,23 @@ int main(int argc, char** argv)
     // -----------------------------------------------------------------------
     static constexpr double MOTOR_TQ_MAX_NM = 9500.0;
 
-    // Forward primary
-    const double tq_fwd    = MOTOR_TQ_MAX_NM * controller::TORQUE_FRACTION;
-    const double spd_high  = controller::TARGET_SPEED_MPS * (1.0 + controller::TOLERANCE);
-    const double spd_low   = controller::TARGET_SPEED_MPS * (1.0 - controller::TOLERANCE);
-
-    // Reverse (negative torque command → backward traction)
-    const double tq_rev       = -MOTOR_TQ_MAX_NM * controller::TORQUE_FRACTION_REV;
-    const double spd_rev_low  = controller::TARGET_SPEED_REV_MPS * (1.0 - controller::TOLERANCE);
-    const double spd_rev_high = controller::TARGET_SPEED_REV_MPS * (1.0 + controller::TOLERANCE);
-
-    // Second forward run
-    const double tq_fwd2   = MOTOR_TQ_MAX_NM * controller::TORQUE_FRACTION_FWD2;
-    const double spd2_low  = controller::TARGET_SPEED_FWD2_MPS * (1.0 - controller::TOLERANCE);
-    const double spd2_high = controller::TARGET_SPEED_FWD2_MPS * (1.0 + controller::TOLERANCE);
+    const double tq_fwd   = MOTOR_TQ_MAX_NM * controller::TORQUE_FRACTION;
+    const double spd_low  = controller::TARGET_SPEED_MPS * (1.0 - controller::TOLERANCE);
+    const double spd_high = controller::TARGET_SPEED_MPS * (1.0 + controller::TOLERANCE);
 
     LOG_INFO("=================================================");
-    LOG_INFO(" Closed-loop controller started");
-    LOG_INFO("  Interface   : %s", ifname);
-    LOG_INFO("  CAN map     : %s", map_path);
-    LOG_INFO("  FWD target  : %.1f m/s (%.0f km/h), deadband %.1f–%.1f m/s",
-             controller::TARGET_SPEED_MPS, controller::TARGET_SPEED_MPS * 3.6, spd_low, spd_high);
-    LOG_INFO("  REV target  : %.1f m/s (%.0f km/h)",
-             controller::TARGET_SPEED_REV_MPS, controller::TARGET_SPEED_REV_MPS * 3.6);
-    LOG_INFO("  FWD2 target : %.2f m/s (10 km/h)", controller::TARGET_SPEED_FWD2_MPS);
-    LOG_INFO("  Torque      : fwd=%.0f Nm  rev=%.0f Nm  fwd2=%.0f Nm",
-             tq_fwd, tq_rev, tq_fwd2);
-    LOG_INFO("  Brake %%     : %.0f%%", controller::BRAKE_PCT_DECEL);
-    LOG_INFO("  Steer       : L=%.1f°  R=%.1f°  Rev=%.1f°",
-             controller::STEER_LEFT_DEG, controller::STEER_RIGHT_DEG, controller::REV_STEER_DEG);
+    LOG_INFO(" Slalom controller started  (~90 s)");
+    LOG_INFO("  Interface : %s", ifname);
+    LOG_INFO("  CAN map   : %s", map_path);
+    LOG_INFO("  Target    : %.1f m/s (%.0f km/h), deadband %.2f–%.2f m/s",
+             controller::TARGET_SPEED_MPS, controller::TARGET_SPEED_MPS * 3.6,
+             spd_low, spd_high);
+    LOG_INFO("  Torque    : %.0f Nm  (%.0f%% of %.0f Nm max)",
+             tq_fwd, controller::TORQUE_FRACTION * 100.0, MOTOR_TQ_MAX_NM);
+    LOG_INFO("  Brake%%   : %.0f%%", controller::BRAKE_PCT_DECEL);
+    LOG_INFO("  Steer     : L=%.1f°  R=%.1f°", controller::STEER_LEFT_DEG, controller::STEER_RIGHT_DEG);
+    LOG_INFO("  Sequence  : CRUISE(%gs) + 4×gate(%gs steer + %gs settle) + BRAKE",
+             controller::CRUISE_DUR_S, controller::STEER_DUR_S, controller::SETTLE_DUR_S);
     LOG_INFO("=================================================");
 
     // -----------------------------------------------------------------------
@@ -255,10 +237,10 @@ int main(int argc, char** argv)
         next_tx += std::chrono::duration_cast<Clock::duration>(
             std::chrono::duration<double>(dt_cmd_s));
 
-        const double t_wall      = elapsed_s(t_start);
+        const double t_wall        = elapsed_s(t_start);
         const double phase_elapsed = t_wall - phase_start;
-        const bool   safe_mode   = (last_rx_t < 0.0) ||
-                                   ((t_wall - last_rx_t) > controller::CAN_TIMEOUT_S);
+        const bool   safe_mode     = (last_rx_t < 0.0) ||
+                                     ((t_wall - last_rx_t) > controller::CAN_TIMEOUT_S);
 
         // -------------------------------------------------------------------
         // Phase transitions
@@ -295,45 +277,31 @@ int main(int argc, char** argv)
 
         case Phase::SETTLE2:
             if (phase_elapsed >= controller::SETTLE_DUR_S)
+                { phase = Phase::STEER_L2; phase_start = t_wall; }
+            break;
+
+        case Phase::STEER_L2:
+            if (phase_elapsed >= controller::STEER_DUR_S)
+                { phase = Phase::SETTLE3; phase_start = t_wall; }
+            break;
+
+        case Phase::SETTLE3:
+            if (phase_elapsed >= controller::SETTLE_DUR_S)
+                { phase = Phase::STEER_R2; phase_start = t_wall; }
+            break;
+
+        case Phase::STEER_R2:
+            if (phase_elapsed >= controller::STEER_DUR_S)
+                { phase = Phase::SETTLE4; phase_start = t_wall; }
+            break;
+
+        case Phase::SETTLE4:
+            if (phase_elapsed >= controller::SETTLE_DUR_S)
                 { phase = Phase::BRAKE_STOP; phase_start = t_wall; }
             break;
 
         case Phase::BRAKE_STOP:
-            // Exit to reverse once fully stopped (or timeout 30 s)
             if (std::abs(v_mps) < 0.1 || phase_elapsed > 30.0)
-                { phase = Phase::REV_ACCEL; phase_start = t_wall; }
-            break;
-
-        case Phase::REV_ACCEL:
-            // v_mps becomes negative; exit when magnitude reaches spd_rev_low
-            if (v_mps <= -spd_rev_low || phase_elapsed > 30.0)
-                { phase = Phase::REV_STEER; phase_start = t_wall; }
-            break;
-
-        case Phase::REV_STEER:
-            if (phase_elapsed >= controller::REV_STEER_DUR_S)
-                { phase = Phase::REV_SETTLE; phase_start = t_wall; }
-            break;
-
-        case Phase::REV_SETTLE:
-            if (phase_elapsed >= controller::REV_SETTLE_DUR_S)
-                { phase = Phase::REV_BRAKE; phase_start = t_wall; }
-            break;
-
-        case Phase::REV_BRAKE:
-            // Exit to second forward run once fully stopped (or timeout 30 s)
-            if (std::abs(v_mps) < 0.1 || phase_elapsed > 30.0)
-                { phase = Phase::FWD2_ACCEL; phase_start = t_wall; }
-            break;
-
-        case Phase::FWD2_ACCEL:
-            if (v_mps >= spd2_low || phase_elapsed > 30.0)
-                { phase = Phase::FWD2_COAST; phase_start = t_wall; }
-            break;
-
-        case Phase::FWD2_COAST:
-            // Done when coasted to near-zero or max coast duration exceeded
-            if (v_mps < 0.1 || phase_elapsed >= controller::FWD2_COAST_MAX_S)
                 { phase = Phase::STOPPED; phase_start = t_wall; }
             break;
 
@@ -355,73 +323,35 @@ int main(int argc, char** argv)
         double drive_tq  = 0.0;
         double brake_pct = 0.0;
         double steer_deg = 0.0;
-        double gear      = 1.0;   // FORWARD by default
+        const double gear = 1.0;   // FORWARD throughout
 
         if (safe_mode || phase == Phase::WAIT_CAN || phase == Phase::STOPPED) {
             // All zeros — safe hold / done
-            gear = 0.0;
         }
         else if (phase == Phase::BRAKE_STOP) {
-            // Full brake, gear stays FORWARD — gear clamp stops vx at 0
             brake_pct = controller::BRAKE_PCT_DECEL;
-        }
-        else if (phase == Phase::REV_ACCEL) {
-            // Switch to REVERSE gear, apply negative torque
-            gear = 2.0;  // REVERSE
-            if (v_mps > -spd_rev_low) {
-                drive_tq = tq_rev;   // negative → backward traction
-            } else if (v_mps < -spd_rev_high) {
-                brake_pct = controller::BRAKE_PCT_DECEL;
-            }
-            // else coast
-        }
-        else if (phase == Phase::REV_STEER) {
-            // Hold reverse speed with bang-bang + steer
-            gear = 2.0;
-            if (v_mps > -spd_rev_low) {
-                drive_tq = tq_rev;
-            } else if (v_mps < -spd_rev_high) {
-                brake_pct = controller::BRAKE_PCT_DECEL;
-            }
-            steer_deg = controller::REV_STEER_DEG;
-        }
-        else if (phase == Phase::REV_SETTLE) {
-            // Hold reverse speed, return steer to 0
-            gear = 2.0;
-            if (v_mps > -spd_rev_low) {
-                drive_tq = tq_rev;
-            } else if (v_mps < -spd_rev_high) {
-                brake_pct = controller::BRAKE_PCT_DECEL;
-            }
-        }
-        else if (phase == Phase::REV_BRAKE) {
-            // Full brake in REVERSE — tests that gear clamp stops at 0 without going forward
-            gear = 2.0;
-            brake_pct = controller::BRAKE_PCT_DECEL;
-        }
-        else if (phase == Phase::FWD2_ACCEL) {
-            // Accelerate forward to 10 km/h
-            if (v_mps < spd2_low) {
-                drive_tq = tq_fwd2;
-            } else if (v_mps > spd2_high) {
-                brake_pct = controller::BRAKE_PCT_DECEL;
-            }
-        }
-        else if (phase == Phase::FWD2_COAST) {
-            // Release everything — drag + rolling resistance take over
-            // drive_tq=0, brake_pct=0
         }
         else {
-            // Forward bang-bang (ACCEL, CRUISE, STEER_*, SETTLE_*)
+            // Forward bang-bang speed control for all slalom phases
             if (v_mps < spd_low) {
                 drive_tq = tq_fwd;
             } else if (v_mps > spd_high) {
                 brake_pct = controller::BRAKE_PCT_DECEL;
             }
+
+            // Steer angle per phase
             switch (phase) {
-            case Phase::STEER_L: steer_deg = controller::STEER_LEFT_DEG;  break;
-            case Phase::STEER_R: steer_deg = controller::STEER_RIGHT_DEG; break;
-            default:             steer_deg = 0.0;                          break;
+            case Phase::STEER_L:
+            case Phase::STEER_L2:
+                steer_deg = controller::STEER_LEFT_DEG;
+                break;
+            case Phase::STEER_R:
+            case Phase::STEER_R2:
+                steer_deg = controller::STEER_RIGHT_DEG;
+                break;
+            default:
+                steer_deg = 0.0;
+                break;
             }
         }
 
@@ -445,19 +375,18 @@ int main(int argc, char** argv)
         // Periodic log (every 2 s)
         // -------------------------------------------------------------------
         if (++log_ctr % static_cast<int>(controller::CMD_HZ * 2.0) == 0) {
-            const char* spd_phase =
-                (drive_tq > 0.0)   ? "ACCEL" :
-                (drive_tq < 0.0)   ? "REV"   :
-                (brake_pct > 0.0)  ? "BRAKE" : "COAST";
+            const char* spd_state =
+                (drive_tq > 0.0)  ? "ACCEL" :
+                (brake_pct > 0.0) ? "BRAKE" : "COAST";
 
             LOG_INFO("[t=%5.1fs|%-10s] %s | v=%+6.2f m/s (%+5.1f km/h) | "
                      "steer=%+6.1f° | yaw=%+7.2f° | r=%+.3f rad/s | "
-                     "x=%6.0f y=%6.0f | tq=%+8.0f Nm | brk=%.0f%% | F=%5.1f kN%s",
-                     t_wall, phase_name(phase), spd_phase,
+                     "x=%6.0f y=%6.0f | tq=%+8.0f Nm | brk=%.0f%%%s",
+                     t_wall, phase_name(phase), spd_state,
                      v_mps, v_mps * 3.6,
                      steer_deg, yaw_deg, yaw_rate_radps,
                      pos_x, pos_y,
-                     motor_torque, brake_pct, brake_force_kn,
+                     motor_torque, brake_pct,
                      safe_mode ? " [SAFE]" : "");
         }
     }
