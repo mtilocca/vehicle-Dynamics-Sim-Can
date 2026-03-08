@@ -42,7 +42,7 @@ vehicle:
   limits:
     v_max_mps: 16.667                  # 60 km/h forward (reverse capped at 20 km/h)
     v_stop_eps: 0.5                    # Standstill speed threshold [m/s]
-    v_kinematic_blend_mps: 3.0         # Low-speed kinematic blend threshold [m/s]
+    v_kinematic_blend_mps: 2.0         # Kinematic/dynamic switch threshold [m/s] — pure kinematic below, pure dynamic above
 
   # Linear tyre model parameters
   dynamics:

@@ -215,35 +215,28 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
     s.yaw_rate_radps += yaw_ddot * dt;
 
     // -----------------------------------------------------------------------
-    // Low-speed kinematic blend
+    // Hybrid kinematic / dynamic — hard switch at 2 m/s
     //
-    // At very low speeds, the dynamic model can exhibit unrealistic yaw
-    // oscillations. Blend toward a kinematic bicycle model:
-    //   yaw_rate = v/L * tan(delta)
-    //   vy ≈ v * tan(beta), beta = atan((lr/L) * tan(delta))
+    // Below 2 m/s: kinematic bicycle model overwrites the integrated values.
+    //   yaw_rate_kin = (v / L) * tan(delta)
+    //   vy_kin       = v * tan(beta),  beta = atan((lr / L) * tan(delta))
+    //
+    // At or above 2 m/s: dynamic model results from the integration above
+    // are kept as-is. No blend zone — hard switch only.
     // -----------------------------------------------------------------------
-    const double v_kin_eps = std::max(p_.v_kinematic_blend_mps, std::max(2.0 * p_.v_stop_eps, 1e-3));
+    static constexpr double V_KIN_THRESHOLD_MPS = 2.0;
     const double v_abs = std::abs(s.v_mps);
-
-    // Deadband: pure kinematic below 0.5 m/s and up to 4 km/h.
-    const double v_kin_pure_mps = 4.0 / 3.6;
-    double dyn_weight = 0.0;
-    if (v_abs > v_kin_pure_mps) {
-        const double denom = std::max(v_kin_eps - v_kin_pure_mps, 1e-3);
-        dyn_weight = clamp((v_abs - v_kin_pure_mps) / denom, 0.0, 1.0);
-    }
     const double delta = s.steer_virtual_rad;
     const double L = p_.wheelbase_m;
-    if (std::abs(L) > 1e-6) {
-        const double lr = p_.wheelbase_m - p_.cg_to_front_m;
-        const double tan_delta = std::tan(delta);
-        const double beta = std::atan((lr / L) * tan_delta);
-        const double yaw_rate_kin = (s.v_mps / L) * tan_delta;
-        const double vy_kin = s.v_mps * std::tan(beta);
 
-        s.yaw_rate_radps = dyn_weight * s.yaw_rate_radps + (1.0 - dyn_weight) * yaw_rate_kin;
-        s.vy_mps        = dyn_weight * s.vy_mps        + (1.0 - dyn_weight) * vy_kin;
+    if (v_abs < V_KIN_THRESHOLD_MPS && std::abs(L) > 1e-6) {
+        const double lr      = p_.wheelbase_m - p_.cg_to_front_m;
+        const double tan_d   = std::tan(delta);
+        const double beta    = std::atan((lr / L) * tan_d);
+        s.yaw_rate_radps = (s.v_mps / L) * tan_d;
+        s.vy_mps         = s.v_mps * std::tan(beta);
     }
+    // v >= 2 m/s: dynamic model already computed above, no override needed
 
     // -----------------------------------------------------------------------
     // Standstill damping for vy and yaw_rate

@@ -44,7 +44,11 @@ PlantModel::PlantModel(PlantModelParams p)
         vp.roll_c           = p_.drive.roll_c;
         vp.v_max_mps        = p_.drive.v_max_mps;      // forward limit (60 km/h)
         vp.v_max_rev_mps    = 20.0 / 3.6;              // reverse limit (20 km/h)
-        vp.v_lat_max_mps    = 1.0;                     // vy clamp (≈8° sideslip at 7 m/s)
+        vp.v_lat_max_mps    = 3.0;                     // vy clamp — must be large enough to let
+                                                       // sideslip develop and stabilise the turn.
+                                                       // At 5 m/s: 3.0 m/s ≈ 30° max sideslip.
+                                                       // Too low (e.g. 1.0) blocks stabilising
+                                                       // feedback → yaw_rate diverges.
         vp.v_stop_eps       = p_.drive.v_stop_eps;
         vp.v_kinematic_blend_mps = p_.drive.v_kinematic_blend_mps;
 
@@ -83,7 +87,7 @@ void PlantModel::set_params(const PlantModelParams& p) {
         vp.roll_c           = p_.drive.roll_c;
         vp.v_max_mps        = p_.drive.v_max_mps;      // forward limit (60 km/h)
         vp.v_max_rev_mps    = 20.0 / 3.6;              // reverse limit (20 km/h)
-        vp.v_lat_max_mps    = 1.0;                     // vy clamp (≈8° sideslip at 7 m/s)
+        vp.v_lat_max_mps    = 3.0;
         vp.v_stop_eps       = p_.drive.v_stop_eps;
         vp.v_kinematic_blend_mps = p_.drive.v_kinematic_blend_mps;
         static_cast<VehicleSubsystem*>(vehicle)->set_params(vp);

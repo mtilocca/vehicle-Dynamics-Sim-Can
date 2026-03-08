@@ -101,11 +101,16 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s)
 
     const double delta_f = s.steer_virtual_rad;  // front axle average steer angle
 
-    // Front slip angle: α_f = δ - (vy + lf·ψ̇)/vx
-    const double alpha_f = (delta_f - (vy + lf * psi_dot) / vx_safe) * alpha_scale;
+    // Front slip angle (body-frame convention: negative delta_f = left turn):
+    // α_f = δ + (vy + lf·ψ̇)/vx
+    // The + sign is correct for the inverted-steer convention used here.
+    // With positive vy (sideslip left) and steer=0, alpha_f > 0 → Fy_f < 0
+    // (restoring force to the right). Using − would make Fy destabilising.
+    const double alpha_f = (delta_f + (vy + lf * psi_dot) / vx_safe) * alpha_scale;
 
-    // Rear slip angle: α_r = -(vy - lr·ψ̇)/vx
-    const double alpha_r = -(vy - lr * psi_dot) / vx_safe * alpha_scale;
+    // Rear slip angle: α_r = (vy - lr·ψ̇)/vx
+    // Positive vy → positive alpha_r → Fy_r < 0 (restoring) for large sideslip.
+    const double alpha_r = (vy - lr * psi_dot) / vx_safe * alpha_scale;
 
     // ========================================================================
     // STEP 6: Lateral forces (linear cornering: Fy opposes slip, hence negative)
