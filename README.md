@@ -430,19 +430,12 @@ Real-time telemetry when running with `--real-time --influx`:
 
 ### Slalom Trajectory
 
-![Slalom trajectory — Dugoff tire model](plots/Dugoff_trajetcory_slalom.png)
+![Slalom trajectory 3DOF — tire model](Results_fig1.png)
 
-### Tire Force Analysis
+### Analysis
 
-![Per-wheel tire forces, slip ratios, and friction utilisation](plots/Dugoff_tyre_forces.png)
+![Vehicle Dynamics Analysis pt2 ](Results_fig2.png)
 
-### Closed-Loop Control
-
-![Closed-loop CAN controller speed and heading tracking](plots/Closed_loop_vehicle_dynamics.png)
-
-### Heavy Truck Slalom
-
-![220-tonne heavy truck slalom manoeuvre](plots/Heavy_truck_mpc_slalom.png)
 
 ---
 
