@@ -105,22 +105,52 @@ jobs:
           if-no-files-found: error
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Job 2 — ARM64 cross-compile (non-blocking)
-# continue-on-error: multiarch apt setup on hosted runners is occasionally flaky
+# Job 2 — ARM64 cross-compile
 # ──────────────────────────────────────────────────────────────────────────────
   cross-compile-arm:
     name: cross-compile (arm64)
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
+
+      # ── Fix apt sources for multiarch ─────────────────────────────────────────
+      # GitHub's ubuntu-latest (Ubuntu 24.04 noble) configures security.ubuntu.com
+      # for amd64 only. After dpkg --add-architecture arm64, apt-get update tries
+      # to fetch arm64 indexes from the same mirror and gets 404s.
+      #
+      # Fix: restrict existing sources to [arch=amd64] and add ports.ubuntu.com
+      # as the arm64 source. This must happen BEFORE cross_arm_build.sh calls
+      # dpkg --add-architecture + apt-get update.
+      - name: Configure apt sources for ARM64 multiarch
+        run: |
+          CODENAME=$(lsb_release -cs)
+
+          # Ubuntu 24.04+ uses DEB822 format: add "Architectures: amd64" after
+          # each "Types: deb" line to pin those stanzas to amd64 only.
+          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+            sudo sed -i '/^Types: deb/a Architectures: amd64' \
+              /etc/apt/sources.list.d/ubuntu.sources
+          fi
+
+          # Legacy one-liner format: add [arch=amd64] qualifier if not already set.
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i \
+              's|^deb \(https\{0,1\}://\)|deb [arch=amd64] \1|g' \
+              /etc/apt/sources.list
+          fi
+
+          # Add ports.ubuntu.com as the arm64 package source.
+          {
+            echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${CODENAME} main restricted universe multiverse"
+            echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${CODENAME}-updates main restricted universe multiverse"
+            echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${CODENAME}-security main restricted universe multiverse"
+          } | sudo tee /etc/apt/sources.list.d/arm64-cross.list
 
       - name: Run ARM64 cross-compile script
         run: |
           chmod +x cross_arm_build.sh
           ./cross_arm_build.sh arm64
-          echo "ARM64 cross-compile exit code: $?"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Job 3 — Package and upload release artifact
