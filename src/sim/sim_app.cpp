@@ -1,4 +1,4 @@
-// src/sim/sim_app.cpp - WITH CAN RX CLOSED-LOOP SUPPORT AND INFLUXDB
+// src/sim/sim_app.cpp - HYBRID TORQUE-SLIP MODEL ONLY (KINEMATIC REMOVED)
 #include "can/actuator_cmd_decoder.hpp"
 #include "sim/sim_app.hpp"
 #include "sim/actuator_cmd.hpp"
@@ -12,7 +12,7 @@
 #include "can/can_codec.hpp"
 #include "plant/plant_model.hpp"
 #include "utils/logging.hpp"
-#include "utils/influx.hpp"  // NEW for InfluxDB logging
+#include "utils/influx.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -29,7 +29,7 @@ SimApp::SimApp(SimAppConfig cfg) : cfg_(cfg), lua_() {
     }
 }
 
-int SimApp::run_plant_only() {
+int SimApp::run_plant() {
     const double dt = cfg_.dt_s;
     
     // ========================================================================
@@ -52,7 +52,7 @@ int SimApp::run_plant_only() {
         pmp = cfg_.vehicle_params.value();
         LOG_INFO("[SimApp] Using vehicle params from YAML config");
     } else {
-        // Use hardcoded defaults
+        // Use hardcoded defaults if no YAML provided 
         pmp.wheelbase_m = 2.8;
         pmp.track_width_m = 1.6;
         pmp.steer.delta_max_deg = 35.0;
@@ -81,12 +81,24 @@ int SimApp::run_plant_only() {
         pmp.drive.v_stop_eps = 0.3;
         pmp.drive.v_max_mps = 60.0;
         
-        LOG_INFO("[SimApp] Using hardcoded default vehicle params");
+        LOG_INFO("[SimApp] No YAML provided - Using default vehicle params");
     }
+    
+    // ========================================================================
+    // Dynamic model configuration (ALWAYS ENABLED)
+    // ========================================================================
+    pmp.dynamic_config.enabled = true;  // Always use dynamic model
+    pmp.dynamic_config.surface_mu = cfg_.surface_friction;
+    
+    LOG_INFO("[SimApp] Dynamic tire model: ENABLED (Dugoff)");
+    LOG_INFO("[SimApp] Surface friction: mu=%.2f", cfg_.surface_friction);
 
     plant::PlantModel plant_model(pmp);
     plant::PlantState s{};
     s.batt_soc_pct = 50.0;
+    s.batt_v = pmp.battery_params.nominal_voltage_v; 
+    s.dynamic_model_enabled = true;  // Always true
+    s.surface_mu = cfg_.surface_friction;
 
     // ========================================================================
     // Complete sensor bank initialization
@@ -133,7 +145,7 @@ int SimApp::run_plant_only() {
     LOG_INFO("[Sensors] Initialized %zu sensors", sensor_bank.sensor_count());
 
     // ========================================================================
-    // InfluxDB setup (NEW)
+    // InfluxDB setup
     // ========================================================================
     std::unique_ptr<utils::InfluxClient> influx_client;
     
@@ -162,20 +174,35 @@ int SimApp::run_plant_only() {
         }
     }
 
-    // ---- CSV logging ----
+    // ========================================================================
+    // CSV logging setup
+    // ========================================================================
     std::ofstream csv(cfg_.csv_log_path);
     if (!csv) {
         LOG_ERROR("Failed to open CSV: %s", cfg_.csv_log_path.c_str());
         return 1;
     }
 
-    // CSV header
+    // CSV header - COMPREHENSIVE (always includes wheel dynamics)
     csv << "t_s,"
-        << "x_m,y_m,yaw_deg,v_mps,steer_deg,"
-        << "delta_fl_deg,delta_fr_deg,motor_nm,brake_pct,"
+        // Vehicle state (3-DOF: longitudinal, lateral, yaw)
+        << "x_m,y_m,yaw_deg,v_mps,vy_mps,yaw_rate_radps,"
+        << "a_long_mps2,a_lat_mps2,steer_deg,"
+        << "delta_fl_deg,delta_fr_deg,"
+        // Commands
+        << "motor_nm,brake_pct,"
+        // Battery (truth)
         << "batt_soc_truth,batt_v_truth,batt_i_truth,"
+        // Wheel speeds (truth) - legacy RPS
         << "wheel_fl_rps_truth,wheel_fr_rps_truth,wheel_rl_rps_truth,wheel_rr_rps_truth,"
+        // Wheel speeds (rad/s) - NEW from WheelSubsystem
+        << "omega_fl_radps,omega_fr_radps,omega_rl_radps,omega_rr_radps,"
+        // Drive/brake torques (NEW from DriveSubsystem)
+        << "tau_drive_rl_nm,tau_drive_rr_nm,"
+        << "tau_brake_fl_nm,tau_brake_fr_nm,tau_brake_rl_nm,tau_brake_rr_nm,"
+        // Power tracking
         << "motor_power_kW,regen_power_kW,brake_force_kN,"
+        // Sensors (measured)
         << "batt_soc_meas,batt_v_meas,batt_i_meas,batt_temp_meas,"
         << "wheel_fl_rps_meas,wheel_fr_rps_meas,wheel_rl_rps_meas,wheel_rr_rps_meas,"
         << "imu_gx_rps,imu_gy_rps,imu_gz_rps,"
@@ -185,8 +212,24 @@ int SimApp::run_plant_only() {
         << "gnss_vn_mps,gnss_ve_mps,"
         << "gnss_fix_type,gnss_sat_count,"
         << "radar_target_range_m,radar_target_rel_vel_mps,radar_target_angle_deg,radar_status,"
-        << "loop_time_us,wall_time_s,time_drift_ms\n";
+        // Tire forces (N) - NEW from WheelSubsystem
+        << "Fx_fl,Fx_fr,Fx_rl,Fx_rr,"
+        << "Fy_fl,Fy_fr,Fy_rl,Fy_rr,"
+        // Normal loads (N) - NEW from WheelSubsystem
+        << "Fz_fl,Fz_fr,Fz_rl,Fz_rr,"
+        // Slip ratios (dimensionless) - NEW from WheelSubsystem
+        << "sigma_x_fl,sigma_x_fr,sigma_x_rl,sigma_x_rr,"
+        << "sigma_y_fl,sigma_y_fr,sigma_y_rl,sigma_y_rr,"
+        // Slip angles (rad) - 3-DOF dynamics
+        << "alpha_fl,alpha_fr,alpha_rl,alpha_rr,"
+        // Friction utilization (dimensionless) - NEW from WheelSubsystem
+        << "lambda_fl,lambda_fr,lambda_rl,lambda_rr,"
+        // Surface friction
+        << "surface_mu,"
+        // Timing
+        << "loop_time_us,wall_time_s,time_drift_ms";
     
+    csv << "\n";
     csv << std::fixed << std::setprecision(6);
 
     // ---- Loop control ----
@@ -280,6 +323,9 @@ int SimApp::run_plant_only() {
         LOG_INFO("Mode: OPEN-LOOP (hardcoded defaults)");
     }
     
+    LOG_INFO("Tire Model: DYNAMIC (Dugoff)");
+    LOG_INFO("Surface friction: mu=%.2f", cfg_.surface_friction);
+    
     if (influx_client && influx_client->is_enabled()) {
         LOG_INFO("InfluxDB: Logging at %.0fms intervals to %s/%s", 
                  cfg_.influx_interval_s * 1000.0,
@@ -353,7 +399,7 @@ int SimApp::run_plant_only() {
         auto sensor_out = sensor_bank.get_output(t);
 
         // ====================================================================
-        // Write to InfluxDB (NEW)
+        // Write to InfluxDB
         // ====================================================================
         if (influx_client && influx_client->is_enabled()) {
             influx_client->write_data_point(s, sensor_out, cmd, t);
@@ -408,7 +454,7 @@ int SimApp::run_plant_only() {
         timer.update_loop_stats();
 
         // ====================================================================
-        // Log to CSV
+        // Log to CSV - COMPREHENSIVE WHEEL SUBSYSTEM DATA
         // ====================================================================
         if (t >= next_log) {
             double steer_deg = s.steer_virtual_rad * 180.0 / M_PI;
@@ -416,15 +462,30 @@ int SimApp::run_plant_only() {
             double delta_fr_deg = s.delta_fr_rad * 180.0 / M_PI;
             double yaw_deg = s.yaw_rad * 180.0 / M_PI;
             
+            // Base columns
             csv << s.t_s << ","
+                // Vehicle state (3-DOF)
                 << s.x_m << "," << s.y_m << "," << yaw_deg << ","
-                << s.v_mps << "," << steer_deg << ","
+                << s.v_mps << "," << s.vy_mps << "," << s.yaw_rate_radps << ","
+                << s.a_long_mps2 << "," << s.a_lat_mps2 << "," << steer_deg << ","
                 << delta_fl_deg << "," << delta_fr_deg << ","
+                // Commands
                 << cmd.drive_torque_cmd_nm << "," << cmd.brake_cmd_pct << ","
+                // Battery (truth)
                 << s.batt_soc_pct << "," << s.batt_v << "," << s.batt_i << ","
+                // Wheel speeds (truth) - legacy RPS
                 << s.wheel_fl_rps << "," << s.wheel_fr_rps << "," 
                 << s.wheel_rl_rps << "," << s.wheel_rr_rps << ","
+                // Wheel speeds (rad/s) - NEW
+                << s.omega_fl_radps << "," << s.omega_fr_radps << ","
+                << s.omega_rl_radps << "," << s.omega_rr_radps << ","
+                // Drive/brake torques - NEW
+                << s.tau_drive_rl_nm << "," << s.tau_drive_rr_nm << ","
+                << s.tau_brake_fl_nm << "," << s.tau_brake_fr_nm << ","
+                << s.tau_brake_rl_nm << "," << s.tau_brake_rr_nm << ","
+                // Power tracking
                 << s.motor_power_kW << "," << s.regen_power_kW << "," << s.brake_force_kN << ","
+                // Sensors (measured)
                 << sensor_out.batt_soc_meas << "," << sensor_out.batt_v_meas << "," 
                 << sensor_out.batt_i_meas << "," << sensor_out.batt_temp_meas << ","
                 << sensor_out.wheel_fl_rps_meas << "," << sensor_out.wheel_fr_rps_meas << ","
@@ -439,9 +500,26 @@ int SimApp::run_plant_only() {
                 << sensor_out.radar_target_rel_vel_mps << "," 
                 << sensor_out.radar_target_angle_deg << "," 
                 << static_cast<int>(sensor_out.radar_status) << ","
+                // Tire forces (N) - NEW
+                << s.Fx_fl << "," << s.Fx_fr << "," << s.Fx_rl << "," << s.Fx_rr << ","
+                << s.Fy_fl << "," << s.Fy_fr << "," << s.Fy_rl << "," << s.Fy_rr << ","
+                // Normal loads (N) - NEW
+                << s.Fz_fl << "," << s.Fz_fr << "," << s.Fz_rl << "," << s.Fz_rr << ","
+                // Slip ratios (dimensionless) - NEW
+                << s.sigma_x_fl << "," << s.sigma_x_fr << "," << s.sigma_x_rl << "," << s.sigma_x_rr << ","
+                << s.sigma_y_fl << "," << s.sigma_y_fr << "," << s.sigma_y_rl << "," << s.sigma_y_rr << ","
+                // Slip angles (rad) - 3-DOF
+                << s.alpha_fl << "," << s.alpha_fr << "," << s.alpha_rl << "," << s.alpha_rr << ","
+                // Friction utilization (dimensionless) - NEW
+                << s.lambda_fl << "," << s.lambda_fr << "," << s.lambda_rl << "," << s.lambda_rr << ","
+                // Surface friction
+                << s.surface_mu << ","
+                // Timing
                 << timer.get_last_loop_time_us() << ","
                 << timer.get_wall_time() << ","
-                << (timer.get_time_drift() * 1000.0) << "\n";
+                << (timer.get_time_drift() * 1000.0);
+            
+            csv << "\n";
 
             next_log += log_period_s;
         }
@@ -464,7 +542,7 @@ int SimApp::run_plant_only() {
     // Final statistics and cleanup
     // ========================================================================
     
-    // Flush InfluxDB (NEW)
+    // Flush InfluxDB
     if (influx_client) {
         influx_client->flush();
         LOG_INFO("[InfluxDB] Data flushed");
@@ -505,6 +583,7 @@ int SimApp::run_plant_only() {
     LOG_INFO("========================================");
 
     LOG_INFO("Simulation complete. CSV written to: %s", cfg_.csv_log_path.c_str());
+    LOG_INFO("Wheel subsystem logging: 38 new columns (omega, torques, forces, slip, friction)");
     
     csv.close();
     return 0;

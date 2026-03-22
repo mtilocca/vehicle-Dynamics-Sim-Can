@@ -6,6 +6,8 @@ namespace plant {
 
 struct BatteryPlantParams {
     double capacity_kWh = 60.0;
+    double nominal_voltage_v = 400.0;
+    double initial_soc = 0.5;
     double efficiency_charge = 0.95;
     double efficiency_discharge = 0.95;
     double max_charge_power_kW = 50.0;
@@ -28,7 +30,7 @@ public:
     
     void step(double power_demand_kW, double brake_force_kN, double dt_s);
     
-    void consume_energy(double energy_consumed_J);
+    void consume_energy(double energy_consumed_J, double power_kW);
     
     // UPDATED: Now accepts regen_power_kW to fix current display
     void store_energy(double energy_stored_J, double regen_power_kW = 0.0);

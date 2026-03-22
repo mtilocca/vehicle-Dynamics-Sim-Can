@@ -1,4 +1,4 @@
-// src/plant/plant_model.hpp
+// src/plant/plant_model.hpp - UPDATED
 #pragma once
 
 #include "plant/plant_main/plant_state.hpp"
@@ -11,6 +11,20 @@ namespace sim { struct ActuatorCmd; }
 
 namespace plant {
 
+// NEW: Geometry parameters for load transfer and 3-DOF dynamics
+struct VehicleGeometry {
+    double cg_height_m = 0.5;      // CoG height above ground [m]
+    double cg_to_front_m = 1.4;    // Distance from CoG to front axle [m]
+    double cg_to_rear_m = 1.4;     // Distance from CoG to rear axle [m] (should match L - cg_to_front)
+    double yaw_inertia_kgm2 = 5000.0; // Yaw moment of inertia Iz [kg·m²]
+};
+
+// NEW: Dynamic model configuration
+struct DynamicModelConfig {
+    bool enabled = false;          // Enable Dugoff tire model (vs kinematic)
+    double surface_mu = 0.72;      // Surface friction coefficient
+};
+
 struct PlantModelParams {
     SteerParams steer{};
     DriveParams drive{};
@@ -19,13 +33,21 @@ struct PlantModelParams {
 
     double wheelbase_m = 2.8;
     double track_width_m = 1.6;
+    
+    // NEW: Geometry and dynamics
+    VehicleGeometry geometry{};
+    DynamicModelConfig dynamic_config{};
 };
 
 /**
  * PlantModel - Main vehicle physics orchestrator
  * 
- * Now uses SubsystemManager for scalable subsystem architecture.
- * Subsystems are registered by priority and executed automatically.
+ * Subsystem execution order (priority-based):
+ *   50:  SteerSubsystem     → δFL, δFR (Ackermann)
+ *   100: DriveSubsystem     → τdrive_*, τbrake_*
+ *   105: WheelSubsystem     → ω, Fx, Fy, Fz, σ, λ (Dugoff)
+ *   110: VehicleSubsystem   → v, ψ, x, y
+ *   150: BatterySubsystem   → SOC, V, I
  */
 class PlantModel {
 public:

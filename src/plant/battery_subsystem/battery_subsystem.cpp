@@ -32,7 +32,7 @@ void BatterySubsystem::reset(PlantState& s) {
     
     // Update PlantState
     s.batt_soc_pct = 50.0;
-    s.batt_v = 400.0;
+    s.batt_v = params_.nominal_voltage_v;
     s.batt_i = 0.0;
     s.motor_power_kW = 0.0;
     s.regen_power_kW = 0.0;

@@ -1,4 +1,4 @@
-// utils/influx.cpp - IMPROVED VERSION WITH VERBOSE LOGGING
+// utils/influx.cpp - WITH TIRE DYNAMICS SUPPORT
 #include "influx.hpp"
 #include "logging.hpp"
 #include <curl/curl.h>
@@ -92,6 +92,10 @@ InfluxClient::InfluxClient(const Config& config)
     LOG_INFO("[InfluxDB] Client initialized: url=%s org=%s bucket=%s interval=%.0fms",
              config_.url.c_str(), config_.org.c_str(), config_.bucket.c_str(),
              config_.write_interval_s * 1000.0);
+    
+    if (config_.log_tire_dynamics) {
+        LOG_INFO("[InfluxDB] Tire dynamics logging ENABLED");
+    }
 }
 
 InfluxClient::~InfluxClient() {
@@ -143,6 +147,11 @@ bool InfluxClient::write_data_point(const plant::PlantState& state,
         line_protocol << build_radar_sensors_line(sensor_out, timestamp_ns) << "\n";
     }
     
+    // NEW: Add tire dynamics measurement (always write, zeros if kinematic mode)
+    if (config_.log_tire_dynamics) {
+        line_protocol << build_tire_dynamics_line(state, timestamp_ns) << "\n";
+    }
+    
     // Send to InfluxDB
     return send_to_influx(line_protocol.str());
 }
@@ -173,6 +182,7 @@ std::string InfluxClient::build_vehicle_truth_line(const plant::PlantState& stat
          << "y_m=" << state.y_m << ","
          << "yaw_deg=" << (state.yaw_rad * 180.0 / M_PI) << ","
          << "v_mps=" << state.v_mps << ","
+         << "a_long_mps2=" << state.a_long_mps2 << ","  // NEW: acceleration
          << "steer_deg=" << (state.steer_virtual_rad * 180.0 / M_PI) << ","
          << "delta_fl_deg=" << (state.delta_fl_rad * 180.0 / M_PI) << ","
          << "delta_fr_deg=" << (state.delta_fr_rad * 180.0 / M_PI) << ","
@@ -288,6 +298,66 @@ std::string InfluxClient::build_radar_sensors_line(const sensors::SensorOut& sen
          << "radar_target_angle_deg=" << sensor_out.radar_target_angle_deg << ","
          << "radar_status=" << static_cast<int>(sensor_out.radar_status) << "i";
     
+    line << " " << timestamp_ns;
+    
+    return line.str();
+}
+
+// ============================================================================
+// NEW: Tire Dynamics Measurement (Dugoff model outputs)
+// ============================================================================
+
+std::string InfluxClient::build_tire_dynamics_line(const plant::PlantState& state,
+                                                   int64_t timestamp_ns)
+{
+    std::ostringstream line;
+    
+    // Measurement name with tag for model type
+    line << "tire_dynamics";
+    
+    // Tag to indicate dynamic model status
+    line << ",dynamic_model=" << (state.dynamic_model_enabled ? "dugoff" : "kinematic");
+    
+    // Fields (match CSV column names exactly)
+    line << " "
+         // Longitudinal forces (N)
+         << "Fx_fl=" << state.Fx_fl << ","
+         << "Fx_fr=" << state.Fx_fr << ","
+         << "Fx_rl=" << state.Fx_rl << ","
+         << "Fx_rr=" << state.Fx_rr << ","
+         // Lateral forces (N)
+         << "Fy_fl=" << state.Fy_fl << ","
+         << "Fy_fr=" << state.Fy_fr << ","
+         << "Fy_rl=" << state.Fy_rl << ","
+         << "Fy_rr=" << state.Fy_rr << ","
+         // Normal loads (N)
+         << "Fz_fl=" << state.Fz_fl << ","
+         << "Fz_fr=" << state.Fz_fr << ","
+         << "Fz_rl=" << state.Fz_rl << ","
+         << "Fz_rr=" << state.Fz_rr << ","
+         // Longitudinal slip ratios (dimensionless)
+         << "sigma_x_fl=" << state.sigma_x_fl << ","
+         << "sigma_x_fr=" << state.sigma_x_fr << ","
+         << "sigma_x_rl=" << state.sigma_x_rl << ","
+         << "sigma_x_rr=" << state.sigma_x_rr << ","
+         // Lateral slip ratios (dimensionless)
+         << "sigma_y_fl=" << state.sigma_y_fl << ","
+         << "sigma_y_fr=" << state.sigma_y_fr << ","
+         << "sigma_y_rl=" << state.sigma_y_rl << ","
+         << "sigma_y_rr=" << state.sigma_y_rr << ","
+         // Friction utilization (dimensionless, lambda >= 1 = linear, < 1 = saturated)
+         << "lambda_fl=" << state.lambda_fl << ","
+         << "lambda_fr=" << state.lambda_fr << ","
+         << "lambda_rl=" << state.lambda_rl << ","
+         << "lambda_rr=" << state.lambda_rr << ","
+         // Surface friction coefficient
+         << "surface_mu=" << state.surface_mu << ","
+         // Total tire forces (derived for convenience)
+         << "Fx_total=" << (state.Fx_fl + state.Fx_fr + state.Fx_rl + state.Fx_rr) << ","
+         << "Fy_total=" << (state.Fy_fl + state.Fy_fr + state.Fy_rl + state.Fy_rr) << ","
+         << "Fz_total=" << (state.Fz_fl + state.Fz_fr + state.Fz_rl + state.Fz_rr);
+    
+    // Timestamp
     line << " " << timestamp_ns;
     
     return line.str();

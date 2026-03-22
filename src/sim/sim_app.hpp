@@ -32,7 +32,7 @@ struct SimAppConfig {
 
     // Output files
     std::string csv_log_path = "sim_out.csv";
-    std::string debug_log_path = "sim_debug.log";
+    std::string debug_log_path = "sim_debug.log"; 
     
     // Logging control
     bool enable_debug_log_file = true;
@@ -81,6 +81,24 @@ struct SimAppConfig {
     // Vehicle configuration (optional - if not set, uses hardcoded defaults)
     std::optional<plant::PlantModelParams> vehicle_params;
     
+    // ========== Surface Friction Configuration ==========
+    
+    /**
+     * Surface friction coefficient (mu)
+     * 
+     * Common values (Pilbara mining conditions):
+     *   - Dry pavement: 0.85
+     *   - Gravel compact: 0.72 (default)
+     *   - Gravel loose: 0.55
+     *   - Iron ore dust (dry): 0.45
+     *   - Iron ore dust (wet): 0.30
+     *   - Mud: 0.25
+     * 
+     * Note: Dynamic tire model (Dugoff) is always enabled.
+     * Kinematic mode has been removed.
+     */
+    double surface_friction = 0.72;
+    
     // ========== InfluxDB Configuration ==========
     
     /**
@@ -105,7 +123,7 @@ struct SimAppConfig {
     
     /**
      * InfluxDB authentication token
-     * Leave empty for local instances without authentication
+     * Leave empty for safety reasons
      */
     std::string influx_token = "";
     
@@ -135,7 +153,7 @@ class SimApp {
 public:
     explicit SimApp(SimAppConfig cfg);
 
-    int run_plant_only();
+    int run_plant();
 
 private:
     SimAppConfig cfg_;

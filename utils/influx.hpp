@@ -20,7 +20,7 @@ namespace utils {
  * - Real-time data logging (wall clock timestamps)
  * - Rate-limited writes (configurable interval)
  * - Multiple measurements: vehicle_truth, battery_sensors, wheel_sensors, 
- *   imu_sensors, gnss_sensors, radar_sensors
+ *   imu_sensors, gnss_sensors, radar_sensors, tire_dynamics (NEW)
  * - HTTP authentication with bearer tokens
  * - Matching field names with CSV logger
  * 
@@ -50,6 +50,9 @@ public:
         std::string org = "Autonomy";
         std::string bucket = "vehicle-sim";
         double write_interval_s = 0.25;  // 250ms = 4Hz
+        
+        // NEW: Control tire dynamics logging
+        bool log_tire_dynamics = true;  // Log tire forces, slip, lambda to InfluxDB
     };
     
     explicit InfluxClient(const Config& config);
@@ -113,6 +116,10 @@ private:
                                         int64_t timestamp_ns);
     
     std::string build_radar_sensors_line(const sensors::SensorOut& sensor_out,
+                                         int64_t timestamp_ns);
+    
+    // NEW: Tire dynamics measurement (Dugoff model outputs)
+    std::string build_tire_dynamics_line(const plant::PlantState& state,
                                          int64_t timestamp_ns);
     
     // HTTP communication
