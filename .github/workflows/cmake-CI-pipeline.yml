@@ -1,10 +1,12 @@
-name: CMake (Ubuntu)
+# .github/workflows/cmake-CI-pipeline.yml
+name: CMake CI (Ubuntu)
+
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
+    tags:     ["v*.*.*"]
   pull_request:
-    branches: [ "main" ]
-  # Manual trigger with a boolean flag
+    branches: ["main"]
   workflow_dispatch:
     inputs:
       publish_prerelease:
@@ -13,92 +15,160 @@ on:
         required: true
         default: false
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Job 1 — Native build + test (Debug AND Release via matrix)
+# ──────────────────────────────────────────────────────────────────────────────
 jobs:
-  build:
+  build-test:
+    name: build-test (${{ matrix.build_type }})
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false          # let both matrix legs finish independently
+      matrix:
+        build_type: [Debug, Release]
+
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Install dependencies (Ubuntu)
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            pkg-config \
-            libyaml-cpp-dev \
-            liblua5.4-dev \
+
+      # ── apt cache ─────────────────────────────────────────────────────────────
+      # Caches .deb files keyed on the package list + Ubuntu image digest.
+      # Saves ~15-20 s per run. Bump version: if the package list changes.
+      - name: Cache apt packages
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: >
+            pkg-config
+            libyaml-cpp-dev
+            liblua5.4-dev
             libcurl4-openssl-dev
-      
+          version: 1.0
+
+      # ── GTest FetchContent cache ─────────────────────────────────────────────
+      # CMakeLists.txt contains GIT_TAG v1.14.0, so the cache auto-invalidates
+      # when the GTest version changes. Saves ~40-60 s per run.
+      - name: Cache GTest FetchContent
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: gtest-fetchcontent-${{ runner.os }}-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            gtest-fetchcontent-${{ runner.os }}-
+
+      # ── Configure ─────────────────────────────────────────────────────────────
       - name: Configure CMake
-        shell: bash
         run: |
-          cmake -B "${{ github.workspace }}/build" \
-            -DCMAKE_BUILD_TYPE=Release \
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DBUILD_TESTING=ON \
-            -S "${{ github.workspace }}"
-      
-      - name: Debug CTest setup
-        shell: bash
-        run: |
-          echo "=== BUILD_TESTING in cache ==="
-          grep -E '^BUILD_TESTING:' "${{ github.workspace }}/build/CMakeCache.txt" || true
-          echo "=== Where are CTestTestfile.cmake files? ==="
-          find "${{ github.workspace }}/build" -name CTestTestfile.cmake -print || true
-          echo "=== Does test/ exist in the repo? ==="
-          ls -la "${{ github.workspace }}"
-          ls -la "${{ github.workspace }}/test" || true
-          echo "=== List test (ctest -N) ==="
-          ctest --test-dir "${{ github.workspace }}/build" -N || true
-      
+            -S .
+
+      # ── Build ─────────────────────────────────────────────────────────────────
+      # sim_main must exist before test_smoke runs (smoke test spawns the binary).
       - name: Build
-        shell: bash
-        run: |
-          cmake --build "${{ github.workspace }}/build" --config Release
-      
+        run: cmake --build build --config ${{ matrix.build_type }} -j$(nproc)
+
+      # ── Test ──────────────────────────────────────────────────────────────────
+      # working-directory: build  — required: gtest_discover_tests() roots test
+      #   entries at the CMake binary dir; running ctest from the workspace root
+      #   causes "No tests were found". cd build && ctest is the correct form.
+      # -j$(nproc)               — run the 13 test executables in parallel
+      # --output-junit           — JUnit XML for artifact upload (CMake 3.21+)
       - name: Test
-        shell: bash
+        working-directory: build
         run: |
-          ctest --test-dir "${{ github.workspace }}/build" \
-                --output-on-failure
-      
-      # Package binaries (adjust paths/names to match your actual outputs)
-      - name: Package binaries
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_prerelease }}
-        shell: bash
+          ctest \
+            --build-config ${{ matrix.build_type }} \
+            --output-on-failure \
+            --output-junit test-results.xml \
+            -j$(nproc)
+
+      # ── Upload test results (always, so failures are captured too) ─────────────
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.build_type }}
+          path: build/test-results.xml
+          if-no-files-found: warn
+
+      # ── Stash Release binaries for the release job ────────────────────────────
+      - name: Upload Release binaries
+        if: matrix.build_type == 'Release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-binaries
+          path: |
+            build/src/sim/sim_main
+            build/src/can/vcan_listener
+            build/src/can/vcan_random_sender
+          if-no-files-found: error
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Job 2 — ARM64 cross-compile (non-blocking)
+# continue-on-error: multiarch apt setup on hosted runners is occasionally flaky
+# ──────────────────────────────────────────────────────────────────────────────
+  cross-compile-arm:
+    name: cross-compile (arm64)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run ARM64 cross-compile script
+        run: |
+          chmod +x cross_arm_build.sh
+          ./cross_arm_build.sh arm64
+          echo "ARM64 cross-compile exit code: $?"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Job 3 — Package and upload release artifact
+# Runs on: (a) v*.*.* tag push  OR  (b) manual dispatch with publish_prerelease
+# ──────────────────────────────────────────────────────────────────────────────
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    needs: build-test
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish_prerelease)
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Release binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: release-binaries
+          path: dist-bin/
+
+      - name: Assemble tarball
         run: |
           set -euxo pipefail
           mkdir -p dist
-          
-          # Main simulation binary
-          if [ -f "${{ github.workspace }}/build/src/sim/sim_main" ]; then
-            cp -v "${{ github.workspace }}/build/src/sim/sim_main" dist/
+
+          cp -v dist-bin/sim_main            dist/ || true
+          cp -v dist-bin/vcan_listener       dist/ || true
+          cp -v dist-bin/vcan_random_sender  dist/ || true
+          chmod +x dist/* 2>/dev/null || true
+
+          if [ -d config ]; then
+            cp -rv config dist/
           fi
-          
-          # CAN utilities
-          if [ -f "${{ github.workspace }}/build/src/can/vcan_listener" ]; then
-            cp -v "${{ github.workspace }}/build/src/can/vcan_listener" dist/
-          fi
-          
-          if [ -f "${{ github.workspace }}/build/src/can/vcan_random_sender" ]; then
-            cp -v "${{ github.workspace }}/build/src/can/vcan_random_sender" dist/
-          fi
-          
-          # Include config files if they exist
-          if [ -d "config" ]; then
-            cp -rv config dist/ || true
-          fi
-          
-          # Create tarball
-          tar -czf "vehicle-dynamics-sim-linux-${{ github.sha }}.tar.gz" -C dist .
-          
-          # Verify tarball contents
+
+          # GITHUB_REF_NAME = tag name on tag push (e.g. v1.2.3), branch name otherwise
+          RELEASE_NAME="vehicle-dynamics-sim-linux-${GITHUB_REF_NAME:-${{ github.sha }}}"
+          tar -czf "${RELEASE_NAME}.tar.gz" -C dist .
+
           echo "=== Tarball contents ==="
-          tar -tzf "vehicle-dynamics-sim-linux-${{ github.sha }}.tar.gz"
-      
-      - name: Upload binaries artifact
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_prerelease }}
+          tar -tzf "${RELEASE_NAME}.tar.gz"
+
+          echo "RELEASE_NAME=${RELEASE_NAME}" >> "$GITHUB_ENV"
+
+      - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vehicle-dynamics-sim-linux-${{ github.sha }}
-          path: vehicle-dynamics-sim-linux-${{ github.sha }}.tar.gz
+          name: ${{ env.RELEASE_NAME }}
+          path: ${{ env.RELEASE_NAME }}.tar.gz
           if-no-files-found: error
