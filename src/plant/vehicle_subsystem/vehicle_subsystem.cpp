@@ -179,12 +179,25 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
 
     // Integrate lateral velocity (MUST include centripetal term for stability)
     double vy_next = s.vy_mps + ay * dt;
+
+    // Bug #10 fix: clamp lateral velocity to physical maximum.
+    // 2 m/s is the realistic limit for a 218t truck at 20 kph.
+    constexpr double v_lat_max_mps = 2.0;
+    vy_next = clamp(vy_next, -v_lat_max_mps, +v_lat_max_mps);
+
     s.vy_mps = vy_next;
     s.a_lat_mps2 = ay;  // Total lateral acceleration (with centripetal term)
 
     // Integrate yaw rate
     s.yaw_rate_radps += yaw_ddot * dt;
     s.yaw_rad += s.yaw_rate_radps * dt;
+
+    // Bug #13 fix: standstill damping — decays vy and yaw_rate to zero when
+    // stopped so they don't persist after tyre forces vanish at v=0.
+    // damp_scale = 1 at v=0, 0 at v >= v_stop_eps. Decay rate 2/s.
+    const double damp_scale = 1.0 - std::min(1.0, std::abs(s.v_mps) / p_.v_stop_eps);
+    s.vy_mps         *= (1.0 - 2.0 * damp_scale * dt);
+    s.yaw_rate_radps *= (1.0 - 2.0 * damp_scale * dt);
 
     // Normalize yaw angle to [-π, +π]
     while (s.yaw_rad > M_PI) s.yaw_rad -= 2.0 * M_PI;

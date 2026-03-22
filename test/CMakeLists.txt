@@ -1,190 +1,140 @@
 cmake_minimum_required(VERSION 3.16)
 
 # ============================================================================
-# Test Suite Configuration
-# ============================================================================
-# All tests use the same base configuration but may have different
-# dependencies and source requirements.
+# Test Suite Configuration — GoogleTest
 # ============================================================================
 
-# ----------------------------------------------------------------------------
-# Common test configuration helper function
-# ----------------------------------------------------------------------------
-
-function(add_simulation_test TEST_NAME)
-    # Parse arguments: SOURCES, LIBRARIES
+# ---------------------------------------------------------------------------
+# Helper: create a GTest executable, link libraries, and register with CTest
+# ---------------------------------------------------------------------------
+function(add_gtest_test TEST_NAME)
     cmake_parse_arguments(TEST "" "" "SOURCES;LIBRARIES" ${ARGN})
-    
-    # Create test executable
+
     add_executable(${TEST_NAME} ${TEST_NAME}.cpp ${TEST_SOURCES})
-    
-    # Standard include directories
+
     target_include_directories(${TEST_NAME} PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/src
     )
-    
-    # Link libraries (default: utils)
-    if(TEST_LIBRARIES)
-        target_link_libraries(${TEST_NAME} PRIVATE ${TEST_LIBRARIES})
-    else()
-        target_link_libraries(${TEST_NAME} PRIVATE utils)
-    endif()
-    
-    # Install to bin directory
+
+    target_link_libraries(${TEST_NAME} PRIVATE
+        ${TEST_LIBRARIES}
+        GTest::gtest_main
+    )
+
+    gtest_discover_tests(${TEST_NAME})
     install(TARGETS ${TEST_NAME} RUNTIME DESTINATION bin)
 endfunction()
 
 # ============================================================================
-# Test 1: PlantStatePacker - CAN frame packing validation
+# Test 1: PlantStatePacker — CAN frame packing validation
 # ============================================================================
-# Tests the visitor pattern for packing PlantState fields into CAN frames
-# Requires: CAN map CSV file for signal definitions
-# ============================================================================
-
-add_simulation_test(test_plant_state_packer
+add_gtest_test(test_plant_state_packer
     SOURCES
         ${CMAKE_SOURCE_DIR}/src/sim/plant_state_packer.cpp
     LIBRARIES
         can utils
 )
-
-# Pass source directory to test at compile time for finding can_map.csv
 target_compile_definitions(test_plant_state_packer PRIVATE
     TEST_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 )
 
-add_test(NAME plant_state_packer 
-    COMMAND test_plant_state_packer ${CMAKE_SOURCE_DIR}/config/can_map.csv
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/test
-)
-
 # ============================================================================
-# Test 2: SubsystemManager - Lifecycle and priority validation
+# Test 2: SubsystemManager — Lifecycle and priority validation
 # ============================================================================
-# Tests subsystem registration, priority sorting, enable/disable, and
-# initialization sequencing
-# ============================================================================
-
-add_simulation_test(test_subsystem_manager
+add_gtest_test(test_subsystem_manager
     LIBRARIES plant utils
 )
 
-add_test(NAME subsystem_manager 
-    COMMAND test_subsystem_manager
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/test
-)
-
 # ============================================================================
-# Test 3: VehicleConfig - YAML loading and validation
+# Test 3: VehicleConfig — YAML loading and validation
 # ============================================================================
-# Tests YAML configuration parsing for vehicle parameters
-# Requires: yaml-cpp library
-# ============================================================================
-
-add_simulation_test(test_vehicle_config
+add_gtest_test(test_vehicle_config
     LIBRARIES config plant utils yaml-cpp
 )
 
-add_test(NAME vehicle_config
-    COMMAND test_vehicle_config
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/test
+# ============================================================================
+# Test 4: CANCodec — Signal encoding/decoding validation
+# ============================================================================
+add_gtest_test(test_can_codec
+    LIBRARIES can utils
 )
 
 # ============================================================================
-# Test 4: CANCodec - Signal encoding/decoding validation
+# Test 5: SensorStatePacker — Sensor CAN frame packing
 # ============================================================================
-# Tests bit-packing of signals into CAN frames and decoding
-# Validates scaling, offset, and endianness handling
-# ============================================================================
-
-add_simulation_test(test_can_codec
-    LIBRARIES
-        can utils
-)
-
-add_test(NAME can_codec
-    COMMAND test_can_codec
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/test
-)
-
-# ============================================================================
-# Test 5: SensorStatePacker - Sensor CAN frame packing
-# ============================================================================
-# Tests sensor state packing (battery, wheels, IMU, GNSS, radar)
-# Note: sensor_state_packer.hpp is header-only
-# ============================================================================
-
-add_simulation_test(test_sensor_packer
+add_gtest_test(test_sensor_packer
     LIBRARIES utils
 )
 
-add_test(NAME sensor_packer
-    COMMAND test_sensor_packer
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/test
-)
-
 # ============================================================================
-# Test 6: InfluxClient - Time-series logging validation
+# Test 6: InfluxClient — Time-series logging validation
 # ============================================================================
-# Tests InfluxDB client connection and line protocol formatting
-# Requires: libcurl (via utils library)
-# ============================================================================
-
-add_simulation_test(test_influx_client
+add_gtest_test(test_influx_client
     LIBRARIES utils plant config
 )
 
-add_test(NAME influx_client
-    COMMAND test_influx_client
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
 # ============================================================================
-# Test 7: WheelDynamics - Wheel rotational dynamics validation
+# Test 7: WheelDynamics — Wheel rotational dynamics validation
 # ============================================================================
-# Tests wheel slip ratio calculation, rotational dynamics integration,
-# stability criterion, and WheelSubsystem initialization.
-# Requires: plant library (for WheelDynamics and WheelSubsystem)
-# ============================================================================
-
-add_simulation_test(test_wheel_dynamics
+add_gtest_test(test_wheel_dynamics
     LIBRARIES plant utils
 )
 
-add_test(NAME wheel_dynamics
-    COMMAND test_wheel_dynamics
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/test
+# ============================================================================
+# Test 8: SteerAckermann — Pure Ackermann geometry math
+# ============================================================================
+add_gtest_test(test_steer_Ackermann
+    LIBRARIES utils
 )
 
 # ============================================================================
-# Future Tests (Placeholders)
+# Test 9: SteerDynamics — Steering actuator dynamics
 # ============================================================================
-# Uncomment and implement as subsystems are added:
-#
-# add_simulation_test(test_tyre_dugoff
-#     LIBRARIES plant utils
-# )
-#
-# add_simulation_test(test_thermal_management
-#     LIBRARIES plant utils
-# )
-#
-# add_simulation_test(test_battery_thermal_coupling
-#     LIBRARIES plant utils
-# )
+add_gtest_test(test_steer_dynamics
+    LIBRARIES plant utils
+)
+
 # ============================================================================
+# Test 10: Plant Longitudinal — kinematic startup, cruise/brake, standstill damp
+# ============================================================================
+add_gtest_test(test_plant_longitudinal
+    LIBRARIES plant utils
+)
 
-# ----------------------------------------------------------------------------
-# Test Summary
-# ----------------------------------------------------------------------------
+# ============================================================================
+# Test 11: Plant Lateral — yaw from steer, vy clamp, load transfer cornering
+# ============================================================================
+add_gtest_test(test_plant_lateral
+    LIBRARIES plant utils
+)
 
-message(STATUS "Test suite configured:")
-message(STATUS "  - Plant state packer (CAN encoding)")
-message(STATUS "  - Subsystem manager (lifecycle)")
-message(STATUS "  - Vehicle config (YAML parsing)")
-message(STATUS "  - CAN codec (bit packing)")
-message(STATUS "  - Sensor packer (sensor CAN)")
-message(STATUS "  - InfluxDB client (telemetry)")
-message(STATUS "  - Wheel dynamics (slip and integration)")
-message(STATUS "Run tests with: ctest --test-dir ${CMAKE_BINARY_DIR}")
+# ============================================================================
+# Test 12: Plant Reverse — reverse accel, steer while reversing, reverse stop
+# ============================================================================
+add_gtest_test(test_plant_reverse
+    LIBRARIES plant utils
+)
+
+# ============================================================================
+# Smoke Tests — boot, CAN round-trip, sim_main startup
+# ============================================================================
+add_gtest_test(test_smoke
+    SOURCES
+        ${CMAKE_SOURCE_DIR}/src/sim/plant_state_packer.cpp
+    LIBRARIES
+        plant can utils
+)
+target_compile_definitions(test_smoke PRIVATE
+    CAN_MAP_PATH="${CMAKE_SOURCE_DIR}/config/can_map.csv"
+    SIM_MAIN_PATH="${CMAKE_BINARY_DIR}/src/sim/sim_main"
+)
+
+# ---------------------------------------------------------------------------
+message(STATUS "Test suite configured (GoogleTest):")
+message(STATUS "  1  plant_state_packer  2  subsystem_manager  3  vehicle_config")
+message(STATUS "  4  can_codec           5  sensor_packer       6  influx_client")
+message(STATUS "  7  wheel_dynamics      8  steer_Ackermann     9  steer_dynamics")
+message(STATUS "  10 plant_longitudinal  11 plant_lateral       12 plant_reverse")
+message(STATUS "  13 smoke (PlantBoot + CanRoundTrip + SimMain)")
+message(STATUS "Run: ctest --test-dir ${CMAKE_BINARY_DIR} --output-on-failure")

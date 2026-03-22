@@ -107,6 +107,45 @@ void WheelSubsystem::step(PlantState& s, const sim::ActuatorCmd& /*cmd*/, double
         return;
     }
 
+    // KINEMATIC FALLBACK at low speed (< 3.6 kph = 1 m/s):
+    // Below this threshold Dugoff slip ratios explode because wheel omega
+    // hasn't matched vx yet → ±200 kN Fx oscillation on startup/stop.
+    // Omega is synced to vx; Fx is computed as F = τ/R (no slip calculation)
+    // so the vehicle can still accelerate and brake in this regime.
+    // Fy stays zero to prevent yaw runaway at low speed.
+    // Works for forward and reverse: std::abs() + sign of drive torque.
+    const double v_kin_thresh_mps = 1.0;  // 3.6 kph
+    if (std::abs(s.v_mps) < v_kin_thresh_mps) {
+        const double r = p_.wheel.radius_m;
+
+        // Sync wheel omega to vehicle speed
+        const double wheel_omega = s.v_mps / r;
+        wd_fl_.set_omega_radps(wheel_omega);
+        wd_fr_.set_omega_radps(wheel_omega);
+        wd_rl_.set_omega_radps(wheel_omega);
+        wd_rr_.set_omega_radps(wheel_omega);
+        s.omega_fl_radps = wheel_omega;
+        s.omega_fr_radps = wheel_omega;
+        s.omega_rl_radps = wheel_omega;
+        s.omega_rr_radps = wheel_omega;
+
+        // Kinematic Fx = τ/R; brake opposes direction of motion (or intent)
+        const double tq_net = s.tau_drive_rl_nm + s.tau_drive_rr_nm
+                            + s.tau_drive_fl_nm + s.tau_drive_fr_nm;
+        const int brake_dir = (std::abs(s.v_mps) > p_.wheel.v_eps_mps)
+                              ? sgn(s.v_mps)
+                              : sgn(tq_net);
+
+        s.Fx_fl = (s.tau_drive_fl_nm - s.tau_brake_fl_nm * brake_dir) / r;
+        s.Fx_fr = (s.tau_drive_fr_nm - s.tau_brake_fr_nm * brake_dir) / r;
+        s.Fx_rl = (s.tau_drive_rl_nm - s.tau_brake_rl_nm * brake_dir) / r;
+        s.Fx_rr = (s.tau_drive_rr_nm - s.tau_brake_rr_nm * brake_dir) / r;
+
+        // No lateral forces at low speed
+        s.Fy_fl = s.Fy_fr = s.Fy_rl = s.Fy_rr = 0.0;
+        return;
+    }
+
     // ---------------------------------------------------------------------
     // Robust reverse-capable handling:
     // - Brake torque must oppose wheel rotation, not “vehicle direction”.
