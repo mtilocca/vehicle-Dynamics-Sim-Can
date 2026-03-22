@@ -42,13 +42,59 @@ def plot_vehicle_dynamics(df, has_truth_meas, soc_col, v_col, i_col):
     fig = plt.figure(figsize=(20, 10))
     fig.suptitle("Figure 1: Vehicle Dynamics & Battery", fontsize=14, fontweight='bold')
 
-    # 1) Trajectory
+    # 1) Trajectory — colored by direction, stop dots
     ax1 = plt.subplot(3, 4, 1)
-    ax1.plot(df["x_m"], df["y_m"])
+
+    v = df["v_mps"].to_numpy()
+    x = df["x_m"].to_numpy()
+    y = df["y_m"].to_numpy()
+
+    STOP_THRESH = 0.05  # m/s
+
+    # Use gear_position if available (0=Neutral, 1=Forward, 2=Reverse)
+    # direction array: 1=forward, -1=reverse, 0=neutral/stopped
+    if "gear_position" in df.columns:
+        gear = df["gear_position"].to_numpy()
+        direction = np.where(gear == 1, 1, np.where(gear == 2, -1, 0))
+    else:
+        direction = np.where(v > STOP_THRESH, 1, np.where(v < -STOP_THRESH, -1, 0))
+
+    _legend_shown = set()
+    i = 0
+    while i < len(direction):
+        j = i + 1
+        while j < len(direction) and direction[j] == direction[j - 1]:
+            j += 1
+        seg_dir = direction[i]
+        if seg_dir == 1:
+            color, lbl = "tab:green", "Forward"
+        elif seg_dir == -1:
+            color, lbl = "tab:red", "Reverse"
+        else:
+            color, lbl = "tab:gray", None
+        kw = dict(color=color, linewidth=1.5)
+        if lbl and lbl not in _legend_shown:
+            kw["label"] = lbl
+            _legend_shown.add(lbl)
+        ax1.plot(x[i:j], y[i:j], **kw)
+        i = j
+
+    # Stop dots: transitions from moving → stopped (v crosses threshold)
+    moving = np.abs(v) > STOP_THRESH
+    stop_mask = np.zeros(len(v), dtype=bool)
+    stop_mask[1:] = moving[:-1] & ~moving[1:]
+    if stop_mask.any():
+        ax1.scatter(x[stop_mask], y[stop_mask],
+                    s=60, color="tab:orange", zorder=5, label="Stop", marker="o")
+
+    # Start dot
+    ax1.scatter(x[0], y[0], s=60, color="tab:blue", zorder=5, label="Start", marker="s")
+
     ax1.set_xlabel("x (m)")
     ax1.set_ylabel("y (m)")
     ax1.set_title("Trajectory (x vs y)")
     ax1.axis("equal")
+    ax1.legend(fontsize=7)
     ax1.grid(True)
 
     # 2) Speed & Acceleration vs time
