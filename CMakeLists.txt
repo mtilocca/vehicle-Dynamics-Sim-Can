@@ -91,20 +91,6 @@ add_subdirectory(src/config)
 add_subdirectory(src/sim)
 
 # ============================================================================
-# GoogleTest (FetchContent — no system install required)
-# ============================================================================
-
-include(FetchContent)
-FetchContent_Declare(
-    googletest
-    GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG        v1.14.0
-)
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
-include(GoogleTest)   # provides gtest_discover_tests()
-
-# ============================================================================
 # Testing Configuration
 # ============================================================================
 
@@ -112,6 +98,17 @@ include(GoogleTest)   # provides gtest_discover_tests()
 include(CTest)
 
 if(BUILD_TESTING)
+    # GoogleTest via FetchContent — only when tests are actually needed
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG        v1.14.0
+    )
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+    include(GoogleTest)   # provides gtest_discover_tests()
+
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test")
         enable_testing()
         add_subdirectory(test)
