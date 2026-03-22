@@ -71,17 +71,24 @@ bool LuaRuntime::push_state_table_(const plant::PlantState& s) {
         lua_settable(L_, -3);
     };
 
-    set_num("t_s", s.t_s);
-    set_num("x_m", s.x_m);
-    set_num("y_m", s.y_m);
-    set_num("yaw_rad", s.yaw_rad);
-    set_num("v_mps", s.v_mps);
+    set_num("t_s",             s.t_s);
+    set_num("x_m",             s.x_m);
+    set_num("y_m",             s.y_m);
+    set_num("yaw_rad",         s.yaw_rad);
+    set_num("v_mps",           s.v_mps);
+    set_num("vy_mps",          s.vy_mps);
+    set_num("a_long_mps2",     s.a_long_mps2);
     set_num("steer_virtual_rad", s.steer_virtual_rad);
-    set_num("delta_fl_rad", s.delta_fl_rad);
-    set_num("delta_fr_rad", s.delta_fr_rad);
-    set_num("batt_soc_pct", s.batt_soc_pct);
-    set_num("batt_v", s.batt_v);
-    set_num("batt_i", s.batt_i);
+    set_num("delta_fl_rad",    s.delta_fl_rad);
+    set_num("delta_fr_rad",    s.delta_fr_rad);
+    set_num("batt_soc_pct",    s.batt_soc_pct);
+    set_num("batt_v",          s.batt_v);
+    set_num("batt_i",          s.batt_i);
+
+    // gear_position as integer: 0=NEUTRAL 1=FORWARD 2=REVERSE
+    lua_pushstring(L_, "gear_position");
+    lua_pushinteger(L_, static_cast<int>(s.gear_position));
+    lua_settable(L_, -3);
 
     return true;
 }
@@ -110,6 +117,15 @@ bool LuaRuntime::read_cmd_table_(int idx, sim::ActuatorCmd& out_cmd) {
     out_cmd.drive_torque_cmd_nm = get_num("drive_torque_cmd_nm", out_cmd.drive_torque_cmd_nm);
     out_cmd.brake_cmd_pct = get_num("brake_cmd_pct", out_cmd.brake_cmd_pct);
     out_cmd.steer_cmd_deg = get_num("steer_cmd_deg", out_cmd.steer_cmd_deg);
+
+    // Read gear_position: 0=NEUTRAL 1=FORWARD 2=REVERSE (default: keep existing)
+    lua_getfield(L_, idx, "gear_position");
+    if (lua_isnumber(L_, -1)) {
+        int gv = static_cast<int>(lua_tointeger(L_, -1));
+        if (gv >= 0 && gv <= 2)
+            out_cmd.gear_position = static_cast<sim::GearPosition>(gv);
+    }
+    lua_pop(L_, 1);
 
     return true;
 }
