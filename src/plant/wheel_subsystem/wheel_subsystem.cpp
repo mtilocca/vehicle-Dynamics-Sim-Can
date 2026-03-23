@@ -3,6 +3,7 @@
 #include "plant/wheel_subsystem/wheel_kinematics.hpp"
 #include "plant/wheel_subsystem/load_transfer_model.hpp"
 #include "utils/logging.hpp"
+#include <chrono>
 #include <cmath>
 
 namespace plant {
@@ -293,38 +294,39 @@ void WheelSubsystem::step(PlantState& s, const sim::ActuatorCmd& /*cmd*/, double
                   s.Fx_rr, s.Fy_rr, s.sigma_x_rr, s.sigma_y_rr, s.lambda_rr);
 
     // -------------------------------------------------------------------------
-    // PERIODIC LOGGING: Wheel forces and dynamics (every 50 steps)
+    // PERIODIC LOGGING: Wheel forces and dynamics (once every 5 s wall time)
     // -------------------------------------------------------------------------
-    static int log_counter = 0;
-    if (++log_counter % 50 == 0) {
-        LOG_INFO("========== WHEEL DYNAMICS (step %d) ==========", log_counter);
-        LOG_INFO("Vehicle state: vx=%.2f m/s, vy=%.2f m/s, yaw_rate=%.3f rad/s",
-                 s.v_mps, s.vy_mps, s.yaw_rate_radps);
-
-        LOG_INFO("Drive torques:  FL=%.1f  FR=%.1f  RL=%.1f  RR=%.1f Nm",
-                 s.tau_drive_fl_nm, s.tau_drive_fr_nm, s.tau_drive_rl_nm, s.tau_drive_rr_nm);
-        LOG_INFO("Brake torques:  FL=%.1f  FR=%.1f  RL=%.1f  RR=%.1f Nm",
-                 s.tau_brake_fl_nm, s.tau_brake_fr_nm, s.tau_brake_rl_nm, s.tau_brake_rr_nm);
-
-        LOG_INFO("Normal loads:   FL=%.0f  FR=%.0f  RL=%.0f  RR=%.0f N",
-                 s.Fz_fl, s.Fz_fr, s.Fz_rl, s.Fz_rr);
-        LOG_INFO("Long forces:    FL=%.0f  FR=%.0f  RL=%.0f  RR=%.0f N",
-                 s.Fx_fl, s.Fx_fr, s.Fx_rl, s.Fx_rr);
-        LOG_INFO("Lat forces:     FL=%.0f  FR=%.0f  RL=%.0f  RR=%.0f N",
-                 s.Fy_fl, s.Fy_fr, s.Fy_rl, s.Fy_rr);
-
-        LOG_INFO("Slip ratios σx: FL=%.3f  FR=%.3f  RL=%.3f  RR=%.3f",
-                 s.sigma_x_fl, s.sigma_x_fr, s.sigma_x_rl, s.sigma_x_rr);
-        LOG_INFO("Slip angles α:  FL=%.3f  FR=%.3f  RL=%.3f  RR=%.3f rad (%.1f° %.1f° %.1f° %.1f°)",
-                 s.alpha_fl, s.alpha_fr, s.alpha_rl, s.alpha_rr,
-                 s.alpha_fl * 180.0 / M_PI, s.alpha_fr * 180.0 / M_PI,
-                 s.alpha_rl * 180.0 / M_PI, s.alpha_rr * 180.0 / M_PI);
-
-        LOG_INFO("Wheel omegas:   FL=%.2f  FR=%.2f  RL=%.2f  RR=%.2f rad/s",
-                 s.omega_fl_radps, s.omega_fr_radps, s.omega_rl_radps, s.omega_rr_radps);
-        LOG_INFO("Friction λ:     FL=%.3f  FR=%.3f  RL=%.3f  RR=%.3f",
-                 s.lambda_fl, s.lambda_fr, s.lambda_rl, s.lambda_rr);
-        LOG_INFO("============================================");
+    {
+        using clk = std::chrono::steady_clock;
+        static auto last_log = clk::now();
+        auto now = clk::now();
+        if (std::chrono::duration<double>(now - last_log).count() >= 5.0) {
+            last_log = now;
+            LOG_DEBUG("========== WHEEL DYNAMICS ==========");
+            LOG_DEBUG("Vehicle state: vx=%.2f m/s, vy=%.2f m/s, yaw_rate=%.3f rad/s",
+                     s.v_mps, s.vy_mps, s.yaw_rate_radps);
+            LOG_DEBUG("Drive torques:  FL=%.1f  FR=%.1f  RL=%.1f  RR=%.1f Nm",
+                     s.tau_drive_fl_nm, s.tau_drive_fr_nm, s.tau_drive_rl_nm, s.tau_drive_rr_nm);
+            LOG_DEBUG("Brake torques:  FL=%.1f  FR=%.1f  RL=%.1f  RR=%.1f Nm",
+                     s.tau_brake_fl_nm, s.tau_brake_fr_nm, s.tau_brake_rl_nm, s.tau_brake_rr_nm);
+            LOG_DEBUG("Normal loads:   FL=%.0f  FR=%.0f  RL=%.0f  RR=%.0f N",
+                     s.Fz_fl, s.Fz_fr, s.Fz_rl, s.Fz_rr);
+            LOG_DEBUG("Long forces:    FL=%.0f  FR=%.0f  RL=%.0f  RR=%.0f N",
+                     s.Fx_fl, s.Fx_fr, s.Fx_rl, s.Fx_rr);
+            LOG_DEBUG("Lat forces:     FL=%.0f  FR=%.0f  RL=%.0f  RR=%.0f N",
+                     s.Fy_fl, s.Fy_fr, s.Fy_rl, s.Fy_rr);
+            LOG_DEBUG("Slip ratios σx: FL=%.3f  FR=%.3f  RL=%.3f  RR=%.3f",
+                     s.sigma_x_fl, s.sigma_x_fr, s.sigma_x_rl, s.sigma_x_rr);
+            LOG_DEBUG("Slip angles α:  FL=%.3f  FR=%.3f  RL=%.3f  RR=%.3f rad (%.1f° %.1f° %.1f° %.1f°)",
+                     s.alpha_fl, s.alpha_fr, s.alpha_rl, s.alpha_rr,
+                     s.alpha_fl * 180.0 / M_PI, s.alpha_fr * 180.0 / M_PI,
+                     s.alpha_rl * 180.0 / M_PI, s.alpha_rr * 180.0 / M_PI);
+            LOG_DEBUG("Wheel omegas:   FL=%.2f  FR=%.2f  RL=%.2f  RR=%.2f rad/s",
+                     s.omega_fl_radps, s.omega_fr_radps, s.omega_rl_radps, s.omega_rr_radps);
+            LOG_DEBUG("Friction λ:     FL=%.3f  FR=%.3f  RL=%.3f  RR=%.3f",
+                     s.lambda_fl, s.lambda_fr, s.lambda_rl, s.lambda_rr);
+            LOG_DEBUG("============================================");
+        }
     }
 
     // Export wheel speeds to PlantState

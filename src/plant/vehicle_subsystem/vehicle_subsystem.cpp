@@ -3,6 +3,7 @@
 
 #include "plant/vehicle_subsystem/vehicle_subsystem.hpp"
 #include "utils/logging.hpp"
+#include <chrono>
 #include <cmath>
 
 namespace plant {
@@ -204,40 +205,37 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
     while (s.yaw_rad < -M_PI) s.yaw_rad += 2.0 * M_PI;
 
     // ========================================================================
-    // PERIODIC LOGGING: 3-DOF dynamics (every 50 steps)
+    // PERIODIC LOGGING: 3-DOF dynamics summary (once every 5 s wall time)
     // ========================================================================
-    static int debug_ctr = 0;
-    if (debug_ctr++ % 50 == 0) {
-        LOG_INFO("========== 3-DOF VEHICLE DYNAMICS (step %d) ==========", debug_ctr);
-
-        // Longitudinal dynamics
-        LOG_INFO("LONGITUDINAL:");
-        LOG_INFO("  vx = %.3f m/s, ax = %.3f m/s² (dir_latch=%d dir_ref=%d)",
-                 s.v_mps, a_long, dir_latch_, dir_ref);
-        LOG_INFO("  Fx_total = %.1f N (FL=%.1f, FR=%.1f, RL=%.1f, RR=%.1f)",
-                 Fx_total, s.Fx_fl, s.Fx_fr, s.Fx_rl, s.Fx_rr);
-        LOG_INFO("  Resistive: F_drag=%.1f N, F_roll=%.1f N", F_drag, F_roll);
-        LOG_INFO("  F_net = %.1f N → ax = %.6f m/s²", F_net, a_long);
-
-        // Lateral dynamics
-        LOG_INFO("LATERAL:");
-        LOG_INFO("  vy = %.3f m/s, ay = %.3f m/s²", s.vy_mps, ay);
-        LOG_INFO("  Fy_total = %.1f N (FL=%.1f, FR=%.1f, RL=%.1f, RR=%.1f)",
-                 Fy_total, s.Fy_fl, s.Fy_fr, s.Fy_rl, s.Fy_rr);
-        LOG_INFO("  ay_from_forces = %.3f m/s² (before centripetal)", ay_from_forces);
-
-        // Yaw dynamics
-        LOG_INFO("YAW:");
-        LOG_INFO("  yaw_rate = %.3f rad/s (%.1f °/s), yaw = %.3f rad (%.1f°)",
-                 s.yaw_rate_radps, s.yaw_rate_radps * 180.0 / M_PI,
-                 s.yaw_rad, s.yaw_rad * 180.0 / M_PI);
-        LOG_INFO("  Mz_total = %.1f N·m (FL=%.1f, FR=%.1f, RL=%.1f, RR=%.1f)",
-                 Mz_total, Mz_fl, Mz_fr, Mz_rl, Mz_rr);
-        LOG_INFO("  yaw_ddot = %.6f rad/s²", yaw_ddot);
-
-        // Position
-        LOG_INFO("POSITION: x=%.2f m, y=%.2f m", s.x_m, s.y_m);
-        LOG_INFO("====================================================");
+    {
+        using clk = std::chrono::steady_clock;
+        static auto last_log = clk::now();
+        auto now = clk::now();
+        if (std::chrono::duration<double>(now - last_log).count() >= 5.0) {
+            last_log = now;
+            LOG_DEBUG("========== 3-DOF VEHICLE DYNAMICS ==========");
+            LOG_DEBUG("LONGITUDINAL:");
+            LOG_DEBUG("  vx = %.3f m/s, ax = %.3f m/s² (dir_latch=%d dir_ref=%d)",
+                     s.v_mps, a_long, dir_latch_, dir_ref);
+            LOG_DEBUG("  Fx_total = %.1f N (FL=%.1f, FR=%.1f, RL=%.1f, RR=%.1f)",
+                     Fx_total, s.Fx_fl, s.Fx_fr, s.Fx_rl, s.Fx_rr);
+            LOG_DEBUG("  Resistive: F_drag=%.1f N, F_roll=%.1f N", F_drag, F_roll);
+            LOG_DEBUG("  F_net = %.1f N → ax = %.6f m/s²", F_net, a_long);
+            LOG_DEBUG("LATERAL:");
+            LOG_DEBUG("  vy = %.3f m/s, ay = %.3f m/s²", s.vy_mps, ay);
+            LOG_DEBUG("  Fy_total = %.1f N (FL=%.1f, FR=%.1f, RL=%.1f, RR=%.1f)",
+                     Fy_total, s.Fy_fl, s.Fy_fr, s.Fy_rl, s.Fy_rr);
+            LOG_DEBUG("  ay_from_forces = %.3f m/s² (before centripetal)", ay_from_forces);
+            LOG_DEBUG("YAW:");
+            LOG_DEBUG("  yaw_rate = %.3f rad/s (%.1f °/s), yaw = %.3f rad (%.1f°)",
+                     s.yaw_rate_radps, s.yaw_rate_radps * 180.0 / M_PI,
+                     s.yaw_rad, s.yaw_rad * 180.0 / M_PI);
+            LOG_DEBUG("  Mz_total = %.1f N·m (FL=%.1f, FR=%.1f, RL=%.1f, RR=%.1f)",
+                     Mz_total, Mz_fl, Mz_fr, Mz_rl, Mz_rr);
+            LOG_DEBUG("  yaw_ddot = %.6f rad/s²", yaw_ddot);
+            LOG_DEBUG("POSITION: x=%.2f m, y=%.2f m", s.x_m, s.y_m);
+            LOG_DEBUG("====================================================");
+        }
     }
 
     // ========================================================================

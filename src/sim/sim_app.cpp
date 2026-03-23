@@ -190,7 +190,7 @@ int SimApp::run_plant() {
         << "a_long_mps2,a_lat_mps2,steer_deg,"
         << "delta_fl_deg,delta_fr_deg,"
         // Commands
-        << "motor_nm,brake_pct,"
+        << "motor_nm,brake_pct,gear_position,"
         // Battery (truth)
         << "batt_soc_truth,batt_v_truth,batt_i_truth,"
         // Wheel speeds (truth) - legacy RPS
@@ -471,6 +471,7 @@ int SimApp::run_plant() {
                 << delta_fl_deg << "," << delta_fr_deg << ","
                 // Commands
                 << cmd.drive_torque_cmd_nm << "," << cmd.brake_cmd_pct << ","
+                << static_cast<int>(cmd.gear_position) << ","
                 // Battery (truth)
                 << s.batt_soc_pct << "," << s.batt_v << "," << s.batt_i << ","
                 // Wheel speeds (truth) - legacy RPS

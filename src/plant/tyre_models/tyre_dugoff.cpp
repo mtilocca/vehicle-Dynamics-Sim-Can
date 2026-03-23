@@ -20,7 +20,7 @@ TyreForces TyreDugoff::compute_forces(
     double Vx,
     double Vy,
     double Fz,
-    int gear_dir
+    int /*gear_dir*/
 ) const {
     TyreForces forces;
     
@@ -84,18 +84,18 @@ TyreForces TyreDugoff::compute_forces(
     // Step 5: Compute tire forces
     // ========================================================================
 
-    // CRITICAL: Forces must oppose slip AND account for gear direction
-    //
-    // Longitudinal force sign convention (using explicit gear direction from CAN):
-    //   Forward gear (gear_dir=+1), wheel spins too fast (σx>0) → Fx<0 (brakes)
-    //   Forward gear (gear_dir=+1), wheel locked (σx<0) → Fx>0 (resists locking)
-    //   Reverse gear (gear_dir=-1), wheel spins too fast in reverse (σx>0) → Fx>0 (resists reverse)
-    //   Reverse gear (gear_dir=-1), wheel locked (σx<0) → Fx<0 (resists locking in reverse)
-    //   Neutral (gear_dir=0) → Fx=0 (no longitudinal force)
-    //
-    // Solution: Fx = -gear_dir * Cx * σx * f(λ)
+    // Longitudinal force sign convention:
+    // sigma_x = (omega*R - Vx) / Vx_safe already encodes the correct sign:
+    //   Forward driving  (omega*R > Vx,  sigma_x > 0) → Fx > 0  (propels vehicle)
+    //   Forward braking  (omega*R < Vx,  sigma_x < 0) → Fx < 0  (retards vehicle)
+    //   Reverse driving  (omega*R < Vx,  sigma_x < 0) → Fx < 0  (propels vehicle backward)
+    //   Reverse braking  (omega*R > Vx,  sigma_x > 0) → Fx > 0  (retards rearward motion)
+    // No gear_dir factor needed — sigma_x captures direction automatically.
+    // NOTE: This Fx is also passed to WheelDynamics as the load torque:
+    //   omega_dot = (tau_drive - tau_brake - Fx*R) / Iw
+    // Positive Fx correctly opposes wheel spin-up during traction.
 
-    forces.Fx = -static_cast<double>(gear_dir) * Cx * forces.sigma_x * f_lambda;
+    forces.Fx = Cx * forces.sigma_x * f_lambda;
 
     // Lateral force opposes lateral slip (independent of longitudinal direction)
     forces.Fy = -Cy * forces.sigma_y * f_lambda;
