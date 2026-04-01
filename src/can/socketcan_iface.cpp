@@ -2,9 +2,10 @@
 #include "can/socketcan_iface.hpp"
 #include "utils/logging.hpp"
 
+#ifdef __linux__
+
 #include <cstring>
 #include <cerrno>
-
 #include <fcntl.h>
 #include <poll.h>
 #include <linux/can/raw.h>
@@ -31,7 +32,7 @@ bool SocketCanIface::open(const std::string& ifname) {
     struct ifreq ifr{};
     std::snprintf(ifr.ifr_name, IFNAMSIZ, "%s", ifname.c_str());
     if (::ioctl(sock_, SIOCGIFINDEX, &ifr) < 0) {
-        LOG_ERROR("ioctl(SIOCGIFINDEX) failed for %s: %s", 
+        LOG_ERROR("ioctl(SIOCGIFINDEX) failed for %s: %s",
                   ifname.c_str(), std::strerror(errno));
         close();
         return false;
@@ -68,80 +69,56 @@ bool SocketCanIface::read_frame(struct can_frame& out) {
 }
 
 bool SocketCanIface::read_nonblocking(struct can_frame& out) {
-    if (sock_ < 0) {
-        return false;
-    }
-    
-    // Save current socket flags
+    if (sock_ < 0) return false;
+
     int flags = ::fcntl(sock_, F_GETFL, 0);
     if (flags < 0) {
         LOG_ERROR("fcntl(F_GETFL) failed: %s", std::strerror(errno));
         return false;
     }
-    
-    // Set socket to non-blocking mode
     if (::fcntl(sock_, F_SETFL, flags | O_NONBLOCK) < 0) {
         LOG_ERROR("fcntl(F_SETFL, O_NONBLOCK) failed: %s", std::strerror(errno));
         return false;
     }
-    
-    // Attempt to read
+
     ssize_t nbytes = ::read(sock_, &out, sizeof(struct can_frame));
-    
-    // Restore original flags (blocking mode)
     ::fcntl(sock_, F_SETFL, flags);
-    
+
     if (nbytes < 0) {
-        // EAGAIN/EWOULDBLOCK means no data available (not an error)
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            return false;  // No data available
-        }
-        
-        // Other errors are real errors
+        if (errno == EAGAIN || errno == EWOULDBLOCK) return false;
         LOG_ERROR("read() failed: %s", std::strerror(errno));
         return false;
     }
-    
-    if (nbytes < (ssize_t)sizeof(struct can_frame)) {
-        LOG_ERROR("Incomplete CAN frame read: %zd bytes (expected %zu)", 
+    if (nbytes < static_cast<ssize_t>(sizeof(struct can_frame))) {
+        LOG_ERROR("Incomplete CAN frame: %zd bytes (expected %zu)",
                   nbytes, sizeof(struct can_frame));
         return false;
     }
-    
-    return true;  // Successfully read frame
+    return true;
 }
 
 bool SocketCanIface::read_timeout(struct can_frame& out, int timeout_ms) {
-    if (sock_ < 0) {
-        return false;
-    }
-    
-    // Use poll() to wait for data with timeout
+    if (sock_ < 0) return false;
+
     struct pollfd pfd;
-    pfd.fd = sock_;
+    pfd.fd     = sock_;
     pfd.events = POLLIN;
-    
+
     int ret = ::poll(&pfd, 1, timeout_ms);
     if (ret < 0) {
         LOG_ERROR("poll() failed: %s", std::strerror(errno));
         return false;
     }
-    
-    if (ret == 0) {
-        // Timeout - no data available
-        return false;
-    }
-    
-    // Data available, read it
+    if (ret == 0) return false;  // timeout
+
     if (pfd.revents & POLLIN) {
         ssize_t nbytes = ::read(sock_, &out, sizeof(struct can_frame));
         if (nbytes < 0) {
             LOG_ERROR("read() failed: %s", std::strerror(errno));
             return false;
         }
-        return (nbytes == sizeof(struct can_frame));
+        return nbytes == static_cast<ssize_t>(sizeof(struct can_frame));
     }
-    
     return false;
 }
 
@@ -155,27 +132,19 @@ bool SocketCanIface::write_frame(const struct can_frame& frame) {
     return n == static_cast<ssize_t>(sizeof(frame));
 }
 
-bool SocketCanIface::set_filters(const std::vector<uint32_t>& can_ids) {
+bool SocketCanIface::set_filters(const std::vector<uint32_t>& ids_11bit) {
     if (sock_ < 0) return false;
 
-    if (can_ids.empty()) {
-        // Clear filters => receive everything
+    if (ids_11bit.empty()) {
         return ::setsockopt(sock_, SOL_CAN_RAW, CAN_RAW_FILTER, nullptr, 0) == 0;
     }
 
     std::vector<struct can_filter> filters;
-    filters.reserve(can_ids.size());
-    for (uint32_t id : can_ids) {
+    filters.reserve(ids_11bit.size());
+    for (uint32_t id : ids_11bit) {
         struct can_filter f{};
-        if (id & CAN_EFF_FLAG) {
-            // Extended (29-bit) frame — J1939
-            f.can_id   = id & (CAN_EFF_FLAG | CAN_EFF_MASK);
-            f.can_mask = CAN_EFF_FLAG | CAN_EFF_MASK;
-        } else {
-            // Standard (11-bit) frame
-            f.can_id   = id & CAN_SFF_MASK;
-            f.can_mask = CAN_SFF_MASK;
-        }
+        f.can_id   = id & CAN_SFF_MASK;
+        f.can_mask = CAN_SFF_MASK;
         filters.push_back(f);
     }
 
@@ -185,8 +154,27 @@ bool SocketCanIface::set_filters(const std::vector<uint32_t>& can_ids) {
         LOG_ERROR("setsockopt(CAN_RAW_FILTER) failed: %s", std::strerror(errno));
         return false;
     }
-
     return true;
 }
 
 } // namespace can
+
+#else // !__linux__ — no-op stubs for macOS / Windows development builds
+
+namespace can {
+
+SocketCanIface::~SocketCanIface() {}
+bool SocketCanIface::open(const std::string& ifname) {
+    LOG_WARN("[SocketCAN] Not available on this platform (need Linux). ifname=%s", ifname.c_str());
+    return false;
+}
+void SocketCanIface::close() {}
+bool SocketCanIface::read_frame(struct can_frame&)         { return false; }
+bool SocketCanIface::read_nonblocking(struct can_frame&)   { return false; }
+bool SocketCanIface::read_timeout(struct can_frame&, int)  { return false; }
+bool SocketCanIface::write_frame(const struct can_frame&)  { return false; }
+bool SocketCanIface::set_filters(const std::vector<uint32_t>&) { return false; }
+
+} // namespace can
+
+#endif // __linux__

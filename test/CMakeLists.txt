@@ -50,7 +50,7 @@ add_gtest_test(test_subsystem_manager
 # Test 3: VehicleConfig — YAML loading and validation
 # ============================================================================
 add_gtest_test(test_vehicle_config
-    LIBRARIES config plant utils yaml-cpp
+    LIBRARIES config plant utils
 )
 
 # ============================================================================

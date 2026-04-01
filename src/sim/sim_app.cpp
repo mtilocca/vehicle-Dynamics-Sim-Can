@@ -19,7 +19,7 @@
 #include <fstream>
 #include <thread>
 #include <iomanip>
-#include <linux/can.h>
+#include "can/can_frame_compat.hpp"
 
 namespace sim {
 

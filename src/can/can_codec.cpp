@@ -56,7 +56,7 @@ SignalMap CanCodec::decode_to_map(const FrameDef& def, const struct can_frame& f
 void CanCodec::encode_from_map(const FrameDef& def, const SignalMap& values, struct can_frame& out) {
     std::memset(&out, 0, sizeof(out));
     out.can_id  = def.frame_id;
-    out.can_dlc = static_cast<__u8>(def.dlc);
+    out.can_dlc = static_cast<uint8_t>(def.dlc);
 
     // Ensure bytes are zeroed
     std::memset(out.data, 0, sizeof(out.data));

@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include <linux/can.h>
+#include "can/can_frame_compat.hpp"
 
 namespace can {
 
