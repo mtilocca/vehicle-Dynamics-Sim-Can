@@ -134,7 +134,7 @@ void print_usage(const char* prog_name) {
     printf("  --dt SEC              Timestep in seconds (default: from JSON)\n");
     printf("  --duration SEC        Simulation duration in seconds (default: from JSON)\n");
     printf("  --vehicle PATH        Vehicle config YAML (default: from JSON or built-in)\n");
-    printf("  --can-map PATH        CAN signal map CSV (default: config/can_map.csv)\n");
+    printf("  --can-map PATH        CAN signal map DBC (default: config/can_map.dbc)\n");
     printf("  --log-level LEVEL     Log verbosity: trace, debug, info, warn, error, off\n");
     printf("                        (default: info)\n");
     printf("  --help, -h            Show this help\n");
@@ -206,7 +206,7 @@ int main(int argc, char** argv) {
     cfg.enable_can_tx = true;
     cfg.enable_can_rx = false;
     cfg.can_interface = "vcan0";
-    cfg.can_map_path = "config/can_map.csv";
+    cfg.can_map_path = "config/can_map.dbc";
     cfg.actuator_cmd_frame_name = "ACTUATOR_CMD_1";
     cfg.can_rx_timeout_s = 0.5;
     

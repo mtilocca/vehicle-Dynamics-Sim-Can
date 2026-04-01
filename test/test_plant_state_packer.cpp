@@ -58,8 +58,8 @@ protected:
     can::CanMap map;
 
     void SetUp() override {
-        ASSERT_TRUE(map.load(TEST_SOURCE_DIR "/config/can_map.csv"))
-            << "Could not load CAN map from: " TEST_SOURCE_DIR "/config/can_map.csv";
+        ASSERT_TRUE(map.load(TEST_SOURCE_DIR "/config/can_map.dbc"))
+            << "Could not load CAN map from: " TEST_SOURCE_DIR "/config/can_map.dbc";
     }
 };
 

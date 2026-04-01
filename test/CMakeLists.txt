@@ -126,7 +126,7 @@ add_gtest_test(test_smoke
         plant can utils
 )
 target_compile_definitions(test_smoke PRIVATE
-    CAN_MAP_PATH="${CMAKE_SOURCE_DIR}/config/can_map.csv"
+    CAN_MAP_PATH="${CMAKE_SOURCE_DIR}/config/can_map.dbc"
     SIM_MAIN_PATH="${CMAKE_BINARY_DIR}/src/sim/sim_main"
 )
 

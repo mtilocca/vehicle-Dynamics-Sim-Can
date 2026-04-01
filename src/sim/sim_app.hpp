@@ -40,7 +40,7 @@ struct SimAppConfig {
     // CAN configuration
     bool enable_can_tx = true;                      // Enable CAN transmission
     std::string can_interface = "vcan0";            // CAN interface name
-    std::string can_map_path = "config/can_map.csv"; // Path to CAN map
+    std::string can_map_path = "config/can_map.dbc"; // Path to CAN map (DBC)
     
     // ========== CAN RX for closed-loop control ==========
     
@@ -59,7 +59,7 @@ struct SimAppConfig {
     
     /**
      * CAN frame name to listen for actuator commands
-     * Must exist in can_map.csv as RX frame
+     * Must exist in can_map.dbc as RX frame
      * Default: "ACTUATOR_CMD_1" (frame ID 0x100)
      */
     std::string actuator_cmd_frame_name = "ACTUATOR_CMD_1";
