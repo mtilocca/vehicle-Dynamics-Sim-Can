@@ -25,12 +25,12 @@ int main(int argc, char** argv) {
     utils::set_level(utils::LogLevel::Info);
 
     const char* ifname   = (argc > 1) ? argv[1] : "vcan0";
-    const char* csv_path = (argc > 2) ? argv[2] : "configs/can_map.csv";
+    const char* csv_path = (argc > 2) ? argv[2] : "config/can_map.dbc";
 
     // Optional: restrict to a single TX frame id (11-bit), for debugging
     // Usage:
-    //   ./vcan_random_sender vcan0 configs/can_map.csv
-    //   ./vcan_random_sender vcan0 configs/can_map.csv 0x200
+    //   ./vcan_random_sender vcan0 config/can_map.dbc
+    //   ./vcan_random_sender vcan0 config/can_map.dbc 0x200
     bool use_fixed_id = false;
     uint32_t fixed_id = 0;
     if (argc > 3) {

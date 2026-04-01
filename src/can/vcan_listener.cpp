@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
     utils::set_level(utils::LogLevel::Info);
 
     const char* ifname   = (argc > 1) ? argv[1] : "vcan0";
-    const char* csv_path = (argc > 2) ? argv[2] : "config/can_map.csv";
+    const char* csv_path = (argc > 2) ? argv[2] : "config/can_map.dbc";
 
     // Flags:
     //   --decode-tx           (enable TX decoding)
