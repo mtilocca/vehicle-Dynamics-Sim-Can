@@ -10,6 +10,7 @@
 #include "can/can_map.hpp"
 #include "can/can_codec.hpp"
 #include <gtest/gtest.h>
+#include <linux/can.h>
 #include <cmath>
 #include <cstdlib>
 #include <string>
@@ -82,8 +83,9 @@ TEST(Smoke, CanRoundTrip) {
     ASSERT_TRUE(map.load(CAN_MAP_PATH))
         << "Could not load CAN map: " CAN_MAP_PATH;
 
-    const auto* def = map.find_rx_frame(0x100);  // ACTUATOR_CMD_1
-    ASSERT_NE(def, nullptr) << "ACTUATOR_CMD_1 (0x100) not found in CAN map";
+    // J1939 ID: Priority=6, PGN=0xEF00 (PDU1), SA=0x21, DA=0xF0 → 0x18EFF021
+    const auto* def = map.find_rx_frame(CAN_EFF_FLAG | 0x18EFF021u);  // ACTUATOR_CMD_1
+    ASSERT_NE(def, nullptr) << "ACTUATOR_CMD_1 (J1939 0x18EFF021) not found in CAN map";
 
     // Encode known values
     can::SignalMap input{

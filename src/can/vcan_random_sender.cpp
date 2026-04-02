@@ -27,15 +27,14 @@ int main(int argc, char** argv) {
     const char* ifname   = (argc > 1) ? argv[1] : "vcan0";
     const char* csv_path = (argc > 2) ? argv[2] : "config/can_map.dbc";
 
-    // Optional: restrict to a single TX frame id (11-bit), for debugging
-    // Usage:
-    //   ./vcan_random_sender vcan0 config/can_map.dbc
-    //   ./vcan_random_sender vcan0 config/can_map.dbc 0x200
+    // Optional: restrict to a single TX frame (J1939 29-bit ID), for debugging.
+    // Pass the raw 29-bit ID (without the EFF flag), e.g.:
+    //   ./vcan_random_sender vcan0 config/can_map.dbc 0x0CFF0028   (IMU_ACC)
     bool use_fixed_id = false;
     uint32_t fixed_id = 0;
     if (argc > 3) {
-        if (!parse_u32(argv[3], fixed_id) || fixed_id > 0x7FF) {
-            LOG_ERROR("Invalid fixed_id. Use 11-bit: e.g. 0x200");
+        if (!parse_u32(argv[3], fixed_id)) {
+            LOG_ERROR("Invalid fixed_id. Use J1939 29-bit ID, e.g. 0x0CFF0028");
             return 1;
         }
         use_fixed_id = true;
@@ -58,7 +57,8 @@ int main(int argc, char** argv) {
     tx_frames.reserve(map.tx_frames().size());
 
     for (const auto& f : map.tx_frames()) {
-        if (!use_fixed_id || f.frame_id == fixed_id)
+        // Compare raw 29-bit part (strip EFF flag from stored frame_id)
+        if (!use_fixed_id || (f.frame_id & CAN_EFF_MASK) == (fixed_id & CAN_EFF_MASK))
             tx_frames.push_back(f);
     }
 
@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
 
     LOG_INFO("CSV-driven CAN random sender on %s", ifname);
     LOG_INFO("Map: %s", csv_path);
-    if (use_fixed_id) LOG_INFO("Fixed TX frame: 0x%03X", fixed_id);
+    if (use_fixed_id) LOG_INFO("Fixed TX frame: 0x%08X", fixed_id);
 
     while (!g_stop) {
         auto now = can::TxScheduler::Clock::now();
@@ -108,12 +108,12 @@ int main(int argc, char** argv) {
 
             // Send
             if (!iface.write_frame(frame)) {
-                LOG_ERROR("Failed to write frame 0x%03X", def.frame_id);
+                LOG_ERROR("Failed to write frame 0x%08X", def.frame_id);
                 g_stop = 1;
                 break;
             }
 
-            LOG_INFO("TX 0x%03X (%s)", def.frame_id, def.frame_name.c_str());
+            LOG_INFO("TX 0x%08X (%s)", def.frame_id, def.frame_name.c_str());
         }
     }
 

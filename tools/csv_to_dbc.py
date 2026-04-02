@@ -109,6 +109,21 @@ def csv_to_dbc(csv_path: str, dbc_path: str) -> None:
                 "comment":    row.get("comment", "").strip(),
             })
 
+    # ── J1939 node names by source address ────────────────────────────────────
+    _SA_TO_NODE = {
+        0x21: "CabCtrl",
+        0x28: "IMU",
+        0x29: "GNSS",
+        0x2A: "WheelSensor",
+        0x2B: "BMS",
+        0x2C: "Radar",
+        0xF0: "SimPlant",
+    }
+
+    def _sender(dbc_id: int) -> str:
+        sa = dbc_id & 0xFF  # low byte of 29-bit ID = source address
+        return _SA_TO_NODE.get(sa, "Vector__XXX")
+
     # ── emit DBC ──────────────────────────────────────────────────────────────
     lines = [
         'VERSION ""',
@@ -122,13 +137,15 @@ def csv_to_dbc(csv_path: str, dbc_path: str) -> None:
         "",
         "BS_:",
         "",
-        "BU_:",
+        # J1939 ECU nodes — one entry per unique source address
+        "BU_: " + " ".join(sorted(set(_SA_TO_NODE.values()))),
         "",
     ]
 
     # ── BO_ / SG_ blocks ─────────────────────────────────────────────────────
     for dbc_id, fr in frames.items():
-        lines.append(f'BO_ {dbc_id} {fr["name"]}: {fr["dlc"]} Vector__XXX')
+        sender = _sender(dbc_id)
+        lines.append(f'BO_ {dbc_id} {fr["name"]}: {fr["dlc"]} {sender}')
         for sig in fr["signals"]:
             bo = sig["byte_order"]
             vt = sig["value_type"]
@@ -147,15 +164,20 @@ def csv_to_dbc(csv_path: str, dbc_path: str) -> None:
 
     # ── attribute definitions ─────────────────────────────────────────────────
     lines += [
+        # J1939 bus-type declaration — makes tools show frames as "J1939PG"
+        'BA_DEF_ "BusType" STRING ;',
         'BA_DEF_ BO_  "Direction"       STRING ;',
         'BA_DEF_ BO_  "GenMsgCycleTime" INT    0 10000 ;',
         'BA_DEF_ SG_  "Target"          STRING ;',
         'BA_DEF_ SG_  "DefaultValue"    FLOAT  -1e38 1e38 ;',
         "",
+        'BA_DEF_DEF_  "BusType"         "J1939" ;',
         'BA_DEF_DEF_  "Direction"       "tx" ;',
         'BA_DEF_DEF_  "GenMsgCycleTime" 0 ;',
         'BA_DEF_DEF_  "Target"          "" ;',
         'BA_DEF_DEF_  "DefaultValue"    0.0 ;',
+        "",
+        'BA_ "BusType" "J1939" ;',
         "",
     ]
 

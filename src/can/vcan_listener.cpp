@@ -110,7 +110,7 @@ struct LiveMonitor {
         print_value("Yaw Rate", "yaw_rate_dps", "deg/s", 8, 2);
         std::printf("└────────────────────────────────────────────────────────────────────────────┘\n\n");
         
-        // Battery State (from 0x230)
+        // Battery State (J1939 PGN 0xFF30 SA 0x2B: BATT_STATE)
         std::printf("┌─ BATTERY STATE ────────────────────────────────────────────────────────────┐\n");
         print_value("SOC", "batt_soc_pct", "%", 8, 1);
         print_value("Voltage", "batt_v", "V", 8, 1);
@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
     // Flags:
     //   --decode-tx           (enable TX decoding)
     //   --decode-tx=1|0       (explicit)
-    //   --filter=0x200,0x201  (optional SocketCAN filter)
+    //   --filter=0x0CFF0028,0x0CFF0128  (optional J1939 29-bit IDs, without EFF flag)
     //   --live                (live dashboard mode - NEW!)
     //   --plant-only          (filter only plant_state frames - NEW!)
     bool decode_tx = false;
