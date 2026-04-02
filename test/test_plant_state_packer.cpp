@@ -15,7 +15,7 @@
 #include "sim/plant_state_packer.hpp"
 #include "can/can_map.hpp"
 #include <gtest/gtest.h>
-#include <linux/can.h>
+#include "can/can_frame_compat.hpp"
 #include <cmath>
 #include <string>
 

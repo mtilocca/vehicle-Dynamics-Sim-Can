@@ -33,13 +33,13 @@ FDCAN2 (PB12/PB13) is available if a second bus is needed.
 
 ```mermaid
 graph LR
-    EC["External Controller"] -->|"CAN 500 kbps"| BUS["CAN Bus"]
+    EC["External Controller"] -->|"J1939 / CAN 500 kbps"| BUS["CAN Bus"]
     BUS --> TCAN["TCAN1042\nTransceiver"]
     TCAN -->|"FDCAN1\nPD0 / PD1"| MCU["STM32H753ZI\nnucleo_h753zi"]
     MCU --> PLANT["Plant Model\nsrc/plant/"]
     PLANT --> SENSORS["Sensor Pack\nsrc/sensors/"]
-    SENSORS -->|"TX frames\n10–100 ms"| BUS
-    MCU -->|"USART3\n115200 baud"| PC["PC Terminal\nshell / LOG"]
+    SENSORS -->|"TX frames 10-100 ms"| BUS
+    MCU -->|"USART3 115200 baud"| PC["PC Terminal\nshell / LOG"]
 ```
 
 ---
@@ -48,37 +48,37 @@ graph LR
 
 ```mermaid
 graph TB
-    subgraph KEEP["✅  KEEP — unchanged C++"]
+    subgraph KEEP["KEEP - unchanged C++"]
         K1["src/plant/\nDugoff physics, torque model"]
         K2["src/sensors/\nIMU, GNSS, wheel speed, radar"]
         K3["can_codec.cpp\nencode / decode signals"]
-        K4["can_map — FrameDef / SignalDef structs"]
+        K4["can_map - FrameDef / SignalDef structs"]
         K5["vehicle_config.cpp\nXCMG XDE320 hardcoded params"]
         K6["utils/bitpack.hpp\nutils/noise.hpp"]
     end
 
-    subgraph REPLACE["🔄  REPLACE — swap the host layer"]
-        R1["socketcan_iface\n→ zephyr_can_iface"]
-        R2["logging.hpp printf\n→ Zephyr LOG_INF / WRN / ERR"]
-        R3["sim_app for-loop\n→ k_timer + K_THREAD_DEFINE"]
-        R4["CanMap::load() DBC file I/O\n→ load_static() constexpr"]
-        R5["can_frame_compat macOS stub\n→ Zephyr branch using zephyr/drivers/can.h"]
+    subgraph REPLACE["REPLACE - swap the host layer"]
+        R1["socketcan_iface\nto zephyr_can_iface"]
+        R2["logging.hpp printf\nto Zephyr LOG_INF / WRN / ERR"]
+        R3["sim_app for-loop\nto k_timer + K_THREAD_DEFINE"]
+        R4["CanMap load - DBC file I/O\nto load_static constexpr"]
+        R5["can_frame_compat macOS stub\nto Zephyr zephyr/drivers/can.h"]
     end
 
-    subgraph REMOVE["❌  REMOVE — host-only, no MCU equivalent"]
+    subgraph REMOVE["REMOVE - host-only, no MCU equivalent"]
         D1["utils/influx.cpp\nInfluxDB client"]
         D2["utils/csv.hpp\nCSV logger"]
-        D3["sim_main CLI arg parsing\nLua / YAML / scenario paths"]
-        D4["std::chrono direct use\n(replaced by k_uptime_get_32)"]
+        D3["sim_main: load_timing_from_json\nload_vehicle_config_path_from_json\nscenario JSON / vehicle path CLI args"]
+        D4["std::chrono direct use\nreplaced by k_uptime_get_32"]
     end
 
-    subgraph NEW["🆕  NEW — Zephyr application layer"]
+    subgraph NEW["NEW - Zephyr application layer"]
         N1["zephyr/west.yml\nprj.conf  app.overlay"]
         N2["zephyr/src/main.cpp\nthread + timer definitions"]
         N3["zephyr_can_iface.hpp / .cpp\nFDCAN1 via can_send / msgq"]
         N4["can_map_static.hpp\nconstexpr FrameDef array"]
         N5["shell/debug_cmds.cpp\nplant / can / vehicle commands"]
-        N6["tools/gen_can_map.py\nDBC → constexpr header"]
+        N6["tools/gen_can_map.py\nDBC to constexpr header"]
     end
 
     style KEEP fill:#1a4731,color:#d4edda,stroke:#2d6a4f
@@ -127,27 +127,27 @@ Both the host simulator and the embedded firmware compile from the **same** `src
 graph TD
     ROOT["vehicle-Dynamics-Sim-Can/\nsrc/  utils/  config/can_map.dbc"]
 
-    ROOT -->|"shared source"| SHARED["SHARED CORE\nsrc/plant/  src/sensors/\ncan/can_codec  utils/bitpack+noise\nvehicle_config — XCMG params"]
+    ROOT -->|"shared source"| SHARED["SHARED CORE\nsrc/plant and sensors\ncan_codec  utils\nvehicle_config XCMG params"]
 
     SHARED --> HOST
     SHARED --> ZEPH
 
-    subgraph HOST["Host Linux Build — CMake"]
-        H1["socketcan_iface.cpp\n(SocketCAN)"]
-        H2["sim_main — CLI binary"]
-        H3["CanMap::load()\nDBC file at runtime"]
+    subgraph HOST["Host Linux Build - CMake"]
+        H1["socketcan_iface.cpp\nSocketCAN"]
+        H2["sim_main - CLI binary"]
+        H3["CanMap load\nDBC file at runtime"]
         H4["std::chrono timing"]
     end
 
-    subgraph ZEPH["Zephyr Embedded Build — west"]
-        Z1["zephyr_can_iface.cpp\n(FDCAN1 via can_send)"]
+    subgraph ZEPH["Zephyr Embedded Build - west"]
+        Z1["zephyr_can_iface.cpp\nFDCAN1 via can_send"]
         Z2["nucleo_h753zi ELF\nflashed via ST-Link"]
-        Z3["CanMap::load_static()\nconstexpr map in flash"]
+        Z3["CanMap load_static\nconstexpr map in flash"]
         Z4["k_uptime_get_32 timing"]
     end
 
     ROOT -->|"runtime load"| H3
-    ROOT -->|"gen_can_map.py\nat build time"| Z3
+    ROOT -->|"gen_can_map.py at build time"| Z3
 ```
 
 ---
@@ -277,6 +277,20 @@ Registered in `zephyr/src/shell/debug_cmds.cpp`:
 
 **Goal:** No file I/O on the MCU. CAN signal definitions compiled into flash as `constexpr` data.
 
+### DBC format — J1939
+
+`config/can_map.dbc` uses **J1939 29-bit extended IDs** stored in Vector EFF convention
+(`0x80000000 | raw_29bit`). `can_map.cpp` extracts Priority, PGN, and SA from each ID
+at parse time — no change needed for the Zephyr port since the same parser runs on host
+and embedded.
+
+| Frame | 29-bit ID | PGN | SA | Cycle |
+| --- | --- | --- | --- | --- |
+| ACTUATOR_CMD_1 | 0x18EFF021 | 0xEFF0 | 0x21 | 10 ms RX |
+| IMU_ACC | 0x18FF5528 | 0xFF55 | 0x28 | 10 ms TX |
+| GNSS_LL | 0x18FF5A49 | 0xFF5A | 0x49 | 100 ms TX |
+| VEHICLE_STATE_1 | 0x18FF50F0 | 0xFF50 | 0xF0 | 20 ms TX |
+
 ### Generator script
 
 `tools/gen_can_map.py` reads `config/can_map.dbc` and outputs `zephyr/src/can/can_map_static.hpp`:
@@ -297,7 +311,8 @@ inline const std::array<SignalDef, 4> ACTUATOR_CMD_1_SIGNALS = {{
 }};
 
 inline const FrameDef FRAME_ACTUATOR_CMD_1 = {
-    0x100, "ACTUATOR_CMD_1", {ACTUATOR_CMD_1_SIGNALS.begin(), ...}, 10, 8
+    0x98EFF021UL,  // J1939 29-bit ID (0x18EFF021) | CAN_EFF_FLAG
+    "ACTUATOR_CMD_1", {ACTUATOR_CMD_1_SIGNALS.begin(), ...}, 10, 8
 };
 
 // ... all TX frames ...
@@ -356,14 +371,14 @@ sequenceDiagram
     participant CMD as g_cmd
     participant PT as Plant Thread
 
-    EC->>F1: ACTUATOR_CMD_1 (0x100, every 10 ms)
+    EC->>F1: ACTUATOR_CMD_1 (J1939 0x18EFF021, every 10 ms)
     F1->>MQ: k_msgq_put(&frame) [ISR]
     RT->>MQ: k_msgq_get(K_FOREVER)
     RT->>AD: decode(frame, g_cmd, t)
     AD-->>CMD: torque / brake / steer / gear
-    PT->>CMD: read (every 10 ms, k_mutex)
+    PT->>CMD: read every 10 ms via k_mutex
     alt RX timeout > 500 ms
-        PT->>CMD: reset() — safe mode
+        PT->>CMD: reset() safe mode
     end
 ```
 
@@ -425,29 +440,29 @@ static void plant_thread(void*, void*, void*) {
 graph TD
     TIMER["k_timer\n10 ms periodic"]
     SEM["k_sem\nplant_sem"]
-    PLANT["Plant Thread\nprio=5  stack=16 KB"]
-    CANRX["CAN RX Thread\nprio=2  stack=2 KB"]
-    SHELL["Shell Thread\nprio=14  stack=4 KB"]
-    LOGB["LOG Backend\nprio=15  stack=2 KB"]
+    PLANT["Plant Thread\nprio=5 stack=16KB"]
+    CANRX["CAN RX Thread\nprio=2 stack=2KB"]
+    SHELL["Shell Thread\nprio=14 stack=4KB"]
+    LOGB["LOG Backend\nprio=15 stack=2KB"]
     ISR["FDCAN1 RX ISR"]
-    MSGQ["k_msgq\ncan_rx_msgq\n(8 frames deep)"]
+    MSGQ["k_msgq\ncan_rx_msgq\n8 frames deep"]
     GCMD["g_cmd\nActuatorCmd\nk_mutex"]
     GSTATE["g_state\nPlantState\nk_mutex"]
     FDTX["FDCAN1 TX"]
     UART["USART3 DMA"]
     BUS["CAN Bus"]
 
-    TIMER -->|"k_sem_give"| SEM
-    SEM -->|"k_sem_take\nblocks 10 ms"| PLANT
-    ISR -->|"k_msgq_put"| MSGQ
-    CANRX -->|"k_msgq_get\nK_FOREVER"| MSGQ
-    CANRX -->|"write\nk_mutex_lock"| GCMD
-    PLANT -->|"read\nk_mutex_lock"| GCMD
-    PLANT -->|"write\nk_mutex_lock"| GSTATE
-    SHELL -->|"read\nk_mutex_lock"| GSTATE
-    PLANT -->|"can_send"| FDTX
+    TIMER -->|k_sem_give| SEM
+    SEM -->|k_sem_take| PLANT
+    ISR -->|k_msgq_put| MSGQ
+    CANRX -->|k_msgq_get K_FOREVER| MSGQ
+    CANRX -->|write k_mutex_lock| GCMD
+    PLANT -->|read k_mutex_lock| GCMD
+    PLANT -->|write k_mutex_lock| GSTATE
+    SHELL -->|read k_mutex_lock| GSTATE
+    PLANT -->|can_send| FDTX
     FDTX --> BUS
-    LOGB -->|"DMA flush"| UART
+    LOGB -->|DMA flush| UART
 ```
 
 ### CAN TX Message Flow
@@ -467,7 +482,7 @@ sequenceDiagram
     PT->>PM: step(state, cmd, 0.01 s)
     PT->>SB: step(t, state, 0.01 s)
     PT->>TXS: due(now)
-    loop for each due frame (10–100 ms rates)
+    loop for each due frame at 10-100 ms rates
         TXS-->>PT: frame_def
         PT->>PT: pack(sensor_out, frame.data)
         PT->>ZCI: write_frame(frame)
@@ -513,27 +528,27 @@ west build -t rom_report    # shows per-object Flash usage
 graph LR
     subgraph FLASH["Flash 2 MB"]
         F1["Zephyr kernel .text"]
-        F2["Plant + sensor code"]
+        F2["Plant and sensor code"]
         F3["CAN codec"]
         F4["constexpr CAN map\ncan_map_static.hpp"]
         F5["XCMG params\nvehicle_config.cpp"]
     end
 
-    subgraph DTCM["DTCM 128 KB\nCortex-M7 TCM — zero-wait"]
-        D1["g_state — PlantState"]
-        D2["g_cmd — ActuatorCmd"]
+    subgraph DTCM["DTCM 128 KB\nCortex-M7 TCM zero-wait"]
+        D1["g_state PlantState"]
+        D2["g_cmd ActuatorCmd"]
         D3["timer / semaphore vars"]
     end
 
     subgraph AXI["AXI SRAM 512 KB"]
         A1["Zephyr kernel data"]
-        A2["Thread stacks\nplant 16K + rx 2K + shell 4K + log 2K"]
+        A2["Thread stacks\nplant 16K rx 2K shell 4K log 2K"]
         A3["Heap 128 KB\nSTL containers, can_map, sensors"]
     end
 
     subgraph SRAM12["SRAM1/2 288 KB"]
         S1["LOG buffer 4 KB"]
-        S2["CAN msgq — can_rx_msgq"]
+        S2["CAN msgq can_rx_msgq"]
         S3["Shell buffer"]
     end
 ```
@@ -568,12 +583,12 @@ graph LR
 ## Execution Order Summary
 
 ```mermaid
-flowchart TD
+graph TD
     P0["Phase 0\nWest workspace\nBoard boots"]
     G0{UART prints\nstartup message?}
     P1["Phase 1\nLogging + Shell\nUSART3 live"]
     G1{shell responds\nto commands?}
-    P2["Phase 2\nStatic CAN Map\nDBC → constexpr"]
+    P2["Phase 2\nStatic CAN Map\nDBC to constexpr"]
     G2{can stats shows\ncorrect frame count?}
     P3["Phase 3\nFDCAN1 open\nRX / TX verified"]
     G3{CAN analyzer\nsees frames?}
@@ -581,26 +596,26 @@ flowchart TD
     G4{plant state\nupdates live?}
     P5["Phase 5\nRAM / Flash audit\nHeap tuned"]
     G5{RAM report\ngreen?}
-    DONE(["DONE\nDeployed on\nnucleo_h753zi"])
+    DONE["DONE\nDeployed on\nnucleo_h753zi"]
 
     P0 --> G0
     G0 -->|Yes| P1
-    G0 -->|No — fix overlay / prj.conf| P0
+    G0 -->|No: fix overlay/prj.conf| P0
     P1 --> G1
     G1 -->|Yes| P2
-    G1 -->|No — check SHELL config| P1
+    G1 -->|No: check SHELL config| P1
     P2 --> G2
     G2 -->|Yes| P3
-    G2 -->|No — rerun gen_can_map.py| P2
+    G2 -->|No: rerun gen_can_map.py| P2
     P3 --> G3
     G3 -->|Yes| P4
-    G3 -->|No — check transceiver wiring| P3
+    G3 -->|No: check transceiver wiring| P3
     P4 --> G4
     G4 -->|Yes| P5
-    G4 -->|No — check thread priorities| P4
+    G4 -->|No: check thread priorities| P4
     P5 --> G5
     G5 -->|Yes| DONE
-    G5 -->|No — replace STL containers| P5
+    G5 -->|No: replace STL containers| P5
 ```
 
 ---
