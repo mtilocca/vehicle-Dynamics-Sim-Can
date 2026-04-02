@@ -14,7 +14,7 @@ namespace can {
  *
  * Matches encoding from Go controller (dds-fusion-core/utils/can_loader.go)
  *
- * Frame 0x100 (ACTUATOR_CMD_1), 10ms cycle, DLC=8:
+ * J1939: PGN 0xEF00, SA 0x21, DA 0xF0 → CAN ID 0x18EFF021 (ACTUATOR_CMD_1), 10ms, DLC=8:
  *   system_enable       bit 0      (1 bit,  bool)
  *   gear_position       bit 1-2    (2 bits, enum: 0=Neutral, 1=Forward, 2=Reverse)
  *   mode                bit 3-4    (2 bits, enum, reserved)

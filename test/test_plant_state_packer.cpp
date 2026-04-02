@@ -15,6 +15,7 @@
 #include "sim/plant_state_packer.hpp"
 #include "can/can_map.hpp"
 #include <gtest/gtest.h>
+#include <linux/can.h>
 #include <cmath>
 #include <string>
 
@@ -99,14 +100,15 @@ TEST_F(PlantStatePackerTest, VisitorEnumeratesFields) {
 TEST_F(PlantStatePackerTest, AllPlantFramesPack) {
     plant::PlantState state = create_test_state();
 
+    // J1939 IDs: CAN_EFF_FLAG | 29-bit ID (Priority=6, PGN=0xFF5x/0xFF60, SA=0xF0)
     const uint32_t plant_frame_ids[] = {
-        0x300,  // VEHICLE_STATE_1
-        0x310,  // MOTOR_STATE_1
-        0x320,  // BRAKE_STATE
-        0x330,  // POSITION_STATE
-        0x331,  // ORIENTATION_STATE
-        0x340,  // DRIVETRAIN_STATE
-        0x3F0   // DIAGNOSTIC_STATE
+        CAN_EFF_FLAG | 0x18FF50F0u,  // VEHICLE_STATE_1
+        CAN_EFF_FLAG | 0x18FF51F0u,  // MOTOR_STATE_1
+        CAN_EFF_FLAG | 0x18FF52F0u,  // BRAKE_STATE
+        CAN_EFF_FLAG | 0x18FF53F0u,  // POSITION_STATE
+        CAN_EFF_FLAG | 0x18FF54F0u,  // ORIENTATION_STATE
+        CAN_EFF_FLAG | 0x18FF55F0u,  // DRIVETRAIN_STATE
+        CAN_EFF_FLAG | 0x18FF60F0u,  // DIAGNOSTIC_STATE
     };
 
     for (uint32_t frame_id : plant_frame_ids) {
@@ -129,7 +131,7 @@ TEST_F(PlantStatePackerTest, AllPlantFramesPack) {
 
 TEST_F(PlantStatePackerTest, MotorRpmDerivedCorrectly) {
     plant::PlantState state = create_test_state();
-    const can::FrameDef* motor_frame = map.find_tx_frame(0x310);
+    const can::FrameDef* motor_frame = map.find_tx_frame(CAN_EFF_FLAG | 0x18FF51F0u);
     ASSERT_NE(motor_frame, nullptr);
 
     can::SignalMap signals = sim::PlantStatePacker::pack(state, *motor_frame);
@@ -144,7 +146,7 @@ TEST_F(PlantStatePackerTest, MotorRpmDerivedCorrectly) {
 
 TEST_F(PlantStatePackerTest, YawConvertedToDegrees) {
     plant::PlantState state = create_test_state();
-    const can::FrameDef* orient_frame = map.find_tx_frame(0x331);
+    const can::FrameDef* orient_frame = map.find_tx_frame(CAN_EFF_FLAG | 0x18FF54F0u);
     ASSERT_NE(orient_frame, nullptr);
 
     can::SignalMap signals = sim::PlantStatePacker::pack(state, *orient_frame);
@@ -158,7 +160,8 @@ TEST_F(PlantStatePackerTest, YawConvertedToDegrees) {
 
 TEST_F(PlantStatePackerTest, BatteryPowerCalculated) {
     plant::PlantState state = create_test_state();
-    const can::FrameDef* batt_frame = map.find_tx_frame(0x230);
+    // BATT_STATE: J1939 PGN=0xFF30, SA=0x2B (BMS node)
+    const can::FrameDef* batt_frame = map.find_tx_frame(CAN_EFF_FLAG | 0x18FF302Bu);
     ASSERT_NE(batt_frame, nullptr);
 
     can::SignalMap signals = sim::PlantStatePacker::pack(state, *batt_frame);

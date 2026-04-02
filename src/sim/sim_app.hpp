@@ -60,7 +60,7 @@ struct SimAppConfig {
     /**
      * CAN frame name to listen for actuator commands
      * Must exist in can_map.dbc as RX frame
-     * Default: "ACTUATOR_CMD_1" (frame ID 0x100)
+     * Default: "ACTUATOR_CMD_1" (J1939 CAN ID 0x18EFF021)
      */
     std::string actuator_cmd_frame_name = "ACTUATOR_CMD_1";
     

@@ -10,20 +10,20 @@ namespace can {
 /**
  * SensorStatePacker - Packs sensor measurements into CAN frames
  * 
- * Maps SensorOut fields to CAN frames according to can_map.csv:
- * - 0x200: IMU_ACC (accelerometer 3-axis + temp)
- * - 0x201: IMU_GYR (gyroscope 3-axis + status)
- * - 0x210: GNSS_LL (latitude + longitude)
- * - 0x211: GNSS_AV (altitude + velocity north/east + fix + sats)
- * - 0x220: WHEELS_1 (4 wheel speeds) - handled by existing code
- * - 0x230: BATT_STATE (battery) - handled by existing code
- * - 0x240: RADAR_1 (range + velocity + angle + status)
+ * Maps SensorOut fields to CAN frames according to can_map.csv (J1939):
+ * - IMU_ACC     PGN 0xFF00 SA 0x28  (0x0CFF0028) — accelerometer 3-axis + temp
+ * - IMU_GYR     PGN 0xFF01 SA 0x28  (0x0CFF0128) — gyroscope 3-axis + status
+ * - GNSS_LL     PGN 0xFF10 SA 0x29  (0x18FF1029) — latitude + longitude
+ * - GNSS_AV     PGN 0xFF11 SA 0x29  (0x18FF1129) — altitude + velocity + fix + sats
+ * - WHEELS_1    PGN 0xFF20 SA 0x2A  (0x0CFF202A) — 4 wheel speeds
+ * - BATT_STATE  PGN 0xFF30 SA 0x2B  (0x18FF302B) — battery
+ * - RADAR_1     PGN 0xFF40 SA 0x2C  (0x18FF402C) — range + velocity + angle + status
  */
 class SensorStatePacker {
 public:
     /**
      * Pack IMU accelerometer data
-     * CAN ID: 0x200 (IMU_ACC)
+     * J1939: PGN 0xFF00, SA 0x28  (CAN ID 0x0CFF0028 — IMU_ACC)
      * Signal layout per can_map.csv:
      *   imu_ax_mps2  : start_bit=0,  bit_length=16, signed, factor=0.01
      *   imu_ay_mps2  : start_bit=16, bit_length=16, signed, factor=0.01
@@ -56,7 +56,7 @@ public:
 
     /**
      * Pack IMU gyroscope data
-     * CAN ID: 0x201 (IMU_GYR)
+     * J1939: PGN 0xFF01, SA 0x28  (CAN ID 0x0CFF0128 — IMU_GYR)
      * Signal layout per can_map.csv:
      *   imu_gx_rps   : start_bit=0,  bit_length=16, signed, factor=0.001
      *   imu_gy_rps   : start_bit=16, bit_length=16, signed, factor=0.001
@@ -89,7 +89,7 @@ public:
 
     /**
      * Pack GNSS lat/lon data
-     * CAN ID: 0x210 (GNSS_LL)
+     * J1939: PGN 0xFF10, SA 0x29  (CAN ID 0x18FF1029 — GNSS_LL)
      * Signal layout per can_map.csv:
      *   gnss_lat_deg : start_bit=0,  bit_length=32, signed, factor=1e-7
      *   gnss_lon_deg : start_bit=32, bit_length=32, signed, factor=1e-7
@@ -114,7 +114,7 @@ public:
 
     /**
      * Pack GNSS altitude/velocity data
-     * CAN ID: 0x211 (GNSS_AV)
+     * J1939: PGN 0xFF11, SA 0x29  (CAN ID 0x18FF1129 — GNSS_AV)
      * Signal layout per can_map.csv:
      *   gnss_alt_m      : start_bit=0,  bit_length=16, signed, factor=0.1, offset=-1000
      *   gnss_vn_mps     : start_bit=16, bit_length=16, signed, factor=0.01
@@ -150,7 +150,7 @@ public:
 
     /**
      * Pack radar sensor data
-     * CAN ID: 0x240 (RADAR_1)
+     * J1939: PGN 0xFF40, SA 0x2C  (CAN ID 0x18FF402C — RADAR_1)
      * Signal layout per can_map.csv:
      *   radar_target_range_m     : start_bit=0,  bit_length=16, unsigned, factor=0.1
      *   radar_target_rel_vel_mps : start_bit=16, bit_length=16, signed,   factor=0.01
@@ -183,7 +183,7 @@ public:
 
     /**
      * Pack battery sensor data
-     * CAN ID: 0x230 (BATT_STATE)
+     * J1939: PGN 0xFF30, SA 0x2B  (CAN ID 0x18FF302B — BATT_STATE)
      * This is handled by PlantStatePacker in existing code,
      * but included here for completeness if sensor measurements are preferred.
      * 
@@ -224,7 +224,7 @@ public:
 
     /**
      * Pack wheel speed sensor data
-     * CAN ID: 0x220 (WHEELS_1)
+     * J1939: PGN 0xFF20, SA 0x2A  (CAN ID 0x0CFF202A — WHEELS_1)
      * 
      * Signal layout per can_map.csv:
      *   wheel_fl_rps : start_bit=0,  bit_length=16, signed, factor=0.01

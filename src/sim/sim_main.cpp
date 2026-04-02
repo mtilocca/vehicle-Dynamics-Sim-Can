@@ -443,7 +443,7 @@ int main(int argc, char** argv) {
     
     if (cfg.enable_can_rx) {
         printf("⚠️  CLOSED-LOOP MODE: Waiting for CAN commands on %s\n", cfg.can_interface.c_str());
-        printf("    Frame: %s (ID: 0x100)\n", cfg.actuator_cmd_frame_name.c_str());
+        printf("    Frame: %s (J1939 ID: 0x18EFF021)\n", cfg.actuator_cmd_frame_name.c_str());
         printf("    Start your controller now!\n\n");
     }
     

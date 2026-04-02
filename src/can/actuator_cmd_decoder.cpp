@@ -52,7 +52,7 @@ ActuatorCmdDecoder::ActuatorCmdDecoder(const CanMap& can_map, const std::string&
         }
     }
     
-    LOG_INFO("ActuatorCmdDecoder initialized: frame=%s id=0x%03X dlc=%d signals=%zu", 
+    LOG_INFO("ActuatorCmdDecoder initialized: frame=%s id=0x%08X dlc=%d signals=%zu",
              frame_name.c_str(), frame_id_, frame_def_.dlc, frame_def_.signals.size());
 }
 
@@ -66,7 +66,7 @@ bool ActuatorCmdDecoder::decode(const struct can_frame& frame,
     
     // Verify DLC matches
     if (frame.can_dlc != frame_def_.dlc) {
-        LOG_WARN("CAN RX frame 0x%03X has unexpected DLC: %d (expected %d)",
+        LOG_WARN("CAN RX frame 0x%08X has unexpected DLC: %d (expected %d)",
                  frame.can_id, frame.can_dlc, frame_def_.dlc);
         return false;
     }
@@ -115,7 +115,7 @@ bool ActuatorCmdDecoder::decode(const struct can_frame& frame,
         case sim::GearPosition::REVERSE: gear_str = "R"; break;
         default: gear_str = "?"; break;
     }
-    LOG_DEBUG("CAN RX decoded 0x%03X: enable=%d gear=%s torque=%.1fNm brake=%.1f%% steer=%.1f°",
+    LOG_DEBUG("CAN RX decoded 0x%08X: enable=%d gear=%s torque=%.1fNm brake=%.1f%% steer=%.1f°",
               frame.can_id,
               out_cmd.system_enable,
               gear_str,

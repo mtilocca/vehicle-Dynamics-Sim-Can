@@ -56,7 +56,7 @@ void PlantStatePacker::add_derived_signals(
     can::SignalMap& signals
 ) {
     // ========================================================================
-    // MOTOR STATE (0x310)
+    // MOTOR STATE (J1939 PGN 0xFF51 SA 0xF0: MOTOR_STATE_1)
     // ========================================================================
     if (frame_has_signal(frame_def, "motor_speed_rpm")) {
         // ω_motor = (v / r_wheel) * N_gear
@@ -73,7 +73,7 @@ void PlantStatePacker::add_derived_signals(
     }
     
     // ========================================================================
-    // BATTERY STATE (0x230)
+    // BATTERY STATE (J1939 PGN 0xFF30 SA 0x2B: BATT_STATE)
     // ========================================================================
     if (frame_has_signal(frame_def, "batt_power_kw")) {
         // P = V * I
@@ -82,7 +82,7 @@ void PlantStatePacker::add_derived_signals(
     }
     
     // ========================================================================
-    // BRAKE STATE (0x320)
+    // BRAKE STATE (J1939 PGN 0xFF52 SA 0xF0: BRAKE_STATE)
     // ========================================================================
     if (frame_has_signal(frame_def, "brake_pct_actual")) {
         // TODO: Get this from ActuatorCmd or add to PlantState
@@ -95,7 +95,7 @@ void PlantStatePacker::add_derived_signals(
     }
     
     // ========================================================================
-    // ORIENTATION STATE (0x331)
+    // ORIENTATION STATE (J1939 PGN 0xFF54 SA 0xF0: ORIENTATION_STATE)
     // ========================================================================
     if (frame_has_signal(frame_def, "yaw_deg")) {
         signals["yaw_deg"] = state.yaw_rad * 180.0 / M_PI;
@@ -107,7 +107,7 @@ void PlantStatePacker::add_derived_signals(
     }
     
     // ========================================================================
-    // STEERING STATE (0x221)
+    // STEERING STATE (J1939 PGN 0xFF21 SA 0x2A: STEER_STATE)
     // ========================================================================
     if (frame_has_signal(frame_def, "steer_deg")) {
         signals["steer_deg"] = state.steer_virtual_rad * 180.0 / M_PI;
@@ -131,7 +131,7 @@ void PlantStatePacker::add_derived_signals(
     }
     
     // ========================================================================
-    // DRIVETRAIN STATE (0x340) - Static Configuration
+    // DRIVETRAIN STATE (J1939 PGN 0xFF55 SA 0xF0: DRIVETRAIN_STATE) — Static Configuration
     // ========================================================================
     if (frame_has_signal(frame_def, "gear_ratio")) {
         signals["gear_ratio"] = DEFAULT_GEAR_RATIO;
@@ -154,7 +154,7 @@ void PlantStatePacker::add_derived_signals(
     }
     
     // ========================================================================
-    // DIAGNOSTIC STATE (0x3F0)
+    // DIAGNOSTIC STATE (J1939 PGN 0xFF60 SA 0xF0: DIAGNOSTIC_STATE)
     // ========================================================================
     if (frame_has_signal(frame_def, "loop_time_us")) {
         // TODO: Calculate actual loop time in sim_app

@@ -287,7 +287,7 @@ int SimApp::run_plant() {
             can_rx_decoder = std::make_unique<can::ActuatorCmdDecoder>(
                 can_map, cfg_.actuator_cmd_frame_name);
             can_rx_active = true;
-            LOG_INFO("CAN RX enabled: frame=%s id=0x%03X timeout=%.2fs", 
+            LOG_INFO("CAN RX enabled: frame=%s id=0x%08X timeout=%.2fs",
                      cfg_.actuator_cmd_frame_name.c_str(),
                      can_rx_decoder->get_frame_id(),
                      cfg_.can_rx_timeout_s);
@@ -315,7 +315,7 @@ int SimApp::run_plant() {
     // ========================================================================
     LOG_INFO("Starting simulation loop (duration=%.1fs, dt=%.4fs)", cfg_.duration_s, dt);
     if (can_rx_active) {
-        LOG_INFO("Mode: CLOSED-LOOP (waiting for CAN commands on 0x%03X)", 
+        LOG_INFO("Mode: CLOSED-LOOP (waiting for CAN commands on 0x%08X)",
                  can_rx_decoder->get_frame_id());
     } else if (lua_ready_) {
         LOG_INFO("Mode: OPEN-LOOP (Lua scenario)");
@@ -418,33 +418,25 @@ int SimApp::run_plant() {
                 frame.can_id = frame_def.frame_id;
                 frame.can_dlc = 8;
                 
-                switch (frame_def.frame_id) {
-                    case 0x200:
-                        can::SensorStatePacker::pack_imu_acc(sensor_out, frame.data);
-                        break;
-                    case 0x201:
-                        can::SensorStatePacker::pack_imu_gyr(sensor_out, frame.data);
-                        break;
-                    case 0x210:
-                        can::SensorStatePacker::pack_gnss_ll(sensor_out, frame.data);
-                        break;
-                    case 0x211:
-                        can::SensorStatePacker::pack_gnss_av(sensor_out, frame.data);
-                        break;
-                    case 0x220:
-                        can::SensorStatePacker::pack_wheel_speeds(sensor_out, frame.data);
-                        break;
-                    case 0x230:
-                        can::SensorStatePacker::pack_battery(sensor_out, frame.data);
-                        break;
-                    case 0x240:
-                        can::SensorStatePacker::pack_radar(sensor_out, frame.data);
-                        break;
-                    default:
-                        auto signals = sim::PlantStatePacker::pack(s, frame_def);
-                        signals["loop_time_us"] = timer.get_last_loop_time_us();
-                        can::CanCodec::encode_from_map(frame_def, signals, frame);
-                        break;
+                const std::string& fn = frame_def.frame_name;
+                if (fn == "IMU_ACC") {
+                    can::SensorStatePacker::pack_imu_acc(sensor_out, frame.data);
+                } else if (fn == "IMU_GYR") {
+                    can::SensorStatePacker::pack_imu_gyr(sensor_out, frame.data);
+                } else if (fn == "GNSS_LL") {
+                    can::SensorStatePacker::pack_gnss_ll(sensor_out, frame.data);
+                } else if (fn == "GNSS_AV") {
+                    can::SensorStatePacker::pack_gnss_av(sensor_out, frame.data);
+                } else if (fn == "WHEELS_1") {
+                    can::SensorStatePacker::pack_wheel_speeds(sensor_out, frame.data);
+                } else if (fn == "BATT_STATE") {
+                    can::SensorStatePacker::pack_battery(sensor_out, frame.data);
+                } else if (fn == "RADAR_1") {
+                    can::SensorStatePacker::pack_radar(sensor_out, frame.data);
+                } else {
+                    auto signals = sim::PlantStatePacker::pack(s, frame_def);
+                    signals["loop_time_us"] = timer.get_last_loop_time_us();
+                    can::CanCodec::encode_from_map(frame_def, signals, frame);
                 }
                 
                 can_iface.write_frame(frame);
