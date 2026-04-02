@@ -155,20 +155,27 @@ bool SocketCanIface::write_frame(const struct can_frame& frame) {
     return n == static_cast<ssize_t>(sizeof(frame));
 }
 
-bool SocketCanIface::set_filters(const std::vector<uint32_t>& ids_11bit) {
+bool SocketCanIface::set_filters(const std::vector<uint32_t>& can_ids) {
     if (sock_ < 0) return false;
 
-    if (ids_11bit.empty()) {
+    if (can_ids.empty()) {
         // Clear filters => receive everything
         return ::setsockopt(sock_, SOL_CAN_RAW, CAN_RAW_FILTER, nullptr, 0) == 0;
     }
 
     std::vector<struct can_filter> filters;
-    filters.reserve(ids_11bit.size());
-    for (uint32_t id : ids_11bit) {
+    filters.reserve(can_ids.size());
+    for (uint32_t id : can_ids) {
         struct can_filter f{};
-        f.can_id   = id & CAN_SFF_MASK;
-        f.can_mask = CAN_SFF_MASK;
+        if (id & CAN_EFF_FLAG) {
+            // Extended (29-bit) frame — J1939
+            f.can_id   = id & (CAN_EFF_FLAG | CAN_EFF_MASK);
+            f.can_mask = CAN_EFF_FLAG | CAN_EFF_MASK;
+        } else {
+            // Standard (11-bit) frame
+            f.can_id   = id & CAN_SFF_MASK;
+            f.can_mask = CAN_SFF_MASK;
+        }
         filters.push_back(f);
     }
 
@@ -178,7 +185,7 @@ bool SocketCanIface::set_filters(const std::vector<uint32_t>& ids_11bit) {
         LOG_ERROR("setsockopt(CAN_RAW_FILTER) failed: %s", std::strerror(errno));
         return false;
     }
-    
+
     return true;
 }
 

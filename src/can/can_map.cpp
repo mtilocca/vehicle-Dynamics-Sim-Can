@@ -9,6 +9,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <linux/can.h>
+
 namespace can {
 
 // ── internal parse helpers ────────────────────────────────────────────────────
@@ -47,6 +49,11 @@ struct TempFrame {
     uint32_t    id  = 0;
     std::string name;
     int         dlc = 8;
+    // J1939 extended-frame fields (decoded from 29-bit ID):
+    bool        is_extended = false;
+    uint32_t    pgn         = 0;
+    uint8_t     sa          = 0;
+    uint8_t     j1939_prio  = 6;
     // Filled from BA_ attributes:
     std::string direction = "tx";
     int         cycle_ms  = 0;
@@ -95,7 +102,26 @@ bool CanMap::load(const std::string& dbc_path) {
             TempFrame f;
             char name_buf[128] = {};
             if (sscanf(s, "BO_ %u %127[^:]: %d", &f.id, name_buf, &f.dlc) == 3) {
-                f.name      = name_buf;
+                f.name = name_buf;
+
+                // ── J1939 / EFF detection ─────────────────────────────────
+                // DBC uses Vector EFF convention: bit 31 set → 29-bit extended.
+                if (f.id & 0x80000000u) {
+                    uint32_t raw29 = f.id & 0x1FFFFFFFu;
+                    // Store SocketCAN-ready ID (CAN_EFF_FLAG preserved)
+                    f.id           = CAN_EFF_FLAG | raw29;
+                    f.is_extended  = true;
+                    f.sa           = static_cast<uint8_t>(raw29 & 0xFF);
+                    f.j1939_prio   = static_cast<uint8_t>((raw29 >> 26) & 0x07);
+                    uint8_t pf     = static_cast<uint8_t>((raw29 >> 16) & 0xFF);
+                    uint8_t dp     = static_cast<uint8_t>((raw29 >> 24) & 0x01);
+                    uint8_t ps     = static_cast<uint8_t>((raw29 >>  8) & 0xFF);
+                    // PDU2 (PF >= 0xF0): GE is part of PGN; PDU1: DA not in PGN
+                    f.pgn = (pf >= 0xF0u)
+                          ? ((uint32_t)dp << 17) | ((uint32_t)pf << 8) | ps
+                          : ((uint32_t)dp << 17) | ((uint32_t)pf << 8);
+                }
+
                 current_bo_id = f.id;
                 frames.emplace(f.id, std::move(f));
             }
@@ -188,10 +214,14 @@ bool CanMap::load(const std::string& dbc_path) {
     // ── build CanMap from collected TempFrame data ────────────────────────────
     for (auto& [id, f] : frames) {
         FrameDef fd;
-        fd.frame_id   = f.id;
-        fd.frame_name = f.name;
-        fd.dlc        = f.dlc;
-        fd.cycle_ms   = f.cycle_ms;
+        fd.frame_id    = f.id;
+        fd.frame_name  = f.name;
+        fd.dlc         = f.dlc;
+        fd.cycle_ms    = f.cycle_ms;
+        fd.is_extended = f.is_extended;
+        fd.pgn         = f.pgn;
+        fd.sa          = f.sa;
+        fd.priority    = f.j1939_prio;
 
         for (auto& ts : f.signals) {
             SignalRule sr;

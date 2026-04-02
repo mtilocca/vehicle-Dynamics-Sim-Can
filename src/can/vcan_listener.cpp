@@ -30,14 +30,16 @@ static bool parse_u32(const std::string& s, uint32_t& out) {
 }
 
 static std::vector<uint32_t> parse_id_list(const std::string& s) {
-    // e.g. "0x200,0x201,0x220"
+    // Accepts comma-separated CAN IDs — standard 11-bit or J1939 29-bit.
+    // J1939 IDs may include the EFF flag (0x80000000) or be bare 29-bit values;
+    // the caller is responsible for adding CAN_EFF_FLAG if needed.
     std::vector<uint32_t> ids;
     std::string cur;
     for (char ch : s) {
         if (ch == ',') {
             if (!cur.empty()) {
                 uint32_t v = 0;
-                if (parse_u32(cur, v) && v <= 0x7FF) ids.push_back(v);
+                if (parse_u32(cur, v)) ids.push_back(v);
                 cur.clear();
             }
         } else if (!std::isspace(static_cast<unsigned char>(ch))) {
@@ -46,7 +48,7 @@ static std::vector<uint32_t> parse_id_list(const std::string& s) {
     }
     if (!cur.empty()) {
         uint32_t v = 0;
-        if (parse_u32(cur, v) && v <= 0x7FF) ids.push_back(v);
+        if (parse_u32(cur, v)) ids.push_back(v);
     }
     return ids;
 }
@@ -187,8 +189,16 @@ int main(int argc, char** argv) {
 
     // Auto-filter to plant_state frames if --plant-only
     if (plant_only && filter_ids.empty()) {
-        // Plant state frame IDs: 0x300, 0x310, 0x320, 0x330, 0x331, 0x340, 0x3F0
-        filter_ids = {0x300, 0x310, 0x320, 0x330, 0x331, 0x340, 0x3F0};
+        // J1939 plant state frame IDs (CAN_EFF_FLAG | 29-bit ID)
+        filter_ids = {
+            CAN_EFF_FLAG | 0x18FF50F0u,  // VEHICLE_STATE_1
+            CAN_EFF_FLAG | 0x18FF51F0u,  // MOTOR_STATE_1
+            CAN_EFF_FLAG | 0x18FF52F0u,  // BRAKE_STATE
+            CAN_EFF_FLAG | 0x18FF53F0u,  // POSITION_STATE
+            CAN_EFF_FLAG | 0x18FF54F0u,  // ORIENTATION_STATE
+            CAN_EFF_FLAG | 0x18FF55F0u,  // DRIVETRAIN_STATE
+            CAN_EFF_FLAG | 0x18FF60F0u,  // DIAGNOSTIC_STATE
+        };
     }
 
     if (!filter_ids.empty()) {
@@ -216,7 +226,8 @@ int main(int argc, char** argv) {
         struct can_frame frame{};
         if (!iface.read_frame(frame)) continue;
 
-        uint32_t id = frame.can_id & CAN_SFF_MASK;
+        // Preserve EFF flag so J1939 IDs match map keys (CAN_EFF_FLAG | 29-bit)
+        uint32_t id = frame.can_id & (CAN_EFF_FLAG | CAN_EFF_MASK);
 
         const can::FrameDef* def = map.find_rx_frame(id);
         if (!def && decode_tx) def = map.find_tx_frame(id);
@@ -243,7 +254,7 @@ int main(int argc, char** argv) {
             }
         } else {
             // Normal logging mode
-            LOG_INFO("RX 0x%03X (%s) dlc=%d", id, def->frame_name.c_str(), (int)frame.can_dlc);
+            LOG_INFO("RX 0x%08X (%s) dlc=%d", id, def->frame_name.c_str(), (int)frame.can_dlc);
 
             for (const auto& sig : def->signals) {
                 auto it = decoded.find(sig.signal_name);

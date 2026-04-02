@@ -11,7 +11,7 @@ BS_:
 
 BU_:
 
-BO_ 256 ACTUATOR_CMD_1: 8 Vector__XXX
+BO_ 2565861409 ACTUATOR_CMD_1: 8 Vector__XXX
  SG_ system_enable : 0|1@1+ (1.0,0.0) [0.0|1.0] "bool" Vector__XXX
  SG_ gear_position : 1|2@1+ (1.0,0.0) [0.0|3.0] "enum" Vector__XXX
  SG_ mode : 3|2@1+ (1.0,0.0) [0.0|3.0] "enum" Vector__XXX
@@ -19,90 +19,90 @@ BO_ 256 ACTUATOR_CMD_1: 8 Vector__XXX
  SG_ drive_torque_cmd_nm : 24|16@1- (10.0,0.0) [-300000.0|300000.0] "Nm" Vector__XXX
  SG_ brake_cmd_pct : 40|8@1+ (1.0,0.0) [0.0|100.0] "%" Vector__XXX
 
-BO_ 512 IMU_ACC: 8 Vector__XXX
+BO_ 2365521960 IMU_ACC: 8 Vector__XXX
  SG_ imu_ax_mps2 : 0|16@1- (0.01,0.0) [-50.0|50.0] "m/s2" Vector__XXX
  SG_ imu_ay_mps2 : 16|16@1- (0.01,0.0) [-50.0|50.0] "m/s2" Vector__XXX
  SG_ imu_az_mps2 : 32|16@1- (0.01,0.0) [-50.0|50.0] "m/s2" Vector__XXX
  SG_ imu_temp_c : 48|16@1- (0.01,0.0) [-40.0|125.0] "C" Vector__XXX
 
-BO_ 513 IMU_GYR: 8 Vector__XXX
+BO_ 2365522216 IMU_GYR: 8 Vector__XXX
  SG_ imu_gx_rps : 0|16@1- (0.001,0.0) [-10.0|10.0] "rad/s" Vector__XXX
  SG_ imu_gy_rps : 16|16@1- (0.001,0.0) [-10.0|10.0] "rad/s" Vector__XXX
  SG_ imu_gz_rps : 32|16@1- (0.001,0.0) [-10.0|10.0] "rad/s" Vector__XXX
  SG_ imu_status : 48|8@1+ (1.0,0.0) [0.0|255.0] "flags" Vector__XXX
 
-BO_ 528 GNSS_LL: 8 Vector__XXX
+BO_ 2566852649 GNSS_LL: 8 Vector__XXX
  SG_ gnss_lat_deg : 0|32@1- (1e-07,0.0) [-90.0|90.0] "deg" Vector__XXX
  SG_ gnss_lon_deg : 32|32@1- (1e-07,0.0) [-180.0|180.0] "deg" Vector__XXX
 
-BO_ 529 GNSS_AV: 8 Vector__XXX
+BO_ 2566852905 GNSS_AV: 8 Vector__XXX
  SG_ gnss_alt_m : 0|16@1- (0.1,-1000.0) [-1000.0|8000.0] "m" Vector__XXX
  SG_ gnss_vn_mps : 16|16@1- (0.01,0.0) [-200.0|200.0] "m/s" Vector__XXX
  SG_ gnss_ve_mps : 32|16@1- (0.01,0.0) [-200.0|200.0] "m/s" Vector__XXX
  SG_ gnss_fix_type : 48|8@1+ (1.0,0.0) [0.0|10.0] "enum" Vector__XXX
  SG_ gnss_sat_count : 56|8@1+ (1.0,0.0) [0.0|255.0] "count" Vector__XXX
 
-BO_ 544 WHEELS_1: 8 Vector__XXX
+BO_ 2365530154 WHEELS_1: 8 Vector__XXX
  SG_ wheel_fl_rps : 0|16@1- (0.01,0.0) [-300.0|300.0] "rad/s" Vector__XXX
  SG_ wheel_fr_rps : 16|16@1- (0.01,0.0) [-300.0|300.0] "rad/s" Vector__XXX
  SG_ wheel_rl_rps : 32|16@1- (0.01,0.0) [-300.0|300.0] "rad/s" Vector__XXX
  SG_ wheel_rr_rps : 48|16@1- (0.01,0.0) [-300.0|300.0] "rad/s" Vector__XXX
 
-BO_ 545 STEER_STATE: 8 Vector__XXX
+BO_ 2365530410 STEER_STATE: 8 Vector__XXX
  SG_ steer_deg : 0|16@1- (0.1,0.0) [-500.0|500.0] "deg" Vector__XXX
  SG_ steer_rate_dps : 16|16@1- (0.1,0.0) [-1000.0|1000.0] "deg/s" Vector__XXX
  SG_ delta_fl_deg : 32|12@1- (0.1,0.0) [-45.0|45.0] "deg" Vector__XXX
  SG_ delta_fr_deg : 44|12@1- (0.1,0.0) [-45.0|45.0] "deg" Vector__XXX
  SG_ steer_fault : 56|8@1+ (1.0,0.0) [0.0|255.0] "flags" Vector__XXX
 
-BO_ 560 BATT_STATE: 8 Vector__XXX
+BO_ 2566860843 BATT_STATE: 8 Vector__XXX
  SG_ batt_v : 0|16@1+ (0.1,0.0) [0.0|1500.0] "V" Vector__XXX
  SG_ batt_i : 16|16@1- (0.1,0.0) [-3000.0|3000.0] "A" Vector__XXX
  SG_ batt_soc_pct : 32|8@1+ (0.5,0.0) [0.0|100.0] "%" Vector__XXX
  SG_ batt_temp_c : 40|8@1+ (1.0,-40.0) [-40.0|125.0] "C" Vector__XXX
  SG_ batt_power_kw : 48|16@1- (0.1,0.0) [-3000.0|3000.0] "kW" Vector__XXX
 
-BO_ 576 RADAR_1: 8 Vector__XXX
+BO_ 2566864940 RADAR_1: 8 Vector__XXX
  SG_ radar_target_range_m : 0|16@1+ (0.1,0.0) [0.0|1000.0] "m" Vector__XXX
  SG_ radar_target_rel_vel_mps : 16|16@1- (0.01,0.0) [-200.0|200.0] "m/s" Vector__XXX
  SG_ radar_target_angle_deg : 32|16@1- (0.1,0.0) [-90.0|90.0] "deg" Vector__XXX
  SG_ radar_status : 48|8@1+ (1.0,0.0) [0.0|255.0] "flags" Vector__XXX
 
-BO_ 768 VEHICLE_STATE_1: 8 Vector__XXX
+BO_ 2566869232 VEHICLE_STATE_1: 8 Vector__XXX
  SG_ vehicle_speed_mps : 0|16@1- (0.01,0.0) [-100.0|100.0] "m/s" Vector__XXX
  SG_ vehicle_accel_mps2 : 16|16@1- (0.01,0.0) [-20.0|20.0] "m/s2" Vector__XXX
  SG_ yaw_rate_radps : 32|16@1- (0.0001,0.0) [-3.0|3.0] "rad/s" Vector__XXX
  SG_ status_flags : 48|8@1+ (1.0,0.0) [0.0|255.0] "flags" Vector__XXX
 
-BO_ 784 MOTOR_STATE_1: 8 Vector__XXX
+BO_ 2566869488 MOTOR_STATE_1: 8 Vector__XXX
  SG_ motor_torque_nm : 0|16@1- (10.0,0.0) [-300000.0|300000.0] "Nm" Vector__XXX
  SG_ motor_power_kw : 16|16@1- (0.1,0.0) [-3000.0|3000.0] "kW" Vector__XXX
  SG_ motor_speed_rpm : 32|16@1+ (1.0,0.0) [0.0|20000.0] "rpm" Vector__XXX
  SG_ motor_temp_c : 48|8@1+ (1.0,-40.0) [-40.0|200.0] "C" Vector__XXX
 
-BO_ 800 BRAKE_STATE: 8 Vector__XXX
+BO_ 2566869744 BRAKE_STATE: 8 Vector__XXX
  SG_ brake_force_kn : 0|16@1+ (0.01,0.0) [0.0|250.0] "kN" Vector__XXX
  SG_ brake_pct_actual : 16|8@1+ (0.5,0.0) [0.0|100.0] "%" Vector__XXX
  SG_ regen_power_kw : 24|16@1+ (0.1,0.0) [0.0|2500.0] "kW" Vector__XXX
  SG_ brake_temp_c : 40|8@1+ (1.0,-40.0) [-40.0|300.0] "C" Vector__XXX
 
-BO_ 816 POSITION_STATE: 8 Vector__XXX
+BO_ 2566870000 POSITION_STATE: 8 Vector__XXX
  SG_ pos_x_m : 0|32@1- (0.01,0.0) [-100000.0|100000.0] "m" Vector__XXX
  SG_ pos_y_m : 32|32@1- (0.01,0.0) [-100000.0|100000.0] "m" Vector__XXX
 
-BO_ 817 ORIENTATION_STATE: 8 Vector__XXX
+BO_ 2566870256 ORIENTATION_STATE: 8 Vector__XXX
  SG_ yaw_deg : 0|16@1- (0.01,0.0) [-180.0|180.0] "deg" Vector__XXX
  SG_ yaw_rad : 16|16@1- (0.001,0.0) [-3.15|3.15] "rad" Vector__XXX
  SG_ yaw_rate_dps : 32|16@1- (0.1,0.0) [-500.0|500.0] "deg/s" Vector__XXX
 
-BO_ 832 DRIVETRAIN_STATE: 8 Vector__XXX
+BO_ 2566870512 DRIVETRAIN_STATE: 8 Vector__XXX
  SG_ gear_ratio : 0|16@1+ (0.01,0.0) [0.0|50.0] "ratio" Vector__XXX
  SG_ drivetrain_eff_pct : 16|8@1+ (0.5,0.0) [0.0|100.0] "%" Vector__XXX
  SG_ wheel_radius_mm : 24|16@1+ (1.0,0.0) [200.0|2500.0] "mm" Vector__XXX
  SG_ wheelbase_mm : 40|16@1+ (1.0,0.0) [2000.0|8000.0] "mm" Vector__XXX
  SG_ track_width_mm : 56|8@1+ (100.0,0.0) [1000.0|8000.0] "mm" Vector__XXX
 
-BO_ 1008 DIAGNOSTIC_STATE: 8 Vector__XXX
+BO_ 2566873328 DIAGNOSTIC_STATE: 8 Vector__XXX
  SG_ sim_time_s : 0|32@1+ (0.001,0.0) [0.0|10000.0] "s" Vector__XXX
  SG_ loop_time_us : 32|16@1+ (1.0,0.0) [0.0|20000.0] "us" Vector__XXX
  SG_ error_count : 48|8@1+ (1.0,0.0) [0.0|255.0] "count" Vector__XXX
@@ -118,231 +118,231 @@ BA_DEF_DEF_  "GenMsgCycleTime" 0 ;
 BA_DEF_DEF_  "Target"          "" ;
 BA_DEF_DEF_  "DefaultValue"    0.0 ;
 
-BA_ "Direction"       BO_ 256 "rx" ;
-BA_ "GenMsgCycleTime" BO_ 256 10 ;
-BA_ "Target"       SG_ 256 system_enable "actuator_cmd" ;
-BA_ "DefaultValue" SG_ 256 system_enable 0.0 ;
-BA_ "Target"       SG_ 256 gear_position "actuator_cmd" ;
-BA_ "DefaultValue" SG_ 256 gear_position 1.0 ;
-BA_ "Target"       SG_ 256 mode "actuator_cmd" ;
-BA_ "DefaultValue" SG_ 256 mode 0.0 ;
-BA_ "Target"       SG_ 256 steer_cmd_deg "actuator_cmd" ;
-BA_ "DefaultValue" SG_ 256 steer_cmd_deg 0.0 ;
-BA_ "Target"       SG_ 256 drive_torque_cmd_nm "actuator_cmd" ;
-BA_ "DefaultValue" SG_ 256 drive_torque_cmd_nm 0.0 ;
-BA_ "Target"       SG_ 256 brake_cmd_pct "actuator_cmd" ;
-BA_ "DefaultValue" SG_ 256 brake_cmd_pct 0.0 ;
-BA_ "Direction"       BO_ 512 "tx" ;
-BA_ "GenMsgCycleTime" BO_ 512 5 ;
-BA_ "Target"       SG_ 512 imu_ax_mps2 "sensor_out" ;
-BA_ "DefaultValue" SG_ 512 imu_ax_mps2 0.0 ;
-BA_ "Target"       SG_ 512 imu_ay_mps2 "sensor_out" ;
-BA_ "DefaultValue" SG_ 512 imu_ay_mps2 0.0 ;
-BA_ "Target"       SG_ 512 imu_az_mps2 "sensor_out" ;
-BA_ "DefaultValue" SG_ 512 imu_az_mps2 0.0 ;
-BA_ "Target"       SG_ 512 imu_temp_c "sensor_out" ;
-BA_ "DefaultValue" SG_ 512 imu_temp_c 25.0 ;
-BA_ "Direction"       BO_ 513 "tx" ;
-BA_ "GenMsgCycleTime" BO_ 513 5 ;
-BA_ "Target"       SG_ 513 imu_gx_rps "sensor_out" ;
-BA_ "DefaultValue" SG_ 513 imu_gx_rps 0.0 ;
-BA_ "Target"       SG_ 513 imu_gy_rps "sensor_out" ;
-BA_ "DefaultValue" SG_ 513 imu_gy_rps 0.0 ;
-BA_ "Target"       SG_ 513 imu_gz_rps "sensor_out" ;
-BA_ "DefaultValue" SG_ 513 imu_gz_rps 0.0 ;
-BA_ "Target"       SG_ 513 imu_status "sensor_out" ;
-BA_ "DefaultValue" SG_ 513 imu_status 0.0 ;
-BA_ "Direction"       BO_ 528 "tx" ;
-BA_ "GenMsgCycleTime" BO_ 528 100 ;
-BA_ "Target"       SG_ 528 gnss_lat_deg "sensor_out" ;
-BA_ "DefaultValue" SG_ 528 gnss_lat_deg 0.0 ;
-BA_ "Target"       SG_ 528 gnss_lon_deg "sensor_out" ;
-BA_ "DefaultValue" SG_ 528 gnss_lon_deg 0.0 ;
-BA_ "Direction"       BO_ 529 "tx" ;
-BA_ "GenMsgCycleTime" BO_ 529 100 ;
-BA_ "Target"       SG_ 529 gnss_alt_m "sensor_out" ;
-BA_ "DefaultValue" SG_ 529 gnss_alt_m 0.0 ;
-BA_ "Target"       SG_ 529 gnss_vn_mps "sensor_out" ;
-BA_ "DefaultValue" SG_ 529 gnss_vn_mps 0.0 ;
-BA_ "Target"       SG_ 529 gnss_ve_mps "sensor_out" ;
-BA_ "DefaultValue" SG_ 529 gnss_ve_mps 0.0 ;
-BA_ "Target"       SG_ 529 gnss_fix_type "sensor_out" ;
-BA_ "DefaultValue" SG_ 529 gnss_fix_type 0.0 ;
-BA_ "Target"       SG_ 529 gnss_sat_count "sensor_out" ;
-BA_ "DefaultValue" SG_ 529 gnss_sat_count 0.0 ;
-BA_ "Direction"       BO_ 544 "tx" ;
-BA_ "GenMsgCycleTime" BO_ 544 10 ;
-BA_ "Target"       SG_ 544 wheel_fl_rps "sensor_out" ;
-BA_ "DefaultValue" SG_ 544 wheel_fl_rps 0.0 ;
-BA_ "Target"       SG_ 544 wheel_fr_rps "sensor_out" ;
-BA_ "DefaultValue" SG_ 544 wheel_fr_rps 0.0 ;
-BA_ "Target"       SG_ 544 wheel_rl_rps "sensor_out" ;
-BA_ "DefaultValue" SG_ 544 wheel_rl_rps 0.0 ;
-BA_ "Target"       SG_ 544 wheel_rr_rps "sensor_out" ;
-BA_ "DefaultValue" SG_ 544 wheel_rr_rps 0.0 ;
-BA_ "Direction"       BO_ 545 "tx" ;
-BA_ "GenMsgCycleTime" BO_ 545 10 ;
-BA_ "Target"       SG_ 545 steer_deg "sensor_out" ;
-BA_ "DefaultValue" SG_ 545 steer_deg 0.0 ;
-BA_ "Target"       SG_ 545 steer_rate_dps "sensor_out" ;
-BA_ "DefaultValue" SG_ 545 steer_rate_dps 0.0 ;
-BA_ "Target"       SG_ 545 delta_fl_deg "sensor_out" ;
-BA_ "DefaultValue" SG_ 545 delta_fl_deg 0.0 ;
-BA_ "Target"       SG_ 545 delta_fr_deg "sensor_out" ;
-BA_ "DefaultValue" SG_ 545 delta_fr_deg 0.0 ;
-BA_ "Target"       SG_ 545 steer_fault "sensor_out" ;
-BA_ "DefaultValue" SG_ 545 steer_fault 0.0 ;
-BA_ "Direction"       BO_ 560 "tx" ;
-BA_ "GenMsgCycleTime" BO_ 560 50 ;
-BA_ "Target"       SG_ 560 batt_v "sensor_out" ;
-BA_ "DefaultValue" SG_ 560 batt_v 0.0 ;
-BA_ "Target"       SG_ 560 batt_i "sensor_out" ;
-BA_ "DefaultValue" SG_ 560 batt_i 0.0 ;
-BA_ "Target"       SG_ 560 batt_soc_pct "sensor_out" ;
-BA_ "DefaultValue" SG_ 560 batt_soc_pct 50.0 ;
-BA_ "Target"       SG_ 560 batt_temp_c "sensor_out" ;
-BA_ "DefaultValue" SG_ 560 batt_temp_c 25.0 ;
-BA_ "Target"       SG_ 560 batt_power_kw "sensor_out" ;
-BA_ "DefaultValue" SG_ 560 batt_power_kw 0.0 ;
-BA_ "Direction"       BO_ 576 "tx" ;
-BA_ "GenMsgCycleTime" BO_ 576 50 ;
-BA_ "Target"       SG_ 576 radar_target_range_m "sensor_out" ;
-BA_ "DefaultValue" SG_ 576 radar_target_range_m 0.0 ;
-BA_ "Target"       SG_ 576 radar_target_rel_vel_mps "sensor_out" ;
-BA_ "DefaultValue" SG_ 576 radar_target_rel_vel_mps 0.0 ;
-BA_ "Target"       SG_ 576 radar_target_angle_deg "sensor_out" ;
-BA_ "DefaultValue" SG_ 576 radar_target_angle_deg 0.0 ;
-BA_ "Target"       SG_ 576 radar_status "sensor_out" ;
-BA_ "DefaultValue" SG_ 576 radar_status 0.0 ;
-BA_ "Direction"       BO_ 768 "tx" ;
-BA_ "GenMsgCycleTime" BO_ 768 10 ;
-BA_ "Target"       SG_ 768 vehicle_speed_mps "plant_state" ;
-BA_ "DefaultValue" SG_ 768 vehicle_speed_mps 0.0 ;
-BA_ "Target"       SG_ 768 vehicle_accel_mps2 "plant_state" ;
-BA_ "DefaultValue" SG_ 768 vehicle_accel_mps2 0.0 ;
-BA_ "Target"       SG_ 768 yaw_rate_radps "plant_state" ;
-BA_ "DefaultValue" SG_ 768 yaw_rate_radps 0.0 ;
-BA_ "Target"       SG_ 768 status_flags "plant_state" ;
-BA_ "DefaultValue" SG_ 768 status_flags 0.0 ;
-BA_ "Direction"       BO_ 784 "tx" ;
-BA_ "GenMsgCycleTime" BO_ 784 10 ;
-BA_ "Target"       SG_ 784 motor_torque_nm "plant_state" ;
-BA_ "DefaultValue" SG_ 784 motor_torque_nm 0.0 ;
-BA_ "Target"       SG_ 784 motor_power_kw "plant_state" ;
-BA_ "DefaultValue" SG_ 784 motor_power_kw 0.0 ;
-BA_ "Target"       SG_ 784 motor_speed_rpm "plant_state" ;
-BA_ "DefaultValue" SG_ 784 motor_speed_rpm 0.0 ;
-BA_ "Target"       SG_ 784 motor_temp_c "plant_state" ;
-BA_ "DefaultValue" SG_ 784 motor_temp_c 25.0 ;
-BA_ "Direction"       BO_ 800 "tx" ;
-BA_ "GenMsgCycleTime" BO_ 800 10 ;
-BA_ "Target"       SG_ 800 brake_force_kn "plant_state" ;
-BA_ "DefaultValue" SG_ 800 brake_force_kn 0.0 ;
-BA_ "Target"       SG_ 800 brake_pct_actual "plant_state" ;
-BA_ "DefaultValue" SG_ 800 brake_pct_actual 0.0 ;
-BA_ "Target"       SG_ 800 regen_power_kw "plant_state" ;
-BA_ "DefaultValue" SG_ 800 regen_power_kw 0.0 ;
-BA_ "Target"       SG_ 800 brake_temp_c "plant_state" ;
-BA_ "DefaultValue" SG_ 800 brake_temp_c 25.0 ;
-BA_ "Direction"       BO_ 816 "tx" ;
-BA_ "GenMsgCycleTime" BO_ 816 50 ;
-BA_ "Target"       SG_ 816 pos_x_m "plant_state" ;
-BA_ "DefaultValue" SG_ 816 pos_x_m 0.0 ;
-BA_ "Target"       SG_ 816 pos_y_m "plant_state" ;
-BA_ "DefaultValue" SG_ 816 pos_y_m 0.0 ;
-BA_ "Direction"       BO_ 817 "tx" ;
-BA_ "GenMsgCycleTime" BO_ 817 50 ;
-BA_ "Target"       SG_ 817 yaw_deg "plant_state" ;
-BA_ "DefaultValue" SG_ 817 yaw_deg 0.0 ;
-BA_ "Target"       SG_ 817 yaw_rad "plant_state" ;
-BA_ "DefaultValue" SG_ 817 yaw_rad 0.0 ;
-BA_ "Target"       SG_ 817 yaw_rate_dps "plant_state" ;
-BA_ "DefaultValue" SG_ 817 yaw_rate_dps 0.0 ;
-BA_ "Direction"       BO_ 832 "tx" ;
-BA_ "GenMsgCycleTime" BO_ 832 100 ;
-BA_ "Target"       SG_ 832 gear_ratio "plant_state" ;
-BA_ "DefaultValue" SG_ 832 gear_ratio 28.0 ;
-BA_ "Target"       SG_ 832 drivetrain_eff_pct "plant_state" ;
-BA_ "DefaultValue" SG_ 832 drivetrain_eff_pct 92.0 ;
-BA_ "Target"       SG_ 832 wheel_radius_mm "plant_state" ;
-BA_ "DefaultValue" SG_ 832 wheel_radius_mm 1950.0 ;
-BA_ "Target"       SG_ 832 wheelbase_mm "plant_state" ;
-BA_ "DefaultValue" SG_ 832 wheelbase_mm 6300.0 ;
-BA_ "Target"       SG_ 832 track_width_mm "plant_state" ;
-BA_ "DefaultValue" SG_ 832 track_width_mm 7200.0 ;
-BA_ "Direction"       BO_ 1008 "tx" ;
-BA_ "GenMsgCycleTime" BO_ 1008 100 ;
-BA_ "Target"       SG_ 1008 sim_time_s "plant_state" ;
-BA_ "DefaultValue" SG_ 1008 sim_time_s 0.0 ;
-BA_ "Target"       SG_ 1008 loop_time_us "plant_state" ;
-BA_ "DefaultValue" SG_ 1008 loop_time_us 10000.0 ;
-BA_ "Target"       SG_ 1008 error_count "plant_state" ;
-BA_ "DefaultValue" SG_ 1008 error_count 0.0 ;
-BA_ "Target"       SG_ 1008 status "plant_state" ;
-BA_ "DefaultValue" SG_ 1008 status 0.0 ;
+BA_ "Direction"       BO_ 2565861409 "rx" ;
+BA_ "GenMsgCycleTime" BO_ 2565861409 10 ;
+BA_ "Target"       SG_ 2565861409 system_enable "actuator_cmd" ;
+BA_ "DefaultValue" SG_ 2565861409 system_enable 0.0 ;
+BA_ "Target"       SG_ 2565861409 gear_position "actuator_cmd" ;
+BA_ "DefaultValue" SG_ 2565861409 gear_position 1.0 ;
+BA_ "Target"       SG_ 2565861409 mode "actuator_cmd" ;
+BA_ "DefaultValue" SG_ 2565861409 mode 0.0 ;
+BA_ "Target"       SG_ 2565861409 steer_cmd_deg "actuator_cmd" ;
+BA_ "DefaultValue" SG_ 2565861409 steer_cmd_deg 0.0 ;
+BA_ "Target"       SG_ 2565861409 drive_torque_cmd_nm "actuator_cmd" ;
+BA_ "DefaultValue" SG_ 2565861409 drive_torque_cmd_nm 0.0 ;
+BA_ "Target"       SG_ 2565861409 brake_cmd_pct "actuator_cmd" ;
+BA_ "DefaultValue" SG_ 2565861409 brake_cmd_pct 0.0 ;
+BA_ "Direction"       BO_ 2365521960 "tx" ;
+BA_ "GenMsgCycleTime" BO_ 2365521960 5 ;
+BA_ "Target"       SG_ 2365521960 imu_ax_mps2 "sensor_out" ;
+BA_ "DefaultValue" SG_ 2365521960 imu_ax_mps2 0.0 ;
+BA_ "Target"       SG_ 2365521960 imu_ay_mps2 "sensor_out" ;
+BA_ "DefaultValue" SG_ 2365521960 imu_ay_mps2 0.0 ;
+BA_ "Target"       SG_ 2365521960 imu_az_mps2 "sensor_out" ;
+BA_ "DefaultValue" SG_ 2365521960 imu_az_mps2 0.0 ;
+BA_ "Target"       SG_ 2365521960 imu_temp_c "sensor_out" ;
+BA_ "DefaultValue" SG_ 2365521960 imu_temp_c 25.0 ;
+BA_ "Direction"       BO_ 2365522216 "tx" ;
+BA_ "GenMsgCycleTime" BO_ 2365522216 5 ;
+BA_ "Target"       SG_ 2365522216 imu_gx_rps "sensor_out" ;
+BA_ "DefaultValue" SG_ 2365522216 imu_gx_rps 0.0 ;
+BA_ "Target"       SG_ 2365522216 imu_gy_rps "sensor_out" ;
+BA_ "DefaultValue" SG_ 2365522216 imu_gy_rps 0.0 ;
+BA_ "Target"       SG_ 2365522216 imu_gz_rps "sensor_out" ;
+BA_ "DefaultValue" SG_ 2365522216 imu_gz_rps 0.0 ;
+BA_ "Target"       SG_ 2365522216 imu_status "sensor_out" ;
+BA_ "DefaultValue" SG_ 2365522216 imu_status 0.0 ;
+BA_ "Direction"       BO_ 2566852649 "tx" ;
+BA_ "GenMsgCycleTime" BO_ 2566852649 100 ;
+BA_ "Target"       SG_ 2566852649 gnss_lat_deg "sensor_out" ;
+BA_ "DefaultValue" SG_ 2566852649 gnss_lat_deg 0.0 ;
+BA_ "Target"       SG_ 2566852649 gnss_lon_deg "sensor_out" ;
+BA_ "DefaultValue" SG_ 2566852649 gnss_lon_deg 0.0 ;
+BA_ "Direction"       BO_ 2566852905 "tx" ;
+BA_ "GenMsgCycleTime" BO_ 2566852905 100 ;
+BA_ "Target"       SG_ 2566852905 gnss_alt_m "sensor_out" ;
+BA_ "DefaultValue" SG_ 2566852905 gnss_alt_m 0.0 ;
+BA_ "Target"       SG_ 2566852905 gnss_vn_mps "sensor_out" ;
+BA_ "DefaultValue" SG_ 2566852905 gnss_vn_mps 0.0 ;
+BA_ "Target"       SG_ 2566852905 gnss_ve_mps "sensor_out" ;
+BA_ "DefaultValue" SG_ 2566852905 gnss_ve_mps 0.0 ;
+BA_ "Target"       SG_ 2566852905 gnss_fix_type "sensor_out" ;
+BA_ "DefaultValue" SG_ 2566852905 gnss_fix_type 0.0 ;
+BA_ "Target"       SG_ 2566852905 gnss_sat_count "sensor_out" ;
+BA_ "DefaultValue" SG_ 2566852905 gnss_sat_count 0.0 ;
+BA_ "Direction"       BO_ 2365530154 "tx" ;
+BA_ "GenMsgCycleTime" BO_ 2365530154 10 ;
+BA_ "Target"       SG_ 2365530154 wheel_fl_rps "sensor_out" ;
+BA_ "DefaultValue" SG_ 2365530154 wheel_fl_rps 0.0 ;
+BA_ "Target"       SG_ 2365530154 wheel_fr_rps "sensor_out" ;
+BA_ "DefaultValue" SG_ 2365530154 wheel_fr_rps 0.0 ;
+BA_ "Target"       SG_ 2365530154 wheel_rl_rps "sensor_out" ;
+BA_ "DefaultValue" SG_ 2365530154 wheel_rl_rps 0.0 ;
+BA_ "Target"       SG_ 2365530154 wheel_rr_rps "sensor_out" ;
+BA_ "DefaultValue" SG_ 2365530154 wheel_rr_rps 0.0 ;
+BA_ "Direction"       BO_ 2365530410 "tx" ;
+BA_ "GenMsgCycleTime" BO_ 2365530410 10 ;
+BA_ "Target"       SG_ 2365530410 steer_deg "sensor_out" ;
+BA_ "DefaultValue" SG_ 2365530410 steer_deg 0.0 ;
+BA_ "Target"       SG_ 2365530410 steer_rate_dps "sensor_out" ;
+BA_ "DefaultValue" SG_ 2365530410 steer_rate_dps 0.0 ;
+BA_ "Target"       SG_ 2365530410 delta_fl_deg "sensor_out" ;
+BA_ "DefaultValue" SG_ 2365530410 delta_fl_deg 0.0 ;
+BA_ "Target"       SG_ 2365530410 delta_fr_deg "sensor_out" ;
+BA_ "DefaultValue" SG_ 2365530410 delta_fr_deg 0.0 ;
+BA_ "Target"       SG_ 2365530410 steer_fault "sensor_out" ;
+BA_ "DefaultValue" SG_ 2365530410 steer_fault 0.0 ;
+BA_ "Direction"       BO_ 2566860843 "tx" ;
+BA_ "GenMsgCycleTime" BO_ 2566860843 50 ;
+BA_ "Target"       SG_ 2566860843 batt_v "sensor_out" ;
+BA_ "DefaultValue" SG_ 2566860843 batt_v 0.0 ;
+BA_ "Target"       SG_ 2566860843 batt_i "sensor_out" ;
+BA_ "DefaultValue" SG_ 2566860843 batt_i 0.0 ;
+BA_ "Target"       SG_ 2566860843 batt_soc_pct "sensor_out" ;
+BA_ "DefaultValue" SG_ 2566860843 batt_soc_pct 50.0 ;
+BA_ "Target"       SG_ 2566860843 batt_temp_c "sensor_out" ;
+BA_ "DefaultValue" SG_ 2566860843 batt_temp_c 25.0 ;
+BA_ "Target"       SG_ 2566860843 batt_power_kw "sensor_out" ;
+BA_ "DefaultValue" SG_ 2566860843 batt_power_kw 0.0 ;
+BA_ "Direction"       BO_ 2566864940 "tx" ;
+BA_ "GenMsgCycleTime" BO_ 2566864940 50 ;
+BA_ "Target"       SG_ 2566864940 radar_target_range_m "sensor_out" ;
+BA_ "DefaultValue" SG_ 2566864940 radar_target_range_m 0.0 ;
+BA_ "Target"       SG_ 2566864940 radar_target_rel_vel_mps "sensor_out" ;
+BA_ "DefaultValue" SG_ 2566864940 radar_target_rel_vel_mps 0.0 ;
+BA_ "Target"       SG_ 2566864940 radar_target_angle_deg "sensor_out" ;
+BA_ "DefaultValue" SG_ 2566864940 radar_target_angle_deg 0.0 ;
+BA_ "Target"       SG_ 2566864940 radar_status "sensor_out" ;
+BA_ "DefaultValue" SG_ 2566864940 radar_status 0.0 ;
+BA_ "Direction"       BO_ 2566869232 "tx" ;
+BA_ "GenMsgCycleTime" BO_ 2566869232 10 ;
+BA_ "Target"       SG_ 2566869232 vehicle_speed_mps "plant_state" ;
+BA_ "DefaultValue" SG_ 2566869232 vehicle_speed_mps 0.0 ;
+BA_ "Target"       SG_ 2566869232 vehicle_accel_mps2 "plant_state" ;
+BA_ "DefaultValue" SG_ 2566869232 vehicle_accel_mps2 0.0 ;
+BA_ "Target"       SG_ 2566869232 yaw_rate_radps "plant_state" ;
+BA_ "DefaultValue" SG_ 2566869232 yaw_rate_radps 0.0 ;
+BA_ "Target"       SG_ 2566869232 status_flags "plant_state" ;
+BA_ "DefaultValue" SG_ 2566869232 status_flags 0.0 ;
+BA_ "Direction"       BO_ 2566869488 "tx" ;
+BA_ "GenMsgCycleTime" BO_ 2566869488 10 ;
+BA_ "Target"       SG_ 2566869488 motor_torque_nm "plant_state" ;
+BA_ "DefaultValue" SG_ 2566869488 motor_torque_nm 0.0 ;
+BA_ "Target"       SG_ 2566869488 motor_power_kw "plant_state" ;
+BA_ "DefaultValue" SG_ 2566869488 motor_power_kw 0.0 ;
+BA_ "Target"       SG_ 2566869488 motor_speed_rpm "plant_state" ;
+BA_ "DefaultValue" SG_ 2566869488 motor_speed_rpm 0.0 ;
+BA_ "Target"       SG_ 2566869488 motor_temp_c "plant_state" ;
+BA_ "DefaultValue" SG_ 2566869488 motor_temp_c 25.0 ;
+BA_ "Direction"       BO_ 2566869744 "tx" ;
+BA_ "GenMsgCycleTime" BO_ 2566869744 10 ;
+BA_ "Target"       SG_ 2566869744 brake_force_kn "plant_state" ;
+BA_ "DefaultValue" SG_ 2566869744 brake_force_kn 0.0 ;
+BA_ "Target"       SG_ 2566869744 brake_pct_actual "plant_state" ;
+BA_ "DefaultValue" SG_ 2566869744 brake_pct_actual 0.0 ;
+BA_ "Target"       SG_ 2566869744 regen_power_kw "plant_state" ;
+BA_ "DefaultValue" SG_ 2566869744 regen_power_kw 0.0 ;
+BA_ "Target"       SG_ 2566869744 brake_temp_c "plant_state" ;
+BA_ "DefaultValue" SG_ 2566869744 brake_temp_c 25.0 ;
+BA_ "Direction"       BO_ 2566870000 "tx" ;
+BA_ "GenMsgCycleTime" BO_ 2566870000 50 ;
+BA_ "Target"       SG_ 2566870000 pos_x_m "plant_state" ;
+BA_ "DefaultValue" SG_ 2566870000 pos_x_m 0.0 ;
+BA_ "Target"       SG_ 2566870000 pos_y_m "plant_state" ;
+BA_ "DefaultValue" SG_ 2566870000 pos_y_m 0.0 ;
+BA_ "Direction"       BO_ 2566870256 "tx" ;
+BA_ "GenMsgCycleTime" BO_ 2566870256 50 ;
+BA_ "Target"       SG_ 2566870256 yaw_deg "plant_state" ;
+BA_ "DefaultValue" SG_ 2566870256 yaw_deg 0.0 ;
+BA_ "Target"       SG_ 2566870256 yaw_rad "plant_state" ;
+BA_ "DefaultValue" SG_ 2566870256 yaw_rad 0.0 ;
+BA_ "Target"       SG_ 2566870256 yaw_rate_dps "plant_state" ;
+BA_ "DefaultValue" SG_ 2566870256 yaw_rate_dps 0.0 ;
+BA_ "Direction"       BO_ 2566870512 "tx" ;
+BA_ "GenMsgCycleTime" BO_ 2566870512 100 ;
+BA_ "Target"       SG_ 2566870512 gear_ratio "plant_state" ;
+BA_ "DefaultValue" SG_ 2566870512 gear_ratio 28.0 ;
+BA_ "Target"       SG_ 2566870512 drivetrain_eff_pct "plant_state" ;
+BA_ "DefaultValue" SG_ 2566870512 drivetrain_eff_pct 92.0 ;
+BA_ "Target"       SG_ 2566870512 wheel_radius_mm "plant_state" ;
+BA_ "DefaultValue" SG_ 2566870512 wheel_radius_mm 1950.0 ;
+BA_ "Target"       SG_ 2566870512 wheelbase_mm "plant_state" ;
+BA_ "DefaultValue" SG_ 2566870512 wheelbase_mm 6300.0 ;
+BA_ "Target"       SG_ 2566870512 track_width_mm "plant_state" ;
+BA_ "DefaultValue" SG_ 2566870512 track_width_mm 7200.0 ;
+BA_ "Direction"       BO_ 2566873328 "tx" ;
+BA_ "GenMsgCycleTime" BO_ 2566873328 100 ;
+BA_ "Target"       SG_ 2566873328 sim_time_s "plant_state" ;
+BA_ "DefaultValue" SG_ 2566873328 sim_time_s 0.0 ;
+BA_ "Target"       SG_ 2566873328 loop_time_us "plant_state" ;
+BA_ "DefaultValue" SG_ 2566873328 loop_time_us 10000.0 ;
+BA_ "Target"       SG_ 2566873328 error_count "plant_state" ;
+BA_ "DefaultValue" SG_ 2566873328 error_count 0.0 ;
+BA_ "Target"       SG_ 2566873328 status "plant_state" ;
+BA_ "DefaultValue" SG_ 2566873328 status 0.0 ;
 
-CM_ SG_ 256 system_enable "Motor controller enable" ;
-CM_ SG_ 256 gear_position "Gear selector (0=Neutral 1=Forward 2=Reverse)" ;
-CM_ SG_ 256 mode "Operating mode (reserved)" ;
-CM_ SG_ 256 steer_cmd_deg "Steering command" ;
-CM_ SG_ 256 drive_torque_cmd_nm "Motor torque command (heavy vehicle)" ;
-CM_ SG_ 256 brake_cmd_pct "Brake pedal percentage" ;
-CM_ SG_ 512 imu_ax_mps2 "Longitudinal acceleration" ;
-CM_ SG_ 512 imu_ay_mps2 "Lateral acceleration" ;
-CM_ SG_ 512 imu_az_mps2 "Vertical acceleration" ;
-CM_ SG_ 512 imu_temp_c "IMU temperature" ;
-CM_ SG_ 513 imu_gx_rps "Roll rate" ;
-CM_ SG_ 513 imu_gy_rps "Pitch rate" ;
-CM_ SG_ 513 imu_gz_rps "Yaw rate" ;
-CM_ SG_ 513 imu_status "IMU status flags" ;
-CM_ SG_ 528 gnss_lat_deg "Latitude" ;
-CM_ SG_ 528 gnss_lon_deg "Longitude" ;
-CM_ SG_ 529 gnss_alt_m "Altitude MSL" ;
-CM_ SG_ 529 gnss_vn_mps "Velocity north" ;
-CM_ SG_ 529 gnss_ve_mps "Velocity east" ;
-CM_ SG_ 529 gnss_fix_type "Fix type (0=no fix 3=3D)" ;
-CM_ SG_ 529 gnss_sat_count "Satellites in use" ;
-CM_ SG_ 544 wheel_fl_rps "Front left wheel speed" ;
-CM_ SG_ 544 wheel_fr_rps "Front right wheel speed" ;
-CM_ SG_ 544 wheel_rl_rps "Rear left wheel speed" ;
-CM_ SG_ 544 wheel_rr_rps "Rear right wheel speed" ;
-CM_ SG_ 545 steer_deg "Virtual bicycle steer angle" ;
-CM_ SG_ 545 steer_rate_dps "Steering rate" ;
-CM_ SG_ 545 delta_fl_deg "Front left wheel angle (Ackermann)" ;
-CM_ SG_ 545 delta_fr_deg "Front right wheel angle (Ackermann)" ;
-CM_ SG_ 545 steer_fault "Steering fault flags" ;
-CM_ SG_ 560 batt_v "Battery pack voltage (1200V system)" ;
-CM_ SG_ 560 batt_i "Battery current (+ = discharge)" ;
-CM_ SG_ 560 batt_soc_pct "State of charge" ;
-CM_ SG_ 560 batt_temp_c "Battery temperature" ;
-CM_ SG_ 560 batt_power_kw "Battery power (+ = discharge)" ;
-CM_ SG_ 576 radar_target_range_m "Target range" ;
-CM_ SG_ 576 radar_target_rel_vel_mps "Target relative velocity" ;
-CM_ SG_ 576 radar_target_angle_deg "Target angle" ;
-CM_ SG_ 576 radar_status "Radar status" ;
-CM_ SG_ 768 vehicle_speed_mps "Longitudinal speed (truth)" ;
-CM_ SG_ 768 vehicle_accel_mps2 "Longitudinal acceleration (truth)" ;
-CM_ SG_ 768 yaw_rate_radps "Yaw rate (truth)" ;
-CM_ SG_ 768 status_flags "Vehicle status flags" ;
-CM_ SG_ 784 motor_torque_nm "Actual motor torque (heavy vehicle)" ;
-CM_ SG_ 784 motor_power_kw "Motor mechanical power (2+ MW)" ;
-CM_ SG_ 784 motor_speed_rpm "Motor shaft speed" ;
-CM_ SG_ 784 motor_temp_c "Motor temperature" ;
-CM_ SG_ 800 brake_force_kn "Total brake force (180kN max)" ;
-CM_ SG_ 800 brake_pct_actual "Actual brake application" ;
-CM_ SG_ 800 regen_power_kw "Regenerative braking power" ;
-CM_ SG_ 800 brake_temp_c "Brake disc temperature" ;
-CM_ SG_ 816 pos_x_m "Global X position (truth)" ;
-CM_ SG_ 816 pos_y_m "Global Y position (truth)" ;
-CM_ SG_ 817 yaw_deg "Yaw angle (truth)" ;
-CM_ SG_ 817 yaw_rad "Yaw angle in radians" ;
-CM_ SG_ 817 yaw_rate_dps "Yaw rate in deg/s" ;
-CM_ SG_ 832 gear_ratio "Gear ratio (28:1 for XCMG)" ;
-CM_ SG_ 832 drivetrain_eff_pct "Drivetrain efficiency" ;
-CM_ SG_ 832 wheel_radius_mm "Effective wheel radius (1.95m)" ;
-CM_ SG_ 832 wheelbase_mm "Wheelbase (6.3m)" ;
-CM_ SG_ 832 track_width_mm "Track width (7.2m)" ;
-CM_ SG_ 1008 sim_time_s "Simulation elapsed time" ;
-CM_ SG_ 1008 loop_time_us "Loop execution time" ;
-CM_ SG_ 1008 error_count "Error counter" ;
-CM_ SG_ 1008 status "Diagnostic status flags" ;
+CM_ SG_ 2565861409 system_enable "Motor controller enable" ;
+CM_ SG_ 2565861409 gear_position "Gear selector (0=Neutral 1=Forward 2=Reverse)" ;
+CM_ SG_ 2565861409 mode "Operating mode (reserved)" ;
+CM_ SG_ 2565861409 steer_cmd_deg "Steering command" ;
+CM_ SG_ 2565861409 drive_torque_cmd_nm "Motor torque command (heavy vehicle)" ;
+CM_ SG_ 2565861409 brake_cmd_pct "Brake pedal percentage" ;
+CM_ SG_ 2365521960 imu_ax_mps2 "Longitudinal acceleration" ;
+CM_ SG_ 2365521960 imu_ay_mps2 "Lateral acceleration" ;
+CM_ SG_ 2365521960 imu_az_mps2 "Vertical acceleration" ;
+CM_ SG_ 2365521960 imu_temp_c "IMU temperature" ;
+CM_ SG_ 2365522216 imu_gx_rps "Roll rate" ;
+CM_ SG_ 2365522216 imu_gy_rps "Pitch rate" ;
+CM_ SG_ 2365522216 imu_gz_rps "Yaw rate" ;
+CM_ SG_ 2365522216 imu_status "IMU status flags" ;
+CM_ SG_ 2566852649 gnss_lat_deg "Latitude" ;
+CM_ SG_ 2566852649 gnss_lon_deg "Longitude" ;
+CM_ SG_ 2566852905 gnss_alt_m "Altitude MSL" ;
+CM_ SG_ 2566852905 gnss_vn_mps "Velocity north" ;
+CM_ SG_ 2566852905 gnss_ve_mps "Velocity east" ;
+CM_ SG_ 2566852905 gnss_fix_type "Fix type (0=no fix 3=3D)" ;
+CM_ SG_ 2566852905 gnss_sat_count "Satellites in use" ;
+CM_ SG_ 2365530154 wheel_fl_rps "Front left wheel speed" ;
+CM_ SG_ 2365530154 wheel_fr_rps "Front right wheel speed" ;
+CM_ SG_ 2365530154 wheel_rl_rps "Rear left wheel speed" ;
+CM_ SG_ 2365530154 wheel_rr_rps "Rear right wheel speed" ;
+CM_ SG_ 2365530410 steer_deg "Virtual bicycle steer angle" ;
+CM_ SG_ 2365530410 steer_rate_dps "Steering rate" ;
+CM_ SG_ 2365530410 delta_fl_deg "Front left wheel angle (Ackermann)" ;
+CM_ SG_ 2365530410 delta_fr_deg "Front right wheel angle (Ackermann)" ;
+CM_ SG_ 2365530410 steer_fault "Steering fault flags" ;
+CM_ SG_ 2566860843 batt_v "Battery pack voltage (1200V system)" ;
+CM_ SG_ 2566860843 batt_i "Battery current (+ = discharge)" ;
+CM_ SG_ 2566860843 batt_soc_pct "State of charge" ;
+CM_ SG_ 2566860843 batt_temp_c "Battery temperature" ;
+CM_ SG_ 2566860843 batt_power_kw "Battery power (+ = discharge)" ;
+CM_ SG_ 2566864940 radar_target_range_m "Target range" ;
+CM_ SG_ 2566864940 radar_target_rel_vel_mps "Target relative velocity" ;
+CM_ SG_ 2566864940 radar_target_angle_deg "Target angle" ;
+CM_ SG_ 2566864940 radar_status "Radar status" ;
+CM_ SG_ 2566869232 vehicle_speed_mps "Longitudinal speed (truth)" ;
+CM_ SG_ 2566869232 vehicle_accel_mps2 "Longitudinal acceleration (truth)" ;
+CM_ SG_ 2566869232 yaw_rate_radps "Yaw rate (truth)" ;
+CM_ SG_ 2566869232 status_flags "Vehicle status flags" ;
+CM_ SG_ 2566869488 motor_torque_nm "Actual motor torque (heavy vehicle)" ;
+CM_ SG_ 2566869488 motor_power_kw "Motor mechanical power (2+ MW)" ;
+CM_ SG_ 2566869488 motor_speed_rpm "Motor shaft speed" ;
+CM_ SG_ 2566869488 motor_temp_c "Motor temperature" ;
+CM_ SG_ 2566869744 brake_force_kn "Total brake force (180kN max)" ;
+CM_ SG_ 2566869744 brake_pct_actual "Actual brake application" ;
+CM_ SG_ 2566869744 regen_power_kw "Regenerative braking power" ;
+CM_ SG_ 2566869744 brake_temp_c "Brake disc temperature" ;
+CM_ SG_ 2566870000 pos_x_m "Global X position (truth)" ;
+CM_ SG_ 2566870000 pos_y_m "Global Y position (truth)" ;
+CM_ SG_ 2566870256 yaw_deg "Yaw angle (truth)" ;
+CM_ SG_ 2566870256 yaw_rad "Yaw angle in radians" ;
+CM_ SG_ 2566870256 yaw_rate_dps "Yaw rate in deg/s" ;
+CM_ SG_ 2566870512 gear_ratio "Gear ratio (28:1 for XCMG)" ;
+CM_ SG_ 2566870512 drivetrain_eff_pct "Drivetrain efficiency" ;
+CM_ SG_ 2566870512 wheel_radius_mm "Effective wheel radius (1.95m)" ;
+CM_ SG_ 2566870512 wheelbase_mm "Wheelbase (6.3m)" ;
+CM_ SG_ 2566870512 track_width_mm "Track width (7.2m)" ;
+CM_ SG_ 2566873328 sim_time_s "Simulation elapsed time" ;
+CM_ SG_ 2566873328 loop_time_us "Loop execution time" ;
+CM_ SG_ 2566873328 error_count "Error counter" ;
+CM_ SG_ 2566873328 status "Diagnostic status flags" ;

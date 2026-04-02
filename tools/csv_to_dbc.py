@@ -9,6 +9,13 @@ Usage:
     python3 tools/csv_to_dbc.py                          # uses defaults
     python3 tools/csv_to_dbc.py config/can_map.csv config/can_map.dbc
 
+J1939 addressing (SAE J1939 — 29-bit extended CAN identifiers):
+    CSV columns: priority, pgn, sa, da
+    29-bit ID  = (priority<<26) | (pf<<16) | (ps<<8) | sa
+      PDU2 broadcast (PF >= 0xF0): ps = GE (group extension, part of PGN)
+      PDU1 peer-to-peer (PF < 0xF0): ps = DA (destination address)
+    DBC BO_ ID = 0x80000000 | 29bit_id  (Vector EFF convention)
+
 DBC attribute extensions used by this project:
     BA_ "Direction"       BO_  <id> "rx"|"tx"   — frame direction
     BA_ "GenMsgCycleTime" BO_  <id> <ms>         — transmit period
@@ -37,22 +44,46 @@ def _fmt(v: float) -> str:
     return s
 
 
+def _compute_j1939_dbc_id(priority: int, pgn: int, sa: int, da: int) -> int:
+    """
+    Compute the 29-bit J1939 CAN identifier and return the DBC BO_ ID
+    (29-bit value OR'd with 0x80000000, the Vector EFF convention).
+
+    PDU2 broadcast (PF >= 0xF0): PS carries the Group Extension (GE),
+        which is the low byte of PGN.
+    PDU1 peer-to-peer (PF < 0xF0): PS carries the Destination Address (DA).
+    """
+    dp  = (pgn >> 17) & 0x1          # data page (usually 0)
+    pf  = (pgn >>  8) & 0xFF         # PDU format
+    if pf >= 0xF0:                    # PDU2 — broadcast
+        ge  = pgn & 0xFF
+        can_id_29 = (priority << 26) | (dp << 24) | (pf << 16) | (ge << 8) | sa
+    else:                             # PDU1 — peer-to-peer
+        can_id_29 = (priority << 26) | (dp << 24) | (pf << 16) | (da << 8) | sa
+    return 0x80000000 | can_id_29
+
+
 # ── main conversion ───────────────────────────────────────────────────────────
 
 def csv_to_dbc(csv_path: str, dbc_path: str) -> None:
+    # OrderedDict: key = dbc_id (int), value = frame dict
     frames: "OrderedDict[int, dict]" = OrderedDict()
 
     with open(csv_path, newline="", encoding="utf-8") as fh:
         reader = csv.DictReader(fh)
         for row in reader:
-            raw_id = row.get("frame_id", "").strip()
-            if not raw_id or raw_id.startswith("#"):
+            pgn_str = row.get("pgn", "").strip()
+            if not pgn_str or pgn_str.startswith("#"):
                 continue
 
-            frame_id = int(raw_id, 0)  # handles 0x… and plain decimal
+            priority = int(row["priority"].strip())
+            pgn      = int(pgn_str, 0)
+            sa       = int(row["sa"].strip(), 0)
+            da       = int(row["da"].strip(), 0)
+            dbc_id   = _compute_j1939_dbc_id(priority, pgn, sa, da)
 
-            if frame_id not in frames:
-                frames[frame_id] = {
+            if dbc_id not in frames:
+                frames[dbc_id] = {
                     "name":      row["frame_name"].strip(),
                     "dlc":       int(row["dlc"]),
                     "cycle_ms":  int(row["cycle_ms"]) if row.get("cycle_ms") else 0,
@@ -60,7 +91,7 @@ def csv_to_dbc(csv_path: str, dbc_path: str) -> None:
                     "signals":   [],
                 }
 
-            frames[frame_id]["signals"].append({
+            frames[dbc_id]["signals"].append({
                 "name":       row["signal_name"].strip(),
                 "target":     row["target"].strip(),
                 "start_bit":  int(row["start_bit"]),
@@ -96,8 +127,8 @@ def csv_to_dbc(csv_path: str, dbc_path: str) -> None:
     ]
 
     # ── BO_ / SG_ blocks ─────────────────────────────────────────────────────
-    for fid, fr in frames.items():
-        lines.append(f'BO_ {fid} {fr["name"]}: {fr["dlc"]} Vector__XXX')
+    for dbc_id, fr in frames.items():
+        lines.append(f'BO_ {dbc_id} {fr["name"]}: {fr["dlc"]} Vector__XXX')
         for sig in fr["signals"]:
             bo = sig["byte_order"]
             vt = sig["value_type"]
@@ -129,24 +160,24 @@ def csv_to_dbc(csv_path: str, dbc_path: str) -> None:
     ]
 
     # ── attribute values ──────────────────────────────────────────────────────
-    for fid, fr in frames.items():
-        lines.append(f'BA_ "Direction"       BO_ {fid} "{fr["direction"]}" ;')
-        lines.append(f'BA_ "GenMsgCycleTime" BO_ {fid} {fr["cycle_ms"]} ;')
+    for dbc_id, fr in frames.items():
+        lines.append(f'BA_ "Direction"       BO_ {dbc_id} "{fr["direction"]}" ;')
+        lines.append(f'BA_ "GenMsgCycleTime" BO_ {dbc_id} {fr["cycle_ms"]} ;')
         for sig in fr["signals"]:
             lines.append(
-                f'BA_ "Target"       SG_ {fid} {sig["name"]} "{sig["target"]}" ;'
+                f'BA_ "Target"       SG_ {dbc_id} {sig["name"]} "{sig["target"]}" ;'
             )
             lines.append(
-                f'BA_ "DefaultValue" SG_ {fid} {sig["name"]} {_fmt(sig["default"])} ;'
+                f'BA_ "DefaultValue" SG_ {dbc_id} {sig["name"]} {_fmt(sig["default"])} ;'
             )
     lines.append("")
 
     # ── signal comments ───────────────────────────────────────────────────────
-    for fid, fr in frames.items():
+    for dbc_id, fr in frames.items():
         for sig in fr["signals"]:
             if sig["comment"]:
                 escaped = sig["comment"].replace("\\", "\\\\").replace('"', '\\"')
-                lines.append(f'CM_ SG_ {fid} {sig["name"]} "{escaped}" ;')
+                lines.append(f'CM_ SG_ {dbc_id} {sig["name"]} "{escaped}" ;')
     lines.append("")
 
     with open(dbc_path, "w", encoding="utf-8") as fh:
@@ -157,13 +188,14 @@ def csv_to_dbc(csv_path: str, dbc_path: str) -> None:
     tx_count = sum(1 for fr in frames.values() if fr["direction"] == "tx")
     print(f"Generated {dbc_path}")
     print(f"  {len(frames)} frames ({rx_count} RX, {tx_count} TX), {total_sigs} signals")
+    print(f"  Frame IDs (DBC): {', '.join(f'0x{k:08X}' for k in frames)}")
 
 
 # ── entry point ───────────────────────────────────────────────────────────────
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Convert can_map.csv to a DBC file.",
+        description="Convert can_map.csv (J1939) to a DBC file.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
