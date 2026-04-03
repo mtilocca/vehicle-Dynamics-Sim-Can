@@ -17,14 +17,17 @@ Porting the cleaned-up C++ plant simulator to run on the **STM32H753ZI** (Nucleo
 | Debug UART | USART3 → ST-Link virtual COM (USB, no extra cable) |
 | Zephyr board target | `nucleo_h753zi` |
 
-### FDCAN Pin Mapping (Nucleo-144 morpho connectors)
+### FDCAN Pin Mapping
 
-| Signal | STM32 Pin | Morpho |
-|---|---|---|
-| FDCAN1_RX | PD0 | CN9 pin 25 |
-| FDCAN1_TX | PD1 | CN9 pin 27 |
-| 3.3V | — | CN8 pin 7 |
-| GND | — | any GND |
+The board silkscreen labels the CAN pins on the **CN11 morpho connector** (left header).
+Both CN11 morpho and CN9 ZIO expose the same PD0/PD1 GPIOs — use whichever is more convenient for your transceiver wiring.
+
+| Signal | STM32 Pin | CN11 (morpho) | CN9 (ZIO) |
+| --- | --- | --- | --- |
+| FDCAN1_RX | PD0 (AF3) | pin 57 | pin 25 (D67) |
+| FDCAN1_TX | PD1 (AF3) | pin 55 | pin 27 (D66) |
+| 3.3V | — | CN11 pin 64 | CN8 pin 7 |
+| GND | — | CN11 pin 63 | any GND |
 
 An external CAN transceiver is required (e.g. **TCAN1042** or **SN65HVD230** — both 3.3V compatible).
 FDCAN2 (PB12/PB13) is available if a second bus is needed.

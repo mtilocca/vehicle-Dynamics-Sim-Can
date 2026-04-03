@@ -1,0 +1,3 @@
+mainmenu "XCMG XDE320 Plant Simulator — Zephyr Configuration"
+
+source "Kconfig.zephyr"

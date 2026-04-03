@@ -1,0 +1,30 @@
+/*
+ * app.overlay — DeviceTree overlay for Nucleo-H753ZI
+ *
+ * FDCAN1  : PD0 (RX) / PD1 (TX)  — morpho CN9 pins 25/27
+ * USART3  : already wired to ST-Link virtual COM on Nucleo-144
+ *
+ * External transceiver required on CANH/CANL
+ * (SN65HVD230 or TJA1050 standalone — 3.3V compatible)
+ */
+
+/ {
+    chosen {
+        zephyr,canbus     = &fdcan1;
+        zephyr,console    = &usart3;
+        zephyr,shell-uart = &usart3;
+    };
+};
+
+&fdcan1 {
+    status = "okay";
+    pinctrl-0 = <&fdcan1_rx_pd0_af3 &fdcan1_tx_pd1_af3>;
+    pinctrl-names = "default";
+    bus-speed = <500000>;       /* 500 kbps — matches can_map.dbc */
+    sample-point = <875>;       /* 87.5% — standard for automotive CAN */
+};
+
+&usart3 {
+    status = "okay";
+    current-speed = <115200>;
+};
