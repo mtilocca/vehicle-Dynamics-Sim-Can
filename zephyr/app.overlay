@@ -14,7 +14,7 @@
     chosen {
         zephyr,console    = &usart3;
         zephyr,shell-uart = &usart3;
-        /* zephyr,canbus  = &fdcan1; */   /* enable in Phase 3 */
+        zephyr,canbus     = &fdcan1;
     };
 
     /* LD3 (red, PB14) — board DTS exposes this only as a PWM LED.
@@ -31,17 +31,17 @@
     };
 };
 
-/* Phase 1: uncomment to enable FDCAN1 at 500 kbps
- * Pinctrl nodes are defined in Zephyr's stm32h7-pinctrl.dtsi.
- *
- * &fdcan1 {
- *     status = "okay";
- *     pinctrl-0 = <&fdcan1_rx_pd0_af3 &fdcan1_tx_pd1_af3>;
- *     pinctrl-names = "default";
- *     bus-speed = <500000>;
- *     sample-point = <875>;
- * };
- */
+/* Phase 3: FDCAN1 at 500 kbps — PD0 (RX), PD1 (TX)
+ * Connect to TCAN1042 or SN65HVD230 (3.3 V) transceiver.
+ * In loopback mode (CONFIG_XCMG_CAN_LOOPBACK=y) no transceiver is needed.
+ * Pinctrl nodes defined in Zephyr's stm32h7-pinctrl.dtsi. */
+&fdcan1 {
+    status = "okay";
+    pinctrl-0 = <&fdcan1_rx_pd0 &fdcan1_tx_pd1>;
+    pinctrl-names = "default";
+    bitrate = <500000>;
+    sample-point = <875>;
+};
 
 &usart3 {
     status = "okay";

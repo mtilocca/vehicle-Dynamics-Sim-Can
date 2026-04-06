@@ -22,6 +22,12 @@ REPO_ROOT = Path(__file__).parent.parent
 DBC_PATH  = REPO_ROOT / "config" / "can_map.dbc"
 OUT_PATH  = REPO_ROOT / "zephyr" / "src" / "can" / "can_map_static.hpp"
 
+# DBC files store extended (J1939) IDs in SocketCAN EFF convention:
+# raw_id = CAN_EFF_FLAG (0x80000000) | 29-bit_id
+# Strip the flag to get the ID that Zephyr's CAN API expects.
+CAN_EFF_FLAG    = 0x80000000
+CAN_EXT_ID_MASK = 0x1FFFFFFF
+
 # ── Data classes ──────────────────────────────────────────────────────────────
 
 @dataclass
@@ -65,7 +71,9 @@ def parse_dbc(path: Path) -> List[Frame]:
         # ── BO_ message header ────────────────────────────────────────────────
         m = re.match(r'BO_\s+(\d+)\s+(\w+)\s*:\s*(\d+)', line)
         if m:
-            cur = Frame(raw_id=int(m.group(1)),
+            # Strip CAN_EFF_FLAG so raw_id is the bare 29-bit J1939 identifier
+            raw = int(m.group(1))
+            cur = Frame(raw_id=raw & CAN_EXT_ID_MASK,
                         name=m.group(2),
                         dlc=int(m.group(3)))
             frames.append(cur)
@@ -91,19 +99,19 @@ def parse_dbc(path: Path) -> List[Frame]:
     # ── Direction attributes ───────────────────────────────────────────────────
     # BA_ "Direction" BO_ <id> "rx"|"tx" ;
     for m in re.finditer(r'BA_\s+"Direction"\s+BO_\s+(\d+)\s+"(\w+)"', text):
-        raw_id = int(m.group(1))
+        masked_id = int(m.group(1)) & CAN_EXT_ID_MASK
         direction = m.group(2)
         for f in frames:
-            if f.raw_id == raw_id:
+            if f.raw_id == masked_id:
                 f.dir = direction
 
     # ── Cycle time attributes ─────────────────────────────────────────────────
     # BA_ "GenMsgCycleTime" BO_ <id> <ms> ;
     for m in re.finditer(r'BA_\s+"GenMsgCycleTime"\s+BO_\s+(\d+)\s+(\d+)', text):
-        raw_id   = int(m.group(1))
-        cycle_ms = int(m.group(2))
+        masked_id = int(m.group(1)) & CAN_EXT_ID_MASK
+        cycle_ms  = int(m.group(2))
         for f in frames:
-            if f.raw_id == raw_id:
+            if f.raw_id == masked_id:
                 f.cycle_ms = cycle_ms
 
     return frames

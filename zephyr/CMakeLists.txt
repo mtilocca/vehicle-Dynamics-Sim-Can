@@ -19,7 +19,9 @@ list(APPEND APP_SRCS src/shell/debug_cmds.cpp)
 list(APPEND APP_SRCS src/led_task.cpp)
 list(APPEND APP_SRCS src/http_server.cpp)
 
-# Phase 2+: add CAN interface
+# Phase 3: CAN RX thread + ACTUATOR_CMD_1 decoder
+list(APPEND APP_SRCS src/can/can_rx.cpp)
+# Phase 4+: TX wrapper (wraps can_send for plant TX scheduler)
 # list(APPEND APP_SRCS src/can/zephyr_can_iface.cpp)
 
 # Phase 2+: full plant + sensors + CAN stack

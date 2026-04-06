@@ -131,6 +131,28 @@ static int cmd_can_rx_frame(const struct shell* sh, size_t argc, char** argv)
     return 0;
 }
 
+// Defined in can_rx.cpp — sends one ACTUATOR_CMD_1 frame (loopback self-test)
+extern "C" int can_tx_test_frame(double steer_deg, double torque_nm,
+                                 double brake_pct, bool enable);
+
+static int cmd_can_tx_test(const struct shell* sh, size_t argc, char** argv)
+{
+    // Usage: can tx_test [steer_deg] [torque_nm] [brake_pct]
+    double steer  = (argc > 1) ? strtod(argv[1], nullptr) : 10.0;
+    double torque = (argc > 2) ? strtod(argv[2], nullptr) : 50000.0;
+    double brake  = (argc > 3) ? strtod(argv[3], nullptr) : 0.0;
+
+    shell_print(sh, "Sending ACTUATOR_CMD_1: steer=%.1f deg  torque=%.0f Nm  brake=%.1f %%",
+                steer, torque, brake);
+    int ret = can_tx_test_frame(steer, torque, brake, true);
+    if (ret < 0) {
+        shell_error(sh, "can_send failed: %d  (is FDCAN1 started?)", ret);
+        return ret;
+    }
+    shell_print(sh, "Sent OK. Check 'can rx_frame' in ~10 ms.");
+    return 0;
+}
+
 static int cmd_can_map(const struct shell* sh, size_t argc, char** argv)
 {
     (void)argc; (void)argv;
@@ -151,9 +173,10 @@ static int cmd_can_map(const struct shell* sh, size_t argc, char** argv)
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(can_cmds,
-    SHELL_CMD(stats,    NULL, "CAN TX/RX counters",        cmd_can_stats),
-    SHELL_CMD(rx_frame, NULL, "Last decoded actuator cmd",  cmd_can_rx_frame),
-    SHELL_CMD(map,      NULL, "Dump static CAN frame map",  cmd_can_map),
+    SHELL_CMD(stats,    NULL, "CAN TX/RX counters",                  cmd_can_stats),
+    SHELL_CMD(rx_frame, NULL, "Last decoded actuator cmd",            cmd_can_rx_frame),
+    SHELL_CMD(map,      NULL, "Dump static CAN frame map",            cmd_can_map),
+    SHELL_CMD(tx_test,  NULL, "Send test ACTUATOR_CMD_1 (loopback)",  cmd_can_tx_test),
     SHELL_SUBCMD_SET_END
 );
 SHELL_CMD_REGISTER(can, &can_cmds, "CAN bus commands", NULL);

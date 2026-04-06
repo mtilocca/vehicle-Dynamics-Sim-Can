@@ -150,68 +150,68 @@ static const SigDef k_sigs_diagnostic_state[] = {
 // ── Frame table ─────────────────────────────────────────────────────────
 
 static const FrameDef k_frames[16] = {
-    // ACTUATOR_CMD_1  (0x98EFF021)
-    { 0x98EFF021u, true, true, 10u, 8u,
+    // ACTUATOR_CMD_1  (0x18EFF021)
+    { 0x18EFF021u, true, true, 10u, 8u,
       "ACTUATOR_CMD_1",
       k_sigs_actuator_cmd_1, static_cast<uint8_t>(sizeof(k_sigs_actuator_cmd_1) / sizeof(k_sigs_actuator_cmd_1[0])) },
-    // IMU_ACC  (0x8CFF0028)
-    { 0x8CFF0028u, true, false, 5u, 8u,
+    // IMU_ACC  (0x0CFF0028)
+    { 0x0CFF0028u, true, false, 5u, 8u,
       "IMU_ACC",
       k_sigs_imu_acc, static_cast<uint8_t>(sizeof(k_sigs_imu_acc) / sizeof(k_sigs_imu_acc[0])) },
-    // IMU_GYR  (0x8CFF0128)
-    { 0x8CFF0128u, true, false, 5u, 8u,
+    // IMU_GYR  (0x0CFF0128)
+    { 0x0CFF0128u, true, false, 5u, 8u,
       "IMU_GYR",
       k_sigs_imu_gyr, static_cast<uint8_t>(sizeof(k_sigs_imu_gyr) / sizeof(k_sigs_imu_gyr[0])) },
-    // GNSS_LL  (0x98FF1029)
-    { 0x98FF1029u, true, false, 100u, 8u,
+    // GNSS_LL  (0x18FF1029)
+    { 0x18FF1029u, true, false, 100u, 8u,
       "GNSS_LL",
       k_sigs_gnss_ll, static_cast<uint8_t>(sizeof(k_sigs_gnss_ll) / sizeof(k_sigs_gnss_ll[0])) },
-    // GNSS_AV  (0x98FF1129)
-    { 0x98FF1129u, true, false, 100u, 8u,
+    // GNSS_AV  (0x18FF1129)
+    { 0x18FF1129u, true, false, 100u, 8u,
       "GNSS_AV",
       k_sigs_gnss_av, static_cast<uint8_t>(sizeof(k_sigs_gnss_av) / sizeof(k_sigs_gnss_av[0])) },
-    // WHEELS_1  (0x8CFF202A)
-    { 0x8CFF202Au, true, false, 10u, 8u,
+    // WHEELS_1  (0x0CFF202A)
+    { 0x0CFF202Au, true, false, 10u, 8u,
       "WHEELS_1",
       k_sigs_wheels_1, static_cast<uint8_t>(sizeof(k_sigs_wheels_1) / sizeof(k_sigs_wheels_1[0])) },
-    // STEER_STATE  (0x8CFF212A)
-    { 0x8CFF212Au, true, false, 10u, 8u,
+    // STEER_STATE  (0x0CFF212A)
+    { 0x0CFF212Au, true, false, 10u, 8u,
       "STEER_STATE",
       k_sigs_steer_state, static_cast<uint8_t>(sizeof(k_sigs_steer_state) / sizeof(k_sigs_steer_state[0])) },
-    // BATT_STATE  (0x98FF302B)
-    { 0x98FF302Bu, true, false, 50u, 8u,
+    // BATT_STATE  (0x18FF302B)
+    { 0x18FF302Bu, true, false, 50u, 8u,
       "BATT_STATE",
       k_sigs_batt_state, static_cast<uint8_t>(sizeof(k_sigs_batt_state) / sizeof(k_sigs_batt_state[0])) },
-    // RADAR_1  (0x98FF402C)
-    { 0x98FF402Cu, true, false, 50u, 8u,
+    // RADAR_1  (0x18FF402C)
+    { 0x18FF402Cu, true, false, 50u, 8u,
       "RADAR_1",
       k_sigs_radar_1, static_cast<uint8_t>(sizeof(k_sigs_radar_1) / sizeof(k_sigs_radar_1[0])) },
-    // VEHICLE_STATE_1  (0x98FF50F0)
-    { 0x98FF50F0u, true, false, 10u, 8u,
+    // VEHICLE_STATE_1  (0x18FF50F0)
+    { 0x18FF50F0u, true, false, 10u, 8u,
       "VEHICLE_STATE_1",
       k_sigs_vehicle_state_1, static_cast<uint8_t>(sizeof(k_sigs_vehicle_state_1) / sizeof(k_sigs_vehicle_state_1[0])) },
-    // MOTOR_STATE_1  (0x98FF51F0)
-    { 0x98FF51F0u, true, false, 10u, 8u,
+    // MOTOR_STATE_1  (0x18FF51F0)
+    { 0x18FF51F0u, true, false, 10u, 8u,
       "MOTOR_STATE_1",
       k_sigs_motor_state_1, static_cast<uint8_t>(sizeof(k_sigs_motor_state_1) / sizeof(k_sigs_motor_state_1[0])) },
-    // BRAKE_STATE  (0x98FF52F0)
-    { 0x98FF52F0u, true, false, 10u, 8u,
+    // BRAKE_STATE  (0x18FF52F0)
+    { 0x18FF52F0u, true, false, 10u, 8u,
       "BRAKE_STATE",
       k_sigs_brake_state, static_cast<uint8_t>(sizeof(k_sigs_brake_state) / sizeof(k_sigs_brake_state[0])) },
-    // POSITION_STATE  (0x98FF53F0)
-    { 0x98FF53F0u, true, false, 50u, 8u,
+    // POSITION_STATE  (0x18FF53F0)
+    { 0x18FF53F0u, true, false, 50u, 8u,
       "POSITION_STATE",
       k_sigs_position_state, static_cast<uint8_t>(sizeof(k_sigs_position_state) / sizeof(k_sigs_position_state[0])) },
-    // ORIENTATION_STATE  (0x98FF54F0)
-    { 0x98FF54F0u, true, false, 50u, 8u,
+    // ORIENTATION_STATE  (0x18FF54F0)
+    { 0x18FF54F0u, true, false, 50u, 8u,
       "ORIENTATION_STATE",
       k_sigs_orientation_state, static_cast<uint8_t>(sizeof(k_sigs_orientation_state) / sizeof(k_sigs_orientation_state[0])) },
-    // DRIVETRAIN_STATE  (0x98FF55F0)
-    { 0x98FF55F0u, true, false, 100u, 8u,
+    // DRIVETRAIN_STATE  (0x18FF55F0)
+    { 0x18FF55F0u, true, false, 100u, 8u,
       "DRIVETRAIN_STATE",
       k_sigs_drivetrain_state, static_cast<uint8_t>(sizeof(k_sigs_drivetrain_state) / sizeof(k_sigs_drivetrain_state[0])) },
-    // DIAGNOSTIC_STATE  (0x98FF60F0)
-    { 0x98FF60F0u, true, false, 100u, 8u,
+    // DIAGNOSTIC_STATE  (0x18FF60F0)
+    { 0x18FF60F0u, true, false, 100u, 8u,
       "DIAGNOSTIC_STATE",
       k_sigs_diagnostic_state, static_cast<uint8_t>(sizeof(k_sigs_diagnostic_state) / sizeof(k_sigs_diagnostic_state[0])) },
 };

@@ -332,129 +332,183 @@ RAM:    ~11 KB static / 1 MB
 
 ---
 
-## Phase 2 — Static CAN Map ← NEXT
+## Phase 2 — Static CAN Map ✅
 
 **Goal:** No file I/O on the MCU. CAN signal definitions compiled into flash as `constexpr` data.
-
-### DBC format — J1939
-
-`config/can_map.dbc` uses **J1939 29-bit extended IDs** stored in Vector EFF convention
-(`0x80000000 | raw_29bit`). `can_map.cpp` extracts Priority, PGN, and SA from each ID
-at parse time — no change needed for the Zephyr port since the same parser runs on host
-and embedded.
-
-| Frame | 29-bit ID | PGN | SA | Cycle |
-| --- | --- | --- | --- | --- |
-| ACTUATOR_CMD_1 | 0x18EFF021 | 0xEFF0 | 0x21 | 10 ms RX |
-| IMU_ACC | 0x18FF5528 | 0xFF55 | 0x28 | 10 ms TX |
-| GNSS_LL | 0x18FF5A49 | 0xFF5A | 0x49 | 100 ms TX |
-| VEHICLE_STATE_1 | 0x18FF50F0 | 0xFF50 | 0xF0 | 20 ms TX |
 
 ### Generator script
 
 `tools/gen_can_map.py` reads `config/can_map.dbc` and outputs `zephyr/src/can/can_map_static.hpp`:
 
-```cpp
-// AUTO-GENERATED — do not edit. Run: python tools/gen_can_map.py
-#pragma once
-#include "can/can_map.hpp"
-
-namespace can {
-
-inline const std::array<SignalDef, 4> ACTUATOR_CMD_1_SIGNALS = {{
-    {"system_enable",        0,  1, 1.0,  0.0,  0.0,   1.0},
-    {"gear_position",        1,  2, 1.0,  0.0,  0.0,   2.0},
-    {"steer_cmd_deg",        8, 16, 0.1,  0.0, -360.0, 360.0},
-    {"drive_torque_cmd_nm", 24, 16, 10.0, 0.0, -300000.0, 300000.0},
-}};
-
-inline const FrameDef FRAME_ACTUATOR_CMD_1 = {
-    0x98EFF021UL,  // J1939 29-bit ID (0x18EFF021) | CAN_EFF_FLAG
-    "ACTUATOR_CMD_1", {ACTUATOR_CMD_1_SIGNALS.begin(), ...}, 10, 8
-};
-
-} // namespace can
+```python
+# Usage (from repo root):
+python3 tools/gen_can_map.py
+# → writes zephyr/src/can/can_map_static.hpp
 ```
 
-`CanMap::load_static()` returns these pre-built definitions. `CanMap::load(path)` remains for host builds.
+The generated header defines two plain structs and flat `static const` arrays — no heap, no `std::string`:
 
-**Verification:** `can stats` shows the correct number of TX frames registered (matches `can_map.dbc`).
+```cpp
+namespace can_static {
+struct SigDef  { const char* name; int16_t start_bit; uint8_t bit_len;
+                 bool little_endian; bool is_signed; float factor; float offset; };
+struct FrameDef{ uint32_t id; bool is_extended; bool is_rx; uint16_t cycle_ms;
+                 uint8_t dlc; const char* name; const SigDef* sigs; uint8_t sig_count; };
+
+static const FrameDef k_frames[16] = { /* 1 RX + 15 TX, all 65 signals */ };
+
+inline const FrameDef* find_rx_frame(uint32_t id);   // linear search < 1 µs on M7
+inline const FrameDef* find_tx_frame(uint32_t id);
+inline const FrameDef* tx_frame_at(uint8_t idx);
+} // namespace can_static
+```
+
+Frame table (1 RX, 15 TX, 65 signals):
+
+| Dir | 29-bit ID | Frame | Signals | Cycle |
+|-----|-----------|-------|---------|-------|
+| RX | 0x98EFF021 | ACTUATOR_CMD_1 | 6 | 10 ms |
+| TX | 0x8CFF0028 | IMU_ACC | 4 | 5 ms |
+| TX | 0x98FF1029 | GNSS_LL | 2 | 100 ms |
+| TX | 0x98FF50F0 | VEHICLE_STATE_1 | 4 | 10 ms |
+| TX | … | 11 more | … | … |
+
+**`can map` shell command** — dumps the full frame table at runtime (self-verification):
+```
+uart:~$ can map
+--- Static CAN Map (16 frames, 1 RX, 15 TX) ---
+  [RX] 0x98EFF021  ACTUATOR_CMD_1          6 sig(s)   10 ms
+  [TX] 0x8CFF0028  IMU_ACC                 4 sig(s)    5 ms
+  ...
+```
+
+**Flash cost:** header-only include — negligible (< 2 KB in `.rodata`).
 
 ---
 
-## Phase 3 — Zephyr CAN Transport
+## Phase 3 — Zephyr CAN Transport ✅
 
-**Goal:** FDCAN1 opens, ACTUATOR_CMD_1 frames received and decoded, sensor frames transmitted.
+**Goal:** FDCAN1 opens, ACTUATOR_CMD_1 frames received and decoded. Loopback self-test without transceiver.
 
-### `zephyr_can_iface.hpp` interface
+### What was implemented
 
-Same public interface as `SocketCanIface` — drop-in replacement:
+| File | Role |
+|------|------|
+| `zephyr/src/can/can_rx.cpp` | CAN RX thread + inline ACTUATOR_CMD_1 decoder |
+| `zephyr/app.overlay` | FDCAN1 enabled at 500 kbps, `zephyr,canbus = &fdcan1` |
+| `zephyr/prj.conf` | `CONFIG_CAN=y`, `CONFIG_XCMG_CAN_LOOPBACK=y` |
+| `zephyr/Kconfig` | `XCMG_CAN_LOOPBACK` option added |
+| `zephyr/src/shell/debug_cmds.cpp` | `can tx_test` command added |
+
+**No `std::string`, no heap** — the decoder reads directly from `zf.data[]` using the bit layout from the DBC.
+
+### ACTUATOR_CMD_1 inline decoder
 
 ```cpp
-class ZephyrCanIface {
-public:
-    bool open(const char* devname);             // DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus))
-    bool write_frame(const struct can_frame&);  // can_send()
-    bool read_nonblocking(struct can_frame&);   // k_msgq_get(K_NO_WAIT)
-    bool is_open() const;
-};
+// Intel byte order (LSB-first), signal positions from can_map.dbc:
+c.system_enable       = (d[0] >> 0) & 0x01;
+c.gear_position       = static_cast<GearPosition>((d[0] >> 1) & 0x03);
+c.steer_cmd_deg       = (int16_t)(d[1] | (d[2] << 8)) * 0.1;
+c.drive_torque_cmd_nm = (int16_t)(d[3] | (d[4] << 8)) * 10.0;
+c.brake_cmd_pct       = d[5] * 1.0;
 ```
 
 ### CAN RX thread
 
 ```cpp
-K_THREAD_DEFINE(can_rx_tid, 2048, can_rx_thread, NULL, NULL, NULL, 2, 0, 0);
+// can_rx.cpp — priority 3, stack 1024 B
+K_MSGQ_DEFINE(g_can_rx_msgq, sizeof(struct can_frame), 8, 4);
 
-static void can_rx_thread(void*, void*, void*) {
-    struct can_frame frame;
-    while (true) {
-        k_msgq_get(&can_rx_msgq, &frame, K_FOREVER);
-        actuator_decoder.decode(frame, g_cmd, k_uptime_get_32() / 1000.0);
-    }
-}
+// Thread: opens FDCAN1, registers filter for 0x98EFF021, loops on k_msgq_get(500 ms)
+// On frame: decode → g_cmd under g_cmd_mutex, g_can_rx_count++, g_last_rx_t = t
+// On timeout: g_can_timeout_count++  (plant thread checks this for safe-mode in Phase 4)
+K_THREAD_DEFINE(can_rx_tid, 1024, can_rx_thread, NULL, NULL, NULL, 3, 0, 0);
 ```
 
-### CAN RX Message Flow
+### CAN RX message flow
 
 ```mermaid
 sequenceDiagram
     participant EC as External Controller
     participant F1 as FDCAN1
-    participant MQ as can_rx_msgq
-    participant RT as CAN RX Thread
-    participant AD as ActuatorCmdDecoder
-    participant CMD as g_cmd
-    participant PT as Plant Thread
+    participant MQ as g_can_rx_msgq
+    participant RT as can_rx_tid (prio 3)
+    participant CMD as g_cmd + mutex
+    participant PT as Plant Thread (Phase 4)
 
-    EC->>F1: ACTUATOR_CMD_1 (J1939 0x18EFF021, every 10 ms)
-    F1->>MQ: k_msgq_put(&frame) [ISR]
-    RT->>MQ: k_msgq_get(K_FOREVER)
-    RT->>AD: decode(frame, g_cmd, t)
-    AD-->>CMD: torque / brake / steer / gear
-    PT->>CMD: read every 10 ms via k_mutex
-    alt RX timeout > 500 ms
-        PT->>CMD: reset() safe mode
+    EC->>F1: ACTUATOR_CMD_1 (J1939 0x98EFF021, every 10 ms)
+    F1->>MQ: ISR — can_add_rx_filter_msgq callback
+    RT->>MQ: k_msgq_get(K_MSEC(500))
+    RT->>CMD: decode_actuator_cmd() → k_mutex_lock → g_cmd = c → unlock
+    PT->>CMD: read under mutex every 10 ms
+    alt No frame for 500 ms
+        RT->>RT: g_can_timeout_count++
     end
 ```
 
-### `can_frame_compat.hpp` — Zephyr branch
+### DeviceTree — FDCAN1 @ 500 kbps
 
-```cpp
-#ifdef __ZEPHYR__
-#  include <zephyr/drivers/can.h>
-// struct can_frame is provided by Zephyr — no stub needed
-#elif defined(__linux__)
-#  include <linux/can.h>
-#else
-// macOS / Windows stub (existing)
-#endif
+```dts
+/ { chosen { zephyr,canbus = &fdcan1; }; };
+
+&fdcan1 {
+    status = "okay";
+    pinctrl-0 = <&fdcan1_rx_pd0 &fdcan1_tx_pd1>;  /* PD0/PD1 */
+    pinctrl-names = "default";
+    bitrate = <500000>;
+    sample-point = <875>;                           /* 87.5% */
+};
 ```
 
-**Verification:** Send a CAN frame from a USB CAN adapter (e.g. Peak PCAN, Kvaser) → `can rx_frame` shell command shows decoded values.
+### Loopback self-test (no transceiver required)
+
+`CONFIG_XCMG_CAN_LOOPBACK=y` in `prj.conf` calls `can_set_mode(CAN_MODE_LOOPBACK)` before `can_start()`. Any transmitted frame is echoed back to the RX filter internally.
+
+```
+uart:~$ can tx_test 10.0 50000 0
+Sending ACTUATOR_CMD_1: steer=10.0 deg  torque=50000 Nm  brake=0.0 %
+Sent OK. Check 'can rx_frame' in ~10 ms.
+uart:~$ can rx_frame
+--- Last ACTUATOR_CMD_1 ---
+  system_enable   = 1
+  gear_position   = 1  (FORWARD)
+  drive_torque_nm = 50000.0
+  brake_pct       = 0.00
+  steer_deg       = 10.00
+uart:~$ can stats
+--- CAN Stats ---
+  TX frames  : 0       ← incremented in Phase 4 by plant TX
+  RX frames  : 1
+  RX timeouts: 0
+  Last RX    : 2.341 s
+```
+
+Set `CONFIG_XCMG_CAN_LOOPBACK=n` and connect a **TCAN1042** or **SN65HVD230** transceiver on PD0/PD1 (CN11 pin 57/55) for real-bus operation.
+
+### `cbprintf` float fix
+
+`shell_print` uses Zephyr's `cbprintf` backend which has floating-point support disabled by default (saves ~4 KB flash). Without `CONFIG_CBPRINTF_FP_SUPPORT=y`, `%f` format specifiers print literally instead of the value. Added to `prj.conf`.
+
+### Updated thread table (end of Phase 3)
+
+| Thread | Priority | Stack | Source |
+|--------|----------|-------|--------|
+| `stm_eth` | -14 | 1536 B | STM32 Ethernet HAL |
+| `tcp_work` | -14 | 1024 B | Zephyr TCP stack |
+| `rx_q[0]` | -1 | 1536 B | Network RX queue |
+| `sysworkq` | -1 | 1024 B | System workqueue |
+| `main` | 0 | 4096 B | Boot + idle sleep |
+| **`can_rx_tid`** | **3** | **1024 B** | **`can/can_rx.cpp`** |
+| sim *(Phase 4)* | 5 | 16384 B | Plant loop — not yet |
+| `http_tid` | 10 | 4096 B | `http_server.cpp` |
+| `led_tid` | 12 | 512 B | `led_task.cpp` |
+| `shell_uart` | 14 | 4096 B | UART shell |
+| `logging` | 14 | 1024 B | LOG backend |
+| `idle` | 15 | 320 B | Zephyr idle |
 
 ---
 
-## Phase 4 — Plant Loop + CAN TX
+## Phase 4 — Plant Loop + CAN TX ← NEXT
 
 **Goal:** Full 10 ms plant step running on-MCU, sensor frames broadcasting on FDCAN1.
 
