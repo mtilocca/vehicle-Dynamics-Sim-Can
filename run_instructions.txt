@@ -1,3 +1,8 @@
+# Build RTOS Zephyr 
+rm -rf build
+west build -b nucleo_h753zi zephyr
+
+
 # Terminal 1: Start simulation (real-time mode)
 ./build/src/sim/sim_main config/scenarios/slalom.json
 
