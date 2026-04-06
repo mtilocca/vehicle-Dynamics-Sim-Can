@@ -18,6 +18,7 @@
 
 #include "plant/plant_main/plant_state.hpp"   // pulls in sim/actuator_cmd.hpp
 #include "sim/actuator_cmd.hpp"
+#include "can/can_map_static.hpp"
 
 LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
 
@@ -130,9 +131,29 @@ static int cmd_can_rx_frame(const struct shell* sh, size_t argc, char** argv)
     return 0;
 }
 
+static int cmd_can_map(const struct shell* sh, size_t argc, char** argv)
+{
+    (void)argc; (void)argv;
+    shell_print(sh, "--- Static CAN Map (%u frames, %u RX, %u TX) ---",
+                (unsigned)can_static::k_frame_count,
+                (unsigned)can_static::k_rx_count,
+                (unsigned)can_static::k_tx_count);
+    for (uint8_t i = 0; i < can_static::k_frame_count; ++i) {
+        const can_static::FrameDef& f = can_static::k_frames[i];
+        shell_print(sh, "  [%s] 0x%08X  %-22s  %2u sig(s)  %3u ms",
+                    f.is_rx ? "RX" : "TX",
+                    (unsigned)f.id,
+                    f.name,
+                    (unsigned)f.sig_count,
+                    (unsigned)f.cycle_ms);
+    }
+    return 0;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(can_cmds,
     SHELL_CMD(stats,    NULL, "CAN TX/RX counters",        cmd_can_stats),
     SHELL_CMD(rx_frame, NULL, "Last decoded actuator cmd",  cmd_can_rx_frame),
+    SHELL_CMD(map,      NULL, "Dump static CAN frame map",  cmd_can_map),
     SHELL_SUBCMD_SET_END
 );
 SHELL_CMD_REGISTER(can, &can_cmds, "CAN bus commands", NULL);

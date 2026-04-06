@@ -15,7 +15,16 @@ Porting the cleaned-up C++ plant simulator to run on the **STM32H753ZI** (Nucleo
 | RAM | 1 MB (DTCM + ITCM + AXI SRAM) |
 | CAN peripheral | 2× FDCAN (ISO 11898-1:2015) |
 | Debug UART | USART3 → ST-Link virtual COM (USB, no extra cable) |
+| Ethernet | 10/100 MAC + external PHY (RJ45 on board) |
 | Zephyr board target | `nucleo_h753zi` |
+
+### User LEDs
+
+| LED | GPIO | Colour | Alias |
+|-----|------|--------|-------|
+| LD1 | PB0 | Green | `led0` (board DTS) |
+| LD2 | PE1 | Yellow | `led1` (board DTS) |
+| LD3 | PB14 | Red | `led2` (app.overlay — GPIO override of PWM node) |
 
 ### FDCAN Pin Mapping
 
@@ -42,7 +51,9 @@ graph LR
     MCU --> PLANT["Plant Model\nsrc/plant/"]
     PLANT --> SENSORS["Sensor Pack\nsrc/sensors/"]
     SENSORS -->|"TX frames 10-100 ms"| BUS
-    MCU -->|"USART3 115200 baud"| PC["PC Terminal\nshell / LOG"]
+    MCU -->|"USART3 115200 baud"| UART["PC Terminal\nshell / LOG"]
+    MCU -->|"Ethernet 192.168.1.100:80"| HTTP["Browser\nLive Dashboard"]
+    MCU -->|"GPIO PB0/PE1/PB14"| LEDS["LD1 LD2 LD3\nStatus LEDs"]
 ```
 
 ---
@@ -71,17 +82,19 @@ graph TB
     subgraph REMOVE["REMOVE - host-only, no MCU equivalent"]
         D1["utils/influx.cpp\nInfluxDB client"]
         D2["utils/csv.hpp\nCSV logger"]
-        D3["sim_main: load_timing_from_json\nload_vehicle_config_path_from_json\nscenario JSON / vehicle path CLI args"]
+        D3["sim_main: load_timing_from_json\nscenario JSON / vehicle path CLI args"]
         D4["std::chrono direct use\nreplaced by k_uptime_get_32"]
     end
 
     subgraph NEW["NEW - Zephyr application layer"]
         N1["zephyr/west.yml\nprj.conf  app.overlay"]
-        N2["zephyr/src/main.cpp\nthread + timer definitions"]
+        N2["zephyr/src/main.cpp\nthread + timer definitions + globals"]
         N3["zephyr_can_iface.hpp / .cpp\nFDCAN1 via can_send / msgq"]
         N4["can_map_static.hpp\nconstexpr FrameDef array"]
-        N5["shell/debug_cmds.cpp\nplant / can / vehicle commands"]
+        N5["shell/debug_cmds.cpp\nplant / can / vehicle / network / system"]
         N6["tools/gen_can_map.py\nDBC to constexpr header"]
+        N7["led_task.cpp\nRandom LED patterns prio=12"]
+        N8["http_server.cpp\nLive dashboard port 80 prio=10"]
     end
 
     style KEEP fill:#1a4731,color:#d4edda,stroke:#2d6a4f
@@ -92,7 +105,7 @@ graph TB
 
 ---
 
-## Repository Layout (Option A — subdirectory)
+## Repository Layout
 
 The Zephyr application lives inside this repo as a `zephyr/` subdirectory.
 West pulls Zephyr upstream as an external dependency.
@@ -101,25 +114,29 @@ West pulls Zephyr upstream as an external dependency.
 vehicle-Dynamics-Sim-Can/
 ├── src/                        ← existing plant / can / sensors / config / sim
 ├── utils/
+│   └── logging.hpp             ← #ifdef __ZEPHYR__ shim added
 ├── config/
 │   └── can_map.dbc             ← source of truth for signal definitions
 ├── tools/
-│   └── gen_can_map.py          ← NEW: generates can_map_static.hpp from DBC
-├── docs/
-│   └── ZEPHYR_PORT.md          ← this file
-└── zephyr/                     ← NEW: west workspace root
-    ├── west.yml                ← pulls zephyrproject-rtos/zephyr
+│   └── gen_can_map.py          ← generates can_map_static.hpp from DBC (Phase 2)
+├── docs/zephyr/
+│   ├── ZEPHYR_PORT.md          ← this file
+│   └── ZEPHYR_BUILD_FLASH_UART.md
+└── zephyr/
+    ├── west.yml                ← pulls zephyrproject-rtos/zephyr v3.7.0
     ├── CMakeLists.txt          ← app CMake, includes src/ and utils/
-    ├── Kconfig                 ← app-level Kconfig
-    ├── prj.conf                ← Zephyr configuration
-    ├── app.overlay             ← devicetree overlay (FDCAN1 + USART3)
+    ├── Kconfig
+    ├── prj.conf                ← Zephyr configuration (logging, shell, net, C++)
+    ├── app.overlay             ← USART3, led2 GPIO, &mac static MAC, FDCAN1 (Phase 3)
     └── src/
-        ├── main.cpp            ← Zephyr entry point, thread definitions
+        ├── main.cpp            ← entry point, global state, mutexes, counters
+        ├── led_task.cpp        ← LED thread (prio 12, 3 s random patterns) ✅
+        ├── http_server.cpp     ← HTTP dashboard thread (prio 10, port 80) ✅
         ├── can/
-        │   ├── zephyr_can_iface.hpp/cpp   ← replaces socketcan_iface
-        │   └── can_map_static.hpp         ← generated from can_map.dbc
+        │   ├── zephyr_can_iface.hpp/cpp   ← replaces socketcan_iface (Phase 3)
+        │   └── can_map_static.hpp         ← generated from can_map.dbc (Phase 2)
         └── shell/
-            └── debug_cmds.cpp  ← shell command registrations
+            └── debug_cmds.cpp  ← all shell commands
 ```
 
 ### Dual Build Paths
@@ -129,16 +146,14 @@ Both the host simulator and the embedded firmware compile from the **same** `src
 ```mermaid
 graph TD
     ROOT["vehicle-Dynamics-Sim-Can/\nsrc/  utils/  config/can_map.dbc"]
-
     ROOT -->|"shared source"| SHARED["SHARED CORE\nsrc/plant and sensors\ncan_codec  utils\nvehicle_config XCMG params"]
-
     SHARED --> HOST
     SHARED --> ZEPH
 
     subgraph HOST["Host Linux Build - CMake"]
         H1["socketcan_iface.cpp\nSocketCAN"]
         H2["sim_main - CLI binary"]
-        H3["CanMap load\nDBC file at runtime"]
+        H3["CanMap load — DBC at runtime"]
         H4["std::chrono timing"]
     end
 
@@ -155,128 +170,169 @@ graph TD
 
 ---
 
-## Phase 0 — West Workspace + Board Skeleton
+## Thread Priority Map (current state — end of Phase 1)
+
+| Thread | Priority | Stack | Source |
+|--------|----------|-------|--------|
+| `stm_eth` | -14 | 1536 B | STM32 Ethernet HAL driver |
+| `tcp_work` | -14 | 1024 B | Zephyr TCP stack |
+| `rx_q[0]` | -1 | 1536 B | Network RX queue |
+| `sysworkq` | -1 | 1024 B | Zephyr system workqueue |
+| `net_mgmt` | -1 | 768 B | Network management |
+| `main` | 0 | 4096 B | Boot + idle sleep |
+| sim *(Phase 4)* | 5 | 16384 B | Plant loop — not yet |
+| `http_tid` | **10** | 4096 B | `http_server.cpp` |
+| `led_tid` | **12** | 512 B | `led_task.cpp` |
+| `shell_uart` | 14 | 4096 B | UART shell |
+| `logging` | 14 | 1024 B | LOG backend |
+| `idle` | 15 | 320 B | Zephyr idle |
+
+---
+
+## Phase 0 — West Workspace + Board Skeleton ✅
 
 **Goal:** Board boots and prints a startup message over USB-UART.
 
-### Files to create
-
-**`zephyr/west.yml`**
-```yaml
-manifest:
-  projects:
-    - name: zephyr
-      url: https://github.com/zephyrproject-rtos/zephyr
-      revision: v3.7.0          # pin to a stable release
-      import: true
-  self:
-    path: xcmg-sim
-```
-
-**`zephyr/prj.conf`**
-```kconfig
-# RTOS
-CONFIG_MAIN_STACK_SIZE=8192
-
-# FDCAN
-CONFIG_CAN=y
-CONFIG_CAN_AUTO_BUS_OFF_RECOVERY=y
-
-# Logging
-CONFIG_LOG=y
-CONFIG_LOG_DEFAULT_LEVEL=3       # INFO
-CONFIG_LOG_BACKEND_UART=y
-CONFIG_LOG_BUFFER_SIZE=4096
-
-# Interactive shell
-CONFIG_SHELL=y
-CONFIG_SHELL_BACKEND_SERIAL=y
-CONFIG_SHELL_STACK_SIZE=4096
-
-# C++ support
-CONFIG_CPP=y
-CONFIG_STD_CPP17=y
-CONFIG_LIBCPP_EXCEPTIONS=n       # save flash
-CONFIG_NEWLIB_LIBC=y             # for std::normal_distribution, sqrt, etc.
-
-# Heap for STL containers (can_map, sensors)
-CONFIG_HEAP_MEM_POOL_SIZE=131072  # 128 KB — tune after Phase 5 RAM audit
-```
-
-**`zephyr/app.overlay`**
-```dts
-/ {
-    chosen {
-        zephyr,canbus     = &fdcan1;
-        zephyr,console    = &usart3;
-        zephyr,shell-uart = &usart3;
-    };
-};
-
-&fdcan1 {
-    status = "okay";
-    bus-speed = <500000>;     /* 500 kbps — matches can_map.dbc */
-    sample-point = <875>;
-};
-
-&usart3 {
-    status = "okay";
-    current-speed = <115200>;
-};
-```
-
-**Build command:**
+**Workspace init (one-time, done from RPi):**
 ```bash
-cd zephyr
-west init -l .
+mkdir -p ~/zephyrproject && cd ~/zephyrproject
+python3 -m venv .venv && source .venv/bin/activate
+pip install west
+west init -m https://github.com/zephyrproject-rtos/zephyr --mr v3.7.0 .
 west update
-west build -b nucleo_h753zi . -- -DBOARD_ROOT=..
+pip install -r ~/zephyrproject/zephyr/scripts/requirements.txt
+```
+
+**Build and flash:**
+```bash
+source ~/zephyrproject/.venv/bin/activate
+cd ~/zephyrproject
+rm -rf build   # always clean when overlay or prj.conf changes
+west build -b nucleo_h753zi /path/to/repo/zephyr
 west flash
 ```
 
-**Verification:** `minicom -D /dev/ttyACM0 -b 115200` shows `[INF] XCMG sim booting...`
+**Serial monitor:**
+```bash
+picocom -b 115200 /dev/ttyACM0
+# exit: Ctrl+A  Ctrl+X
+```
+
+**Verified output:**
+```
+*** Booting Zephyr OS build v3.7.0 ***
+[INF] xcmg_sim: XCMG XDE320 Plant Simulator
+[INF] xcmg_sim: Board : nucleo_h753zi (STM32H753ZI)
+[INF] xcmg_sim: Phase : 1 - Logging + UART Shell
+[INF] xcmg_sim: Shell ready on USART3 — type 'help' for commands
+uart:~$
+```
 
 ---
 
-## Phase 1 — Zephyr Logging + UART Shell
+## Phase 1 — Logging + UART Shell + LED Task + HTTP Dashboard ✅
 
-**Goal:** All plant/CAN log output routes through Zephyr LOG. Shell commands let you inspect the running system without a debugger.
+**Goal:** Zephyr LOG backend active, interactive shell on USART3, status LEDs cycling, live web dashboard over Ethernet.
 
-### Logging migration
+### 1a — Logging shim (`utils/logging.hpp`)
 
-Replace `utils/logging.hpp` macros with a thin shim that maps onto Zephyr's LOG API:
+The host `LOG_*` macros are mapped to Zephyr's structured log backend via a compile-time branch. The shared plant/CAN source files require zero changes.
 
 ```cpp
-// utils/logging.hpp (Zephyr branch, inside #ifdef CONFIG_ZEPHYR)
+#ifdef __ZEPHYR__
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(xcmg_sim, LOG_LEVEL_INF);
-
-#define LOG_INFO(fmt, ...)  LOG_INF(fmt, ##__VA_ARGS__)
-#define LOG_WARN(fmt, ...)  LOG_WRN(fmt, ##__VA_ARGS__)
-#define LOG_ERROR(fmt, ...) LOG_ERR(fmt, ##__VA_ARGS__)
-#define LOG_DEBUG(fmt, ...) LOG_DBG(fmt, ##__VA_ARGS__)
+// Each .cpp must have LOG_MODULE_REGISTER (one) or LOG_MODULE_DECLARE (others)
+#define LOG_TRACE(...) LOG_DBG(__VA_ARGS__)
+#define LOG_DEBUG(...) LOG_DBG(__VA_ARGS__)
+#define LOG_INFO(...)  LOG_INF(__VA_ARGS__)
+#define LOG_WARN(...)  LOG_WRN(__VA_ARGS__)
+#define LOG_ERROR(...) LOG_ERR(__VA_ARGS__)
+#else
+// ... existing host implementation unchanged ...
+#endif
 ```
 
-No changes needed in any call sites — all `LOG_INFO(...)` calls in the plant code work as-is.
+**Pitfall:** `LOG_MODULE_REGISTER` must appear in exactly one `.cpp` per module (it is in `main.cpp`). Every other `.cpp` that uses the macros needs `LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF)`.
 
-### Shell commands
+**Pitfall:** Zephyr compiles C++ with `-nostdinc++`. Use C headers (`<stdlib.h>`, `<stdio.h>`) not C++ wrappers (`<cstdlib>`, `<cstdio>`). Remove unused C++ stdlib includes from shared headers.
 
-Registered in `zephyr/src/shell/debug_cmds.cpp`:
+**Pitfall:** `nullptr` in Zephyr shell macros (`SHELL_CMD`, `SHELL_CMD_REGISTER`) causes a C++ type error — use `NULL` instead.
+
+### 1b — UART Shell commands
+
+All commands registered in `zephyr/src/shell/debug_cmds.cpp`:
 
 | Command | Description |
 |---|---|
-| `plant state` | Dump all PlantState fields (v, x, y, yaw, soc, omega_fl/fr/rl/rr, Fx/Fy, etc.) |
-| `plant mu <val>` | Change surface friction coefficient at runtime |
-| `plant reset` | Zero the plant state |
-| `can stats` | TX frame count, RX frame count, timeout count, last RX time |
-| `can rx_frame` | Print last decoded ACTUATOR_CMD_1 fields |
-| `vehicle info` | Print XCMG param summary (mass, torque, battery, etc.) |
+| `plant state` | Dump all PlantState fields (v, yaw, SOC, wheel speeds, tire forces) |
+| `plant mu <val>` | Set surface friction 0.1–1.0 (written to `g_surface_mu`, read by plant in Phase 4) |
+| `plant reset` | Zero all PlantState fields |
+| `can stats` | TX / RX frame counts, timeout count, last RX timestamp |
+| `can rx_frame` | Last decoded ACTUATOR_CMD_1 fields |
+| `vehicle info` | XCMG XDE320 parameter summary + live surface mu |
+| `network mac` | Print MAC address and IP from `net_if_get_default()` |
+| `system uptime` | Print uptime as HH:MM:SS and ms |
 
-**Verification:** `plant state` over serial prints all state fields. `plant mu 0.30` changes surface to wet.
+### 1c — LED task (`zephyr/src/led_task.cpp`)
+
+A `K_THREAD_DEFINE` thread at **priority 12** drives LD1/LD2/LD3 with pseudo-random 3-bit patterns every 3 seconds.
+
+- LD3 (red, PB14) is defined as PWM-only in the board DTS; overridden as plain GPIO in `app.overlay`
+- XorShift32 seeded from `k_uptime_get_32()` — pattern differs after each reset
+- 7 non-zero patterns (0b001–0b111); at least one LED always on
+
+```cpp
+K_THREAD_DEFINE(led_tid, 512, led_thread, NULL, NULL, NULL, 12, 0, 0);
+```
+
+### 1d — HTTP dashboard (`zephyr/src/http_server.cpp`)
+
+A `K_THREAD_DEFINE` thread at **priority 10** serves a live HTML dashboard on port 80.
+
+- Static IP `192.168.1.100`, MAC `02:00:5E:00:53:01` (locally administered, set in `app.overlay`)
+- Single-threaded: `zsock_socket → bind → listen → accept → drain headers → send HTML → close`
+- Uses Zephyr native socket API (`zsock_*`) — no `CONFIG_POSIX_API` required
+- HTML built live with `snprintf` from `g_state`, `g_cmd`, CAN counters — chunks sent separately to stay within stack budget
+- Auto-refresh every 2 s via `<meta http-equiv="refresh" content="2">`
+- Dark + cards UI: background `#161b22`, cards `#21262d`, accent `#58a6ff`
+
+```cpp
+K_THREAD_DEFINE(http_tid, 4096, http_server_thread, NULL, NULL, NULL, 10, 0, 0);
+```
+
+**`prj.conf` additions for networking:**
+```kconfig
+CONFIG_NETWORKING=y
+CONFIG_NET_L2_ETHERNET=y
+CONFIG_NET_IPV4=y
+CONFIG_NET_TCP=y
+CONFIG_NET_SOCKETS=y
+CONFIG_NET_SOCKETS_POSIX_NAMES=y
+CONFIG_NET_CONFIG_SETTINGS=y
+CONFIG_NET_CONFIG_NEED_IPV4=y
+CONFIG_NET_CONFIG_MY_IPV4_ADDR="192.168.1.100"
+CONFIG_NET_CONFIG_MY_IPV4_NETMASK="255.255.255.0"
+CONFIG_NET_CONFIG_MY_IPV4_GW="192.168.1.1"
+CONFIG_ETH_STM32_HAL=y
+CONFIG_ETH_STM32_HAL_RX_THREAD_PRIO=2
+CONFIG_ETH_STM32_HAL_RX_THREAD_STACK_SIZE=1500
+```
+
+**Flash footprint at end of Phase 1:**
+```
+FLASH:  ~99 KB used / 2 MB  (4.7%)
+RAM:    ~11 KB static / 1 MB
+```
+
+**Verification:**
+- UART: `network mac` → `MAC: 02:00:5E:00:53:01`, `IP: 192.168.1.100`
+- Browser: `http://192.168.1.100` → dashboard auto-refreshing every 2 s
+- `kernel threads` shows `http_tid` prio 10, `led_tid` prio 12
+- All 3 LEDs changing pattern every 3 s
 
 ---
 
-## Phase 2 — Static CAN Map
+## Phase 2 — Static CAN Map ← NEXT
 
 **Goal:** No file I/O on the MCU. CAN signal definitions compiled into flash as `constexpr` data.
 
@@ -310,15 +366,12 @@ inline const std::array<SignalDef, 4> ACTUATOR_CMD_1_SIGNALS = {{
     {"gear_position",        1,  2, 1.0,  0.0,  0.0,   2.0},
     {"steer_cmd_deg",        8, 16, 0.1,  0.0, -360.0, 360.0},
     {"drive_torque_cmd_nm", 24, 16, 10.0, 0.0, -300000.0, 300000.0},
-    // ...
 }};
 
 inline const FrameDef FRAME_ACTUATOR_CMD_1 = {
     0x98EFF021UL,  // J1939 29-bit ID (0x18EFF021) | CAN_EFF_FLAG
     "ACTUATOR_CMD_1", {ACTUATOR_CMD_1_SIGNALS.begin(), ...}, 10, 8
 };
-
-// ... all TX frames ...
 
 } // namespace can
 ```
@@ -340,9 +393,9 @@ Same public interface as `SocketCanIface` — drop-in replacement:
 ```cpp
 class ZephyrCanIface {
 public:
-    bool open(const char* devname);       // DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus))
-    bool write_frame(const struct can_frame&);   // can_send()
-    bool read_nonblocking(struct can_frame&);     // k_msgq_get(K_NO_WAIT)
+    bool open(const char* devname);             // DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus))
+    bool write_frame(const struct can_frame&);  // can_send()
+    bool read_nonblocking(struct can_frame&);   // k_msgq_get(K_NO_WAIT)
     bool is_open() const;
 };
 ```
@@ -350,7 +403,6 @@ public:
 ### CAN RX thread
 
 ```cpp
-// High-priority thread — drains CAN RX message queue
 K_THREAD_DEFINE(can_rx_tid, 2048, can_rx_thread, NULL, NULL, NULL, 2, 0, 0);
 
 static void can_rx_thread(void*, void*, void*) {
@@ -409,13 +461,10 @@ sequenceDiagram
 ### Timer-driven plant thread
 
 ```cpp
-// Plant runs at exactly 10 ms via Zephyr timer
 K_TIMER_DEFINE(plant_timer, plant_timer_expiry, NULL);
 K_SEM_DEFINE(plant_sem, 0, 1);
 
-static void plant_timer_expiry(struct k_timer*) {
-    k_sem_give(&plant_sem);  // wake plant thread
-}
+static void plant_timer_expiry(struct k_timer*) { k_sem_give(&plant_sem); }
 
 K_THREAD_DEFINE(plant_tid, 16384, plant_thread, NULL, NULL, NULL, 5, 0, 0);
 
@@ -425,19 +474,16 @@ static void plant_thread(void*, void*, void*) {
         k_sem_take(&plant_sem, K_FOREVER);
         double t = k_uptime_get_32() / 1000.0;
 
-        // CAN RX timeout check
-        if ((t - g_last_rx_t) > CAN_RX_TIMEOUT_S) {
-            g_cmd.reset();
-        }
+        if ((t - g_last_rx_t) > CAN_RX_TIMEOUT_S) g_cmd.reset();
 
         plant_model.step(g_state, g_cmd, 0.01);
         sensor_bank.step(t, g_state, 0.01);
-        can_tx_pack_and_send(t, g_state, sensor_bank.get_output(t));
+        can_tx_pack_and_send 3(t, g_state, sensor_bank.get_output(t));
     }
 }
 ```
 
-### Thread Architecture
+### Thread Architecture (Phase 4 complete)
 
 ```mermaid
 graph TD
@@ -445,53 +491,32 @@ graph TD
     SEM["k_sem\nplant_sem"]
     PLANT["Plant Thread\nprio=5 stack=16KB"]
     CANRX["CAN RX Thread\nprio=2 stack=2KB"]
+    HTTP["HTTP Thread\nprio=10 stack=4KB"]
+    LED["LED Thread\nprio=12 stack=512B"]
     SHELL["Shell Thread\nprio=14 stack=4KB"]
-    LOGB["LOG Backend\nprio=15 stack=2KB"]
+    LOGB["LOG Backend\nprio=14 stack=1KB"]
     ISR["FDCAN1 RX ISR"]
-    MSGQ["k_msgq\ncan_rx_msgq\n8 frames deep"]
-    GCMD["g_cmd\nActuatorCmd\nk_mutex"]
-    GSTATE["g_state\nPlantState\nk_mutex"]
+    MSGQ["k_msgq\ncan_rx_msgq"]
+    GCMD["g_cmd\nk_mutex"]
+    GSTATE["g_state\nk_mutex"]
     FDTX["FDCAN1 TX"]
     UART["USART3 DMA"]
+    ETH["Ethernet\n192.168.1.100"]
     BUS["CAN Bus"]
 
     TIMER -->|k_sem_give| SEM
     SEM -->|k_sem_take| PLANT
     ISR -->|k_msgq_put| MSGQ
-    CANRX -->|k_msgq_get K_FOREVER| MSGQ
-    CANRX -->|write k_mutex_lock| GCMD
-    PLANT -->|read k_mutex_lock| GCMD
-    PLANT -->|write k_mutex_lock| GSTATE
-    SHELL -->|read k_mutex_lock| GSTATE
+    CANRX -->|k_msgq_get| MSGQ
+    CANRX -->|write| GCMD
+    PLANT -->|read| GCMD
+    PLANT -->|write| GSTATE
+    SHELL -->|read| GSTATE
+    HTTP -->|read| GSTATE
     PLANT -->|can_send| FDTX
     FDTX --> BUS
-    LOGB -->|DMA flush| UART
-```
-
-### CAN TX Message Flow
-
-```mermaid
-sequenceDiagram
-    participant TIM as k_timer (10 ms)
-    participant PT as Plant Thread
-    participant PM as PlantModel
-    participant SB as SensorBank
-    participant TXS as TxScheduler
-    participant ZCI as ZephyrCanIface
-    participant F1 as FDCAN1
-    participant BUS as CAN Bus
-
-    TIM->>PT: k_sem_give
-    PT->>PM: step(state, cmd, 0.01 s)
-    PT->>SB: step(t, state, 0.01 s)
-    PT->>TXS: due(now)
-    loop for each due frame at 10-100 ms rates
-        TXS-->>PT: frame_def
-        PT->>PT: pack(sensor_out, frame.data)
-        PT->>ZCI: write_frame(frame)
-        ZCI->>F1: can_send()
-        F1->>BUS: IMU / GNSS / WHEELS / BATT / RADAR
-    end
+    LOGB -->|DMA| UART
+    HTTP --> ETH
 ```
 
 ### Timing — replacing `std::chrono`
@@ -502,7 +527,7 @@ sequenceDiagram
 | `duration_cast<microseconds>` | `k_cycle_get_32()` + `k_cyc_to_us_ceil32()` |
 | `sleep_for(10ms)` | `k_msleep(10)` |
 
-**Verification:** CAN analyzer on bus shows IMU/GNSS/WHEEL/BATT frames at correct rates (10–100 ms). `plant state` updates every time you run it.
+**Verification:** CAN analyzer on bus shows IMU/GNSS/WHEEL/BATT frames at correct rates (10–100 ms). `plant state` updates every call. Web dashboard shows live plant values.
 
 ---
 
@@ -510,19 +535,19 @@ sequenceDiagram
 
 **Goal:** Confirm the full build fits comfortably and heap is not exhausted at runtime.
 
-### Expected sizes (STM32H753ZI)
+### Expected sizes (STM32H753ZI, Phase 4 complete)
 
 | Region | Budget | Expected |
 |---|---|---|
-| Flash (.text + .rodata) | 2 MB | ~300–400 KB |
-| SRAM (.bss + .data) | 1 MB | ~200–350 KB |
-| Heap (STL + Zephyr) | 128 KB (configured) | ~50–100 KB |
+| Flash (.text + .rodata) | 2 MB | ~400–500 KB |
+| SRAM (.bss + .data + stacks) | 1 MB | ~300–450 KB |
+| Heap (STL + Zephyr + net) | 65 KB (configured) | ~30–50 KB |
 
 ### Audit commands
 
 ```bash
-west build -t ram_report    # shows per-object RAM usage
-west build -t rom_report    # shows per-object Flash usage
+west build -t ram_report    # per-object RAM usage
+west build -t rom_report    # per-object Flash usage
 ```
 
 ### Memory Map
@@ -530,29 +555,26 @@ west build -t rom_report    # shows per-object Flash usage
 ```mermaid
 graph LR
     subgraph FLASH["Flash 2 MB"]
-        F1["Zephyr kernel .text"]
+        F1["Zephyr kernel + net stack"]
         F2["Plant and sensor code"]
         F3["CAN codec"]
-        F4["constexpr CAN map\ncan_map_static.hpp"]
-        F5["XCMG params\nvehicle_config.cpp"]
-    end
-
-    subgraph DTCM["DTCM 128 KB\nCortex-M7 TCM zero-wait"]
-        D1["g_state PlantState"]
-        D2["g_cmd ActuatorCmd"]
-        D3["timer / semaphore vars"]
+        F4["constexpr CAN map"]
+        F5["XCMG params"]
+        F6["HTTP server + LED task"]
     end
 
     subgraph AXI["AXI SRAM 512 KB"]
         A1["Zephyr kernel data"]
-        A2["Thread stacks\nplant 16K rx 2K shell 4K log 2K"]
-        A3["Heap 128 KB\nSTL containers, can_map, sensors"]
+        A2["Thread stacks\nplant 16K + http 4K + shell 4K\nrx 2K + led 512B + log 1K"]
+        A3["Heap 65 KB\nSTL, net buffers, can_map"]
+        A4["Net PKT/BUF pool"]
     end
 
     subgraph SRAM12["SRAM1/2 288 KB"]
         S1["LOG buffer 4 KB"]
-        S2["CAN msgq can_rx_msgq"]
+        S2["CAN msgq"]
         S3["Shell buffer"]
+        S4["ETH DMA descriptors"]
     end
 ```
 
@@ -560,10 +582,11 @@ graph LR
 
 | Issue | Fix if needed |
 |---|---|
-| `std::unordered_map` in `can_codec.cpp` | Replace with `std::array` lookup or flat map |
-| `std::string` in `FrameDef` / `SignalDef` | Replace with `const char*` for static names |
+| `std::unordered_map` in `can_codec.cpp` | Replace with `std::array` flat lookup |
+| `std::string` in `FrameDef` / `SignalDef` | Replace with `const char*` |
 | `std::vector<SignalDef>` in CAN map | Replace with fixed-size `std::array` |
-| `std::normal_distribution` in sensors | Keep — newlib supports it; only a few KB |
+| `std::normal_distribution` in sensors | Keep — newlib supports it |
+| Net buffer pool exhaustion | Increase `CONFIG_NET_PKT_RX_COUNT` / `NET_BUF_RX_COUNT` |
 
 ---
 
@@ -574,12 +597,15 @@ graph LR
 | `socket(PF_CAN, SOCK_RAW, CAN_RAW)` | `DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus))` |
 | `write(sock, &frame, sizeof(frame))` | `can_send(dev, &frame, K_FOREVER, NULL, NULL)` |
 | `read_nonblocking()` polling | `can_add_rx_filter_msgq()` + `k_msgq_get(K_NO_WAIT)` |
+| `socket(AF_INET, SOCK_STREAM, ...)` | `zsock_socket(AF_INET, SOCK_STREAM, ...)` |
+| `send()` / `recv()` | `zsock_send()` / `zsock_recv()` |
 | `std::chrono::steady_clock::now()` | `k_uptime_get_32()` |
 | `std::this_thread::sleep_for(10ms)` | `k_msleep(10)` |
 | `std::thread` + `std::mutex` | `K_THREAD_DEFINE` + `K_MUTEX_DEFINE` |
 | `LOG_INFO(fmt, ...)` | `LOG_INF(fmt, ##__VA_ARGS__)` |
 | `printf` debug | `printk()` or `LOG_DBG()` |
-| main `for` loop | Zephyr thread blocked on `k_sem_take` |
+| `#include <cstdlib>` | `#include <stdlib.h>` (Zephyr uses `-nostdinc++`) |
+| `nullptr` in C macros | `NULL` (avoids `std::nullptr_t` vs `int` ternary error) |
 
 ---
 
@@ -587,38 +613,20 @@ graph LR
 
 ```mermaid
 graph TD
-    P0["Phase 0\nWest workspace\nBoard boots"]
-    G0{UART prints\nstartup message?}
-    P1["Phase 1\nLogging + Shell\nUSART3 live"]
-    G1{shell responds\nto commands?}
-    P2["Phase 2\nStatic CAN Map\nDBC to constexpr"]
-    G2{can stats shows\ncorrect frame count?}
+    P0["✅ Phase 0\nWest workspace\nBoard boots"]
+    P1["✅ Phase 1\nLogging + Shell\n+ LEDs + HTTP dashboard"]
+    P2["⬅ Phase 2\nStatic CAN Map\nDBC to constexpr"]
     P3["Phase 3\nFDCAN1 open\nRX / TX verified"]
-    G3{CAN analyzer\nsees frames?}
     P4["Phase 4\nPlant loop 10 ms\nSensor frames TX"]
-    G4{plant state\nupdates live?}
     P5["Phase 5\nRAM / Flash audit\nHeap tuned"]
-    G5{RAM report\ngreen?}
     DONE["DONE\nDeployed on\nnucleo_h753zi"]
 
-    P0 --> G0
-    G0 -->|Yes| P1
-    G0 -->|No: fix overlay/prj.conf| P0
-    P1 --> G1
-    G1 -->|Yes| P2
-    G1 -->|No: check SHELL config| P1
-    P2 --> G2
-    G2 -->|Yes| P3
-    G2 -->|No: rerun gen_can_map.py| P2
-    P3 --> G3
-    G3 -->|Yes| P4
-    G3 -->|No: check transceiver wiring| P3
-    P4 --> G4
-    G4 -->|Yes| P5
-    G4 -->|No: check thread priorities| P4
-    P5 --> G5
-    G5 -->|Yes| DONE
-    G5 -->|No: replace STL containers| P5
+    P0 -->|"UART banner seen"| P1
+    P1 -->|"shell + LEDs + http://192.168.1.100 live"| P2
+    P2 -->|"can stats frame count correct"| P3
+    P3 -->|"CAN analyzer sees frames"| P4
+    P4 -->|"plant state updates live"| P5
+    P5 -->|"RAM report green"| DONE
 ```
 
 ---
@@ -628,10 +636,11 @@ graph TD
 | Tool | Purpose |
 |---|---|
 | [west](https://docs.zephyrproject.org/latest/develop/west/index.html) | Zephyr meta-tool (build, flash, update) |
-| [Zephyr SDK](https://docs.zephyrproject.org/latest/develop/toolchains/zephyr_sdk.html) | ARM GCC cross-compiler toolchain |
+| [Zephyr SDK 0.17.0](https://docs.zephyrproject.org/latest/develop/toolchains/zephyr_sdk.html) | ARM GCC cross-compiler (arm64 minimal tarball) |
 | `arm-zephyr-eabi-gcc` | C++ compiler for Cortex-M7 |
-| ST-Link (onboard) | Flash + debug over USB |
-| External CAN transceiver | TCAN1042 or SN65HVD230 (3.3V) |
-| USB-CAN adapter (optional) | PCAN-USB, Kvaser, or Canable for bus monitoring |
-| `minicom` / `picocom` | Serial terminal for shell access |
+| ST-Link (onboard, CN1 USB) | Flash + debug via OpenOCD |
+| Ethernet cable | Connect Nucleo RJ45 to LAN (same subnet as RPi) |
+| External CAN transceiver | TCAN1042 or SN65HVD230 (3.3V) — needed for Phase 3+ |
+| USB-CAN adapter *(optional)* | PCAN-USB, Kvaser, or CANable for bus monitoring |
+| `picocom` | Serial terminal (`picocom -b 115200 /dev/ttyACM0`) |
 | Python 3 | Run `tools/gen_can_map.py` at build time |
