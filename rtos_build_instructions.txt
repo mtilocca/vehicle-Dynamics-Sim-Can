@@ -1,0 +1,14 @@
+cd ~/zephyrproject
+rm -rf build
+west build -b nucleo_h753zi /home/baloo/repos/vehicle-Dynamics-Sim-Can/zephyr
+west flash
+
+
+
+screen /dev/ttyACM0 115200
+
+
+
+plant state
+vehicle info
+plant mu 0.30

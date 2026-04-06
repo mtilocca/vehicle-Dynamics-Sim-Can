@@ -14,7 +14,10 @@ set(APP_SRCS
     src/main.cpp
 )
 
-# Phase 1: add CAN interface
+# Phase 1: logging shim active (utils/logging.hpp), shell commands
+list(APPEND APP_SRCS src/shell/debug_cmds.cpp)
+
+# Phase 2+: add CAN interface
 # list(APPEND APP_SRCS src/can/zephyr_can_iface.cpp)
 
 # Phase 2+: full plant + sensors + CAN stack
