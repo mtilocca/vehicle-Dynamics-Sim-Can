@@ -300,7 +300,7 @@ static void send_page(int fd)
     // Quick-action buttons
     send_str(fd, "<div class='ctrl-row'>");
     send_str(fd,
-        "<a class='btn btn-stop' href='/?enable=1&gear=N&torque=0&brake=1.0&steer=0'>"
+        "<a class='btn btn-stop' href='/?enable=1&gear=N&torque=0&brake=100&steer=0'>"
         "&#9632;&nbsp;STOP</a>");
     send_str(fd,
         "<a class='btn btn-fwd' href='/?enable=1&gear=F&torque=50000&brake=0&steer=0'>"
@@ -337,8 +337,8 @@ static void send_page(int fd)
     send_str(fd, buf);
 
     snprintf(buf, sizeof(buf),
-        "<label>Brake</label>"
-        "<input type='number' name='brake' min='0' max='1' step='0.05' value='%.2f'>",
+        "<label>Brake&nbsp;%%</label>"
+        "<input type='number' name='brake' min='0' max='100' step='5' value='%.0f'>",
         c.brake_cmd_pct);
     send_str(fd, buf);
 

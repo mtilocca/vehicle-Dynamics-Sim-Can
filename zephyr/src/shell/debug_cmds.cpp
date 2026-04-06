@@ -111,7 +111,7 @@ static int cmd_plant_inject(const struct shell* sh, size_t argc, char** argv)
         shell_print(sh, "Usage: plant inject <steer_deg> <torque_nm> <brake_pct> [enable=1]");
         shell_print(sh, "  steer_deg  : -45 .. +45  (positive = right)");
         shell_print(sh, "  torque_nm  : 0 .. 145000  (traction)");
-        shell_print(sh, "  brake_pct  : 0.0 .. 1.0");
+        shell_print(sh, "  brake_pct  : 0 .. 100  (percent, 100 = full stop)");
         shell_print(sh, "  enable     : 0 or 1 (default 1)");
         return -EINVAL;
     }

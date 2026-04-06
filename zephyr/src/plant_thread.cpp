@@ -55,7 +55,7 @@ static plant::PlantModelParams xcmg_params()
     p.drive.motor_power_max_w    = 2013000.0;
     p.drive.gear_ratio           = 28.0;
     p.drive.drivetrain_eff       = 0.92;
-    p.drive.brake_torque_max_nm  = 180000.0;
+    p.drive.brake_torque_max_nm  = 420000.0;  // 420 kNm → ~1.0 m/s² at full load (218 t)
     p.drive.regen_eff_active     = 0.65;
     p.drive.regen_eff_coast      = 0.02;
     p.drive.drag_c               = 1.85;
