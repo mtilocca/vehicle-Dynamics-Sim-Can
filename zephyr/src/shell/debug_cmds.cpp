@@ -10,8 +10,10 @@
 //   can rx_frame     — last decoded ACTUATOR_CMD_1
 //   vehicle info     — XCMG parameter summary
 
+#include <zephyr/kernel.h>
 #include <zephyr/shell/shell.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/net/net_if.h>
 #include <stdlib.h>   /* strtof — use C header, not <cstdlib> (-nostdinc++) */
 
 #include "plant/plant_main/plant_state.hpp"   // pulls in sim/actuator_cmd.hpp
@@ -157,6 +159,31 @@ static int cmd_vehicle_info(const struct shell* sh, size_t argc, char** argv)
 }
 
 SHELL_CMD_REGISTER(vehicle, NULL, "Vehicle info", cmd_vehicle_info);
+
+// ── network ───────────────────────────────────────────────────────────────────
+
+static int cmd_network_mac(const struct shell* sh, size_t argc, char** argv)
+{
+    (void)argc; (void)argv;
+    struct net_if* iface = net_if_get_default();
+    if (!iface) {
+        shell_error(sh, "No network interface found");
+        return -ENODEV;
+    }
+    struct net_linkaddr* ll = net_if_get_link_addr(iface);
+    shell_print(sh, "MAC : %02X:%02X:%02X:%02X:%02X:%02X",
+                ll->addr[0], ll->addr[1], ll->addr[2],
+                ll->addr[3], ll->addr[4], ll->addr[5]);
+    shell_print(sh, "IP  : 192.168.1.100");
+    shell_print(sh, "Port: 80  (http://192.168.1.100)");
+    return 0;
+}
+
+SHELL_STATIC_SUBCMD_SET_CREATE(network_cmds,
+    SHELL_CMD(mac, NULL, "Print MAC and IP address", cmd_network_mac),
+    SHELL_SUBCMD_SET_END
+);
+SHELL_CMD_REGISTER(network, &network_cmds, "Network commands", NULL);
 
 // ── system ────────────────────────────────────────────────────────────────────
 

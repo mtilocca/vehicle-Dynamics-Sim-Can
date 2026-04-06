@@ -14,8 +14,10 @@ set(APP_SRCS
     src/main.cpp
 )
 
-# Phase 1: logging shim active (utils/logging.hpp), shell commands
+# Phase 1: logging shim active (utils/logging.hpp), shell commands, LED task, HTTP server
 list(APPEND APP_SRCS src/shell/debug_cmds.cpp)
+list(APPEND APP_SRCS src/led_task.cpp)
+list(APPEND APP_SRCS src/http_server.cpp)
 
 # Phase 2+: add CAN interface
 # list(APPEND APP_SRCS src/can/zephyr_can_iface.cpp)
