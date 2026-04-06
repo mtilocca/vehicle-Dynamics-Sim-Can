@@ -55,7 +55,7 @@ static plant::PlantModelParams xcmg_params()
     p.drive.motor_power_max_w    = 2013000.0;
     p.drive.gear_ratio           = 28.0;
     p.drive.drivetrain_eff       = 0.92;
-    p.drive.brake_torque_max_nm  = 420000.0;  // 420 kNm → ~1.0 m/s² at full load (218 t)
+    p.drive.brake_torque_max_nm  = 1250000.0; // 1.25 MNm → ~0.3g at full load (218 t)
     p.drive.regen_eff_active     = 0.65;
     p.drive.regen_eff_coast      = 0.02;
     p.drive.drag_c               = 1.85;
@@ -148,6 +148,34 @@ static void plant_thread(void*, void*, void*)
         k_mutex_lock(&g_state_mutex, K_FOREVER);
         g_state = local_state;
         k_mutex_unlock(&g_state_mutex);
+
+        // ── Brake diagnostics — log every 100 ms while braking ───────────────
+        // Shows: vx, measured a_long, total Fx from tyre model, tau_brake applied,
+        //        and per-wheel omega vs reference omega (vx/R).
+        // Lets us verify: is slip building up? Is kinematic/dynamic switch active?
+        if (cmd.brake_cmd_pct > 1.0) {
+            static int brake_log_ctr = 0;
+            if ((++brake_log_ctr % 10) == 0) {
+                const double Fx_total = local_state.Fx_fl + local_state.Fx_fr
+                                      + local_state.Fx_rl + local_state.Fx_rr;
+                const double tau_applied = local_state.tau_brake_fl_nm
+                                         + local_state.tau_brake_fr_nm
+                                         + local_state.tau_brake_rl_nm
+                                         + local_state.tau_brake_rr_nm;
+                const double omega_ref = local_state.v_mps / 1.93;
+                LOG_INF("[brk] t=%.2f vx=%.3f a=%.3f Fx=%.0fN tau=%.0fNm mode=%s",
+                        t_s,
+                        local_state.v_mps,
+                        local_state.a_long_mps2,
+                        Fx_total,
+                        tau_applied,
+                        local_state.dynamic_model_enabled ? "dyn" : "kin");
+                LOG_INF("[brk] omega FL=%.2f FR=%.2f RL=%.2f RR=%.2f ref=%.2f rad/s",
+                        local_state.omega_fl_radps, local_state.omega_fr_radps,
+                        local_state.omega_rl_radps, local_state.omega_rr_radps,
+                        omega_ref);
+            }
+        }
 
         // ── CAN TX ────────────────────────────────────────────────────────────
         const uint32_t dt_cycles = k_cycle_get_32() - t0_cycles;
