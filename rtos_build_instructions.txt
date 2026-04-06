@@ -4,6 +4,7 @@ west build -b nucleo_h753zi /home/baloo/repos/vehicle-Dynamics-Sim-Can/zephyr
 west flash
 
 
+picocom -b 115200 /dev/ttyACM0
 
 screen /dev/ttyACM0 115200
 

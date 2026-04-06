@@ -1,4 +1,4 @@
-// src/plant/plant_model.hpp - UPDATED
+// src/plant/plant_model.hpp
 #pragma once
 
 #include "plant/plant_main/plant_state.hpp"
@@ -6,6 +6,14 @@
 #include "plant/steer_subsystem/steer_plant.hpp"
 #include "plant/drive_subsystem/drive_plant.hpp"
 #include "plant/battery_subsystem/battery_plant.hpp"
+#ifdef __ZEPHYR__
+// On Zephyr subsystems are stored by value — include concrete types here
+#  include "plant/steer_subsystem/steer_subsystem.hpp"
+#  include "plant/drive_subsystem/drive_subsystem.hpp"
+#  include "plant/wheel_subsystem/wheel_subsystem.hpp"
+#  include "plant/vehicle_subsystem/vehicle_subsystem.hpp"
+#  include "plant/battery_subsystem/battery_subsystem.hpp"
+#endif
 
 namespace sim { struct ActuatorCmd; }
 
@@ -41,7 +49,7 @@ struct PlantModelParams {
 
 /**
  * PlantModel - Main vehicle physics orchestrator
- * 
+ *
  * Subsystem execution order (priority-based):
  *   50:  SteerSubsystem     → δFL, δFR (Ackermann)
  *   100: DriveSubsystem     → τdrive_*, τbrake_*
@@ -58,13 +66,22 @@ public:
 
     void step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s);
 
-    // Access to subsystem manager (for advanced control)
     SubsystemManager& subsystem_manager() { return subsystem_mgr_; }
     const SubsystemManager& subsystem_manager() const { return subsystem_mgr_; }
 
 private:
     PlantModelParams p_;
     SubsystemManager subsystem_mgr_;
+
+#ifdef __ZEPHYR__
+    // Subsystems stored by value — no heap allocation.
+    // Constructed and registered in plant_model_zephyr.cpp.
+    SteerSubsystem   steer_;
+    DriveSubsystem   drive_;
+    WheelSubsystem   wheel_;
+    VehicleSubsystem vehicle_;
+    BatterySubsystem battery_;
+#endif
 };
 
 } // namespace plant

@@ -1,7 +1,85 @@
 // src/plant/subsystem_manager.cpp
 #include "plant/subsystem_manager/subsystem_manager.hpp"
 #include "utils/logging.hpp"
-#include <cstring>
+#ifdef __ZEPHYR__
+LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
+#endif
+#ifndef __ZEPHYR__
+#  include <cstring>
+#else
+#  include <string.h>
+#endif
+
+namespace plant {
+
+#ifdef __ZEPHYR__
+// ── Zephyr implementation (raw pointer array) ─────────────────────────────────
+
+void SubsystemManager::register_subsystem(PhysicsSubsystem* s) {
+    if (!s || count_ >= MAX_SUBSYSTEMS) {
+        LOG_WARN("[SubsystemManager] register_subsystem: null or full (%zu/%zu)",
+                 count_, MAX_SUBSYSTEMS);
+        return;
+    }
+    LOG_INFO("[SubsystemManager] Registering: %s (priority %d)", s->name(), s->priority());
+    subsystems_[count_++] = s;
+    sort_by_priority();
+}
+
+void SubsystemManager::initialize_all(PlantState& s) {
+    LOG_INFO("[SubsystemManager] Initializing %zu subsystems", count_);
+    for (size_t i = 0; i < count_; ++i)
+        if (subsystems_[i]->enabled()) subsystems_[i]->initialize(s);
+}
+
+void SubsystemManager::reset_all(PlantState& s) {
+    for (size_t i = 0; i < count_; ++i)
+        if (subsystems_[i]->enabled()) subsystems_[i]->reset(s);
+}
+
+void SubsystemManager::step_all(PlantState& s, const sim::ActuatorCmd& cmd, double dt) {
+    for (size_t i = 0; i < count_; ++i)
+        if (subsystems_[i]->enabled()) subsystems_[i]->pre_step(s, cmd, dt);
+    for (size_t i = 0; i < count_; ++i)
+        if (subsystems_[i]->enabled()) subsystems_[i]->step(s, cmd, dt);
+    for (size_t i = 0; i < count_; ++i)
+        if (subsystems_[i]->enabled()) subsystems_[i]->post_step(s, cmd, dt);
+}
+
+PhysicsSubsystem* SubsystemManager::find_subsystem(const char* name) {
+    if (!name) return nullptr;
+    for (size_t i = 0; i < count_; ++i)
+        if (strcmp(subsystems_[i]->name(), name) == 0) return subsystems_[i];
+    return nullptr;
+}
+
+PhysicsSubsystem* SubsystemManager::get_subsystem(size_t index) {
+    return (index < count_) ? subsystems_[index] : nullptr;
+}
+
+size_t SubsystemManager::enabled_count() const {
+    size_t n = 0;
+    for (size_t i = 0; i < count_; ++i) if (subsystems_[i]->enabled()) ++n;
+    return n;
+}
+
+void SubsystemManager::sort_by_priority() {
+    // Insertion sort — stable, no heap, fine for ≤ 8 elements
+    for (size_t i = 1; i < count_; ++i) {
+        PhysicsSubsystem* key = subsystems_[i];
+        size_t j = i;
+        while (j > 0 && subsystems_[j-1]->priority() > key->priority()) {
+            subsystems_[j] = subsystems_[j-1];
+            --j;
+        }
+        subsystems_[j] = key;
+    }
+}
+
+} // namespace plant
+
+#else
+// ── Host implementation (unique_ptr vector) ───────────────────────────────────
 
 namespace plant {
 
@@ -112,3 +190,4 @@ void SubsystemManager::sort_by_priority() {
 }
 
 } // namespace plant
+#endif // __ZEPHYR__

@@ -126,7 +126,7 @@ static void send_page(int fd)
         "<h1>XCMG XDE320 &mdash; Simulator Dashboard</h1>"
         "<span class='badge'>&#9679; ONLINE</span>"
         "<span class='meta'>Uptime&nbsp;%02u:%02u:%02u</span>"
-        "<span class='meta'>IP&nbsp;192.168.1.100</span>"
+        "<span class='meta'>IP&nbsp;192.168.1.80</span>"
         "<span class='meta'>MAC&nbsp;02:00:5E:00:53:01</span>"
         "</div>",
         h, m, sc);
@@ -254,7 +254,7 @@ static void http_server_thread(void*, void*, void*)
         return;
     }
 
-    LOG_INF("HTTP server listening on 192.168.1.100:80");
+    LOG_INF("HTTP server listening on 192.168.1.80:80");
 
     while (true) {
         struct sockaddr_in client_addr{};

@@ -3,8 +3,15 @@
 #include "plant/wheel_subsystem/wheel_kinematics.hpp"
 #include "plant/wheel_subsystem/load_transfer_model.hpp"
 #include "utils/logging.hpp"
-#include <chrono>
+#ifdef __ZEPHYR__
+LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
+#endif
 #include <cmath>
+#ifdef __ZEPHYR__
+#  include <zephyr/kernel.h>
+#else
+#  include <chrono>
+#endif
 
 namespace plant {
 
@@ -297,11 +304,19 @@ void WheelSubsystem::step(PlantState& s, const sim::ActuatorCmd& /*cmd*/, double
     // PERIODIC LOGGING: Wheel forces and dynamics (once every 5 s wall time)
     // -------------------------------------------------------------------------
     {
+#ifdef __ZEPHYR__
+        static uint32_t last_log_ms = 0;
+        uint32_t now_ms = k_uptime_get_32();
+        bool do_log = (now_ms - last_log_ms) >= 5000u;
+        if (do_log) last_log_ms = now_ms;
+#else
         using clk = std::chrono::steady_clock;
         static auto last_log = clk::now();
         auto now = clk::now();
-        if (std::chrono::duration<double>(now - last_log).count() >= 5.0) {
-            last_log = now;
+        bool do_log = std::chrono::duration<double>(now - last_log).count() >= 5.0;
+        if (do_log) last_log = now;
+#endif
+        if (do_log) {
             LOG_DEBUG("========== WHEEL DYNAMICS ==========");
             LOG_DEBUG("Vehicle state: vx=%.2f m/s, vy=%.2f m/s, yaw_rate=%.3f rad/s",
                      s.v_mps, s.vy_mps, s.yaw_rate_radps);
@@ -326,7 +341,7 @@ void WheelSubsystem::step(PlantState& s, const sim::ActuatorCmd& /*cmd*/, double
             LOG_DEBUG("Friction λ:     FL=%.3f  FR=%.3f  RL=%.3f  RR=%.3f",
                      s.lambda_fl, s.lambda_fr, s.lambda_rl, s.lambda_rr);
             LOG_DEBUG("============================================");
-        }
+        } // do_log
     }
 
     // Export wheel speeds to PlantState

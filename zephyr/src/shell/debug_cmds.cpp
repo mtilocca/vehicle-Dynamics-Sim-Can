@@ -90,14 +90,63 @@ static int cmd_plant_reset(const struct shell* sh, size_t argc, char** argv)
     k_mutex_lock(&g_state_mutex, K_FOREVER);
     g_state = plant::PlantState{};
     k_mutex_unlock(&g_state_mutex);
-    shell_print(sh, "Plant state reset to zero");
+    // Also zero the command so the plant stops
+    k_mutex_lock(&g_cmd_mutex, K_FOREVER);
+    g_cmd = sim::ActuatorCmd{};
+    k_mutex_unlock(&g_cmd_mutex);
+    shell_print(sh, "Plant state and command reset to zero");
+    return 0;
+}
+
+// ── plant inject ──────────────────────────────────────────────────────────────
+// Directly writes to g_cmd — no CAN encoding needed.
+// Usage: plant inject <steer_deg> <torque_nm> <brake_pct> [enable=1]
+//
+// Also pokes g_last_rx_t so the CAN-RX watchdog keeps the command alive.
+// Watchdog fires if no fresh inject (or CAN RX) arrives within 500 ms.
+// To hold a command continuously: repeat "plant inject ..." or use "plant hold".
+static int cmd_plant_inject(const struct shell* sh, size_t argc, char** argv)
+{
+    if (argc < 4) {
+        shell_print(sh, "Usage: plant inject <steer_deg> <torque_nm> <brake_pct> [enable=1]");
+        shell_print(sh, "  steer_deg  : -45 .. +45  (positive = right)");
+        shell_print(sh, "  torque_nm  : 0 .. 145000  (traction)");
+        shell_print(sh, "  brake_pct  : 0.0 .. 1.0");
+        shell_print(sh, "  enable     : 0 or 1 (default 1)");
+        return -EINVAL;
+    }
+
+    double steer  = strtod(argv[1], nullptr);
+    double torque = strtod(argv[2], nullptr);
+    double brake  = strtod(argv[3], nullptr);
+    bool   enable = (argc > 4) ? (strtod(argv[4], nullptr) != 0.0) : true;
+
+    sim::ActuatorCmd cmd;
+    cmd.steer_cmd_deg       = steer;
+    cmd.drive_torque_cmd_nm = torque;
+    cmd.brake_cmd_pct       = brake;
+    cmd.system_enable       = enable;
+    cmd.gear_position = (torque >= 0.0) ? sim::GearPosition::FORWARD
+                                        : sim::GearPosition::REVERSE;
+
+    k_mutex_lock(&g_cmd_mutex, K_FOREVER);
+    g_cmd = cmd;
+    k_mutex_unlock(&g_cmd_mutex);
+
+    // Poke the watchdog so the plant_thread keeps this command alive for 500 ms
+    g_last_rx_t = static_cast<double>(k_uptime_get_32()) / 1000.0;
+
+    shell_print(sh, "Injected: steer=%.1f deg  torque=%.0f Nm  brake=%.2f  enable=%d",
+                steer, torque, brake, (int)enable);
+    shell_print(sh, "  (watchdog: resend within 500 ms to maintain, or use CAN loopback)");
     return 0;
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(plant_cmds,
-    SHELL_CMD(state, NULL, "Dump plant state",   cmd_plant_state),
-    SHELL_CMD(mu,    NULL, "Set surface mu",      cmd_plant_mu),
-    SHELL_CMD(reset, NULL, "Reset plant state",   cmd_plant_reset),
+    SHELL_CMD(state,  NULL, "Dump plant state",                 cmd_plant_state),
+    SHELL_CMD(mu,     NULL, "Set surface mu",                   cmd_plant_mu),
+    SHELL_CMD(reset,  NULL, "Reset plant state and command",    cmd_plant_reset),
+    SHELL_CMD(inject, NULL, "Inject actuator cmd (no CAN needed)", cmd_plant_inject),
     SHELL_SUBCMD_SET_END
 );
 SHELL_CMD_REGISTER(plant, &plant_cmds, "Plant model commands", NULL);
@@ -218,8 +267,8 @@ static int cmd_network_mac(const struct shell* sh, size_t argc, char** argv)
     shell_print(sh, "MAC : %02X:%02X:%02X:%02X:%02X:%02X",
                 ll->addr[0], ll->addr[1], ll->addr[2],
                 ll->addr[3], ll->addr[4], ll->addr[5]);
-    shell_print(sh, "IP  : 192.168.1.100");
-    shell_print(sh, "Port: 80  (http://192.168.1.100)");
+    shell_print(sh, "IP  : 192.168.1.80");
+    shell_print(sh, "Port: 80  (http://192.168.1.80)");
     return 0;
 }
 

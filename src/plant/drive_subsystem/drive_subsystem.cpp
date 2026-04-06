@@ -11,7 +11,14 @@
 
 #include "plant/drive_subsystem/drive_subsystem.hpp"
 #include "utils/logging.hpp"
-#include <chrono>
+#ifdef __ZEPHYR__
+LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
+#endif
+#ifdef __ZEPHYR__
+#  include <zephyr/kernel.h>
+#else
+#  include <chrono>
+#endif
 
 namespace plant {
 
@@ -108,13 +115,21 @@ void DriveSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt)
     LOG_DEBUG("[DriveSubsystem] τ_drive_rl=%.0f, τ_drive_rr=%.0f, τ_brake_rl=%.0f Nm",
               s.tau_drive_rl_nm, s.tau_drive_rr_nm, s.tau_brake_rl_nm);
 
-    // PERIODIC LOGGING: Torque distribution (once every 5 s wall time)
+    // PERIODIC LOGGING: Torque distribution (once every 5 s)
     {
+#ifdef __ZEPHYR__
+        static uint32_t last_log_ms = 0;
+        uint32_t now_ms = k_uptime_get_32();
+        bool do_log = (now_ms - last_log_ms) >= 5000u;
+        if (do_log) last_log_ms = now_ms;
+#else
         using clk = std::chrono::steady_clock;
         static auto last_log = clk::now();
         auto now = clk::now();
-        if (std::chrono::duration<double>(now - last_log).count() >= 5.0) {
-            last_log = now;
+        bool do_log = std::chrono::duration<double>(now - last_log).count() >= 5.0;
+        if (do_log) last_log = now;
+#endif
+        if (do_log) {
             LOG_DEBUG("========== DRIVE SUBSYSTEM ==========");
             LOG_DEBUG("Commands: drive_torque_cmd=%.1f Nm, brake_cmd=%.1f%%",
                      cmd.drive_torque_cmd_nm, cmd.brake_cmd_pct);
@@ -127,7 +142,7 @@ void DriveSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt)
             LOG_DEBUG("Battery: SOC=%.1f%%, V=%.1fV, I=%.1fA",
                      s.batt_soc_pct, s.batt_v, s.batt_i);
             LOG_DEBUG("===============================================");
-        }
+        } // do_log
     }
 }
 

@@ -1,0 +1,46 @@
+// zephyr/cpp_compat/initializer_list
+// Minimal std::initializer_list for GCC built-in braced-init support.
+// Must match GCC's internal ABI exactly — do not change field names/order.
+#pragma once
+
+#include <stddef.h>
+
+namespace std {
+
+template<class _E>
+class initializer_list {
+public:
+    typedef _E            value_type;
+    typedef const _E&     reference;
+    typedef const _E&     const_reference;
+    typedef size_t        size_type;
+    typedef const _E*     iterator;
+    typedef const _E*     const_iterator;
+
+private:
+    iterator  _M_array;
+    size_type _M_len;
+
+    // GCC calls this constructor internally for brace-init
+    constexpr initializer_list(const_iterator __a, size_type __l) noexcept
+        : _M_array(__a), _M_len(__l) {}
+
+public:
+    constexpr initializer_list() noexcept : _M_array(nullptr), _M_len(0) {}
+
+    constexpr size_type      size()  const noexcept { return _M_len; }
+    constexpr const_iterator begin() const noexcept { return _M_array; }
+    constexpr const_iterator end()   const noexcept { return _M_array + _M_len; }
+};
+
+template<class _E>
+constexpr const _E* begin(initializer_list<_E> __ils) noexcept {
+    return __ils.begin();
+}
+
+template<class _E>
+constexpr const _E* end(initializer_list<_E> __ils) noexcept {
+    return __ils.end();
+}
+
+} // namespace std

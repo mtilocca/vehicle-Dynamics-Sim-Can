@@ -1,6 +1,9 @@
 // src/plant/battery_subsystem.cpp
 #include "plant/battery_subsystem/battery_subsystem.hpp"
 #include "utils/logging.hpp"
+#ifdef __ZEPHYR__
+LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
+#endif
 
 namespace plant {
 

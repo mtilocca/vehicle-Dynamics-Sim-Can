@@ -21,30 +21,26 @@ list(APPEND APP_SRCS src/http_server.cpp)
 
 # Phase 3: CAN RX thread + ACTUATOR_CMD_1 decoder
 list(APPEND APP_SRCS src/can/can_rx.cpp)
-# Phase 4+: TX wrapper (wraps can_send for plant TX scheduler)
-# list(APPEND APP_SRCS src/can/zephyr_can_iface.cpp)
 
-# Phase 2+: full plant + sensors + CAN stack
-# file(GLOB_RECURSE PLANT_SRCS "${REPO_ROOT}/src/plant/*.cpp")
-# set(CAN_SRCS
-#     ${REPO_ROOT}/src/can/can_frame.cpp
-#     ${REPO_ROOT}/src/can/can_map.cpp
-#     ${REPO_ROOT}/src/can/can_codec.cpp
-#     ${REPO_ROOT}/src/can/actuator_cmd_decoder.cpp
-#     ${REPO_ROOT}/src/can/tx_scheduler.cpp
-# )
-# set(CONFIG_SRCS   ${REPO_ROOT}/src/config/vehicle_config.cpp)
-# set(SIM_SRCS      ${REPO_ROOT}/src/sim/plant_state_packer.cpp)
-# set(UTILS_SRCS    ${REPO_ROOT}/utils/bitpack.cpp ${REPO_ROOT}/utils/crc.cpp)
-# list(APPEND APP_SRCS
-#     ${PLANT_SRCS} ${CAN_SRCS} ${CONFIG_SRCS} ${SIM_SRCS} ${UTILS_SRCS}
-#     src/shell/debug_cmds.cpp
-# )
+# Phase 4: Plant model (Zephyr-specific constructor), plant thread, CAN TX
+# NOTE: src/plant/plant_model.cpp is EXCLUDED — replaced by plant_model_zephyr.cpp
+file(GLOB_RECURSE PLANT_SRCS "${REPO_ROOT}/src/plant/*.cpp")
+list(FILTER PLANT_SRCS EXCLUDE REGEX ".*/plant_model\\.cpp$")
+list(APPEND APP_SRCS
+    ${PLANT_SRCS}
+    ${REPO_ROOT}/src/plant/subsystem_manager/subsystem_manager.cpp
+    src/plant_model_zephyr.cpp
+    src/plant_thread.cpp
+    src/can/can_tx.cpp
+)
 
 target_sources(app PRIVATE ${APP_SRCS})
 
 target_include_directories(app PRIVATE
+    ${REPO_ROOT}          # needed for #include "utils/logging.hpp"
     ${REPO_ROOT}/src
+    ${REPO_ROOT}/src/plant   # "tyre_models/tyre_dugoff.hpp" etc.
     ${REPO_ROOT}/utils
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/cpp_compat   # std::min/max/clamp/cmath shims (-nostdinc++)
 )

@@ -7,6 +7,9 @@
 #include "drive_plant.hpp"
 #include "sim/actuator_cmd.hpp"
 #include "utils/logging.hpp"
+#ifdef __ZEPHYR__
+LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
+#endif
 #include <cmath>
 
 namespace plant {
