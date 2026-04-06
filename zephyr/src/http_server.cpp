@@ -1,6 +1,7 @@
 // zephyr/src/http_server.cpp
 // Minimal HTTP server — serves a live dashboard on port 80.
-// Single-threaded: accept → drain headers → build HTML → send → close.
+// Single-threaded: accept → parse request line → apply command if query present
+//                 → build HTML → send → close.
 // Uses Zephyr native socket API (zsock_*) — no CONFIG_POSIX_API needed.
 //
 // Priority 10: below sim (Phase 4, prio 5), above LED (prio 12) and shell (prio 14).
@@ -10,7 +11,9 @@
 #include <zephyr/net/net_if.h>
 #include <zephyr/net/net_ip.h>
 #include <zephyr/logging/log.h>
-#include <stdio.h>   /* snprintf — C header, not <cstdio> */
+#include <stdio.h>    /* snprintf */
+#include <stdlib.h>   /* atof */
+#include <string.h>   /* strncmp, strlen */
 
 #include "plant/plant_main/plant_state.hpp"
 #include "sim/actuator_cmd.hpp"
@@ -33,8 +36,7 @@ extern double            g_surface_mu;
 
 static void send_str(int fd, const char* s)
 {
-    int len = 0;
-    while (s[len]) ++len;
+    int len = (int)strlen(s);
     int sent = 0;
     while (sent < len) {
         int r = zsock_send(fd, s + sent, len - sent, 0);
@@ -43,11 +45,40 @@ static void send_str(int fd, const char* s)
     }
 }
 
-static void drain_request(int fd)
+// Read the HTTP request line ("GET /path?query HTTP/1.1\r\n") byte-by-byte.
+// Copies everything after '?' and before the next ' ' into query_out.
+// query_out[0] == '\0' if there is no query string.
+static void read_request_line(int fd, char* query_out, int qlen)
 {
-    // Read until we see the end of HTTP headers (\r\n\r\n)
-    char buf[128];
-    int  state = 0;
+    query_out[0] = '\0';
+
+    char line[192];
+    int  li = 0;
+
+    while (li < (int)sizeof(line) - 1) {
+        char c;
+        if (zsock_recv(fd, &c, 1, 0) <= 0) break;
+        if (c == '\n') break;
+        line[li++] = c;
+    }
+    line[li] = '\0';
+
+    // Find '?'
+    char* q = line;
+    while (*q && *q != '?') ++q;
+    if (!*q) return; // no query string
+
+    ++q; // skip '?'
+    int i = 0;
+    while (*q && *q != ' ' && *q != '\r' && i < qlen - 1)
+        query_out[i++] = *q++;
+    query_out[i] = '\0';
+}
+
+// Drain remaining HTTP headers until the blank line (\r\n\r\n).
+static void drain_headers(int fd)
+{
+    int state = 0;
     while (state < 4) {
         char c;
         if (zsock_recv(fd, &c, 1, 0) <= 0) break;
@@ -55,13 +86,55 @@ static void drain_request(int fd)
         else if (state == 1 && c == '\n') state = 2;
         else if (state == 2 && c == '\r') state = 3;
         else if (state == 3 && c == '\n') state = 4;
-        else                              state = 0;
-        (void)buf;
+        else                              state = (c == '\r') ? 1 : 0;
     }
 }
 
+// ── Query string parser ───────────────────────────────────────────────────────
+
+// Returns pointer to start of the value for 'key' in query string 'qs',
+// or NULL if not found.  Value ends at '&', ' ', '\0'.
+static const char* find_param(const char* qs, const char* key)
+{
+    int klen = (int)strlen(key);
+    const char* p = qs;
+    while (*p) {
+        if (strncmp(p, key, klen) == 0 && p[klen] == '=')
+            return p + klen + 1;
+        while (*p && *p != '&') ++p;
+        if (*p == '&') ++p;
+    }
+    return nullptr;
+}
+
+// Parse query string and apply found params to g_cmd (partial update).
+static void apply_web_cmd(const char* qs)
+{
+    sim::ActuatorCmd cmd;
+    k_mutex_lock(&g_cmd_mutex, K_FOREVER);
+    cmd = g_cmd;
+    k_mutex_unlock(&g_cmd_mutex);
+
+    const char* v;
+    if ((v = find_param(qs, "steer")))  cmd.steer_cmd_deg       = atof(v);
+    if ((v = find_param(qs, "torque"))) cmd.drive_torque_cmd_nm = atof(v);
+    if ((v = find_param(qs, "brake")))  cmd.brake_cmd_pct       = atof(v);
+    if ((v = find_param(qs, "gear"))) {
+        cmd.gear_position = (v[0] == 'F') ? sim::GearPosition::FORWARD :
+                            (v[0] == 'R') ? sim::GearPosition::REVERSE :
+                                            sim::GearPosition::NEUTRAL;
+    }
+    if ((v = find_param(qs, "enable"))) cmd.system_enable = (v[0] == '1');
+
+    k_mutex_lock(&g_cmd_mutex, K_FOREVER);
+    g_cmd = cmd;
+    k_mutex_unlock(&g_cmd_mutex);
+
+    // Poke watchdog so plant_thread keeps this command alive for 500 ms
+    g_last_rx_t = (double)k_uptime_get_32() / 1000.0;
+}
+
 // ── HTML page builder ─────────────────────────────────────────────────────────
-// Split into chunks so each snprintf is well under 512 bytes.
 
 static void send_page(int fd)
 {
@@ -81,7 +154,7 @@ static void send_page(int fd)
         "<meta charset='utf-8'>"
         "<meta http-equiv='refresh' content='2'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        "<title>XCMG XDE320 — Simulator</title>"
+        "<title>XCMG XDE320 &mdash; Simulator</title>"
         "<style>"
         "*{box-sizing:border-box;margin:0;padding:0}"
         "body{background:#161b22;color:#e6edf3;font-family:monospace;font-size:14px;padding:16px}"
@@ -91,14 +164,30 @@ static void send_page(int fd)
         ".badge{background:#1a7f37;color:#fff;font-size:11px;padding:2px 8px;border-radius:12px}"
         ".meta{color:#8b949e;font-size:12px}"
         ".grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}"
-        ".card{background:#21262d;border-radius:8px;padding:14px}"
-        ".card-full{background:#21262d;border-radius:8px;padding:14px}"
+        ".card{background:#21262d;border-radius:8px;padding:14px;margin-bottom:12px}"
         "table{width:100%;border-collapse:collapse}"
         "td{padding:3px 0;vertical-align:top}"
         "td:first-child{color:#8b949e;width:52%;padding-right:8px}"
         "td:last-child{color:#e6edf3;font-weight:500}"
         ".val-hi{color:#3fb950}"
         ".val-warn{color:#d29922}"
+    );
+    send_str(fd,
+        ".btn{display:inline-block;padding:6px 14px;border-radius:6px;font-family:monospace;"
+        "font-size:13px;font-weight:600;text-decoration:none;border:none;cursor:pointer;margin:3px 2px}"
+        ".btn-stop{background:#da3633;color:#fff}"
+        ".btn-fwd{background:#238636;color:#fff}"
+        ".btn-rev{background:#1f6feb;color:#fff}"
+        ".btn-steer{background:#30363d;color:#e6edf3;border:1px solid #444}"
+        ".btn-inject{background:#1f6feb;color:#fff;padding:7px 20px}"
+        "label{color:#8b949e;font-size:12px;margin-right:4px}"
+        "input[type=number],select{"
+        "background:#0d1117;color:#e6edf3;border:1px solid #30363d;"
+        "border-radius:4px;padding:4px 6px;font-family:monospace;font-size:13px;"
+        "width:100px;margin-right:12px}"
+        "select{width:auto}"
+        "input[type=checkbox]{margin-right:4px;vertical-align:middle}"
+        ".ctrl-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:8px}"
         "</style></head><body>"
     );
 
@@ -115,10 +204,10 @@ static void send_page(int fd)
     k_mutex_unlock(&g_cmd_mutex);
 
     uint32_t ms  = k_uptime_get_32();
-    uint32_t sec = ms / 1000;
-    uint32_t h   = sec / 3600;
-    uint32_t m   = (sec % 3600) / 60;
-    uint32_t sc  = sec % 60;
+    uint32_t sec_up = ms / 1000;
+    uint32_t h   = sec_up / 3600;
+    uint32_t m   = (sec_up % 3600) / 60;
+    uint32_t sc  = sec_up % 60;
 
     // ── Header bar ────────────────────────────────────────────────────────────
     snprintf(buf, sizeof(buf),
@@ -136,9 +225,7 @@ static void send_page(int fd)
     send_str(fd, "<div class='grid'>");
 
     // Left card — Plant State
-    send_str(fd,
-        "<div class='card'><h2>Plant State</h2><table>"
-    );
+    send_str(fd, "<div class='card'><h2>Plant State</h2><table>");
     snprintf(buf, sizeof(buf),
         "<tr><td>vx</td><td>%.3f m/s</td></tr>"
         "<tr><td>vy</td><td>%.3f m/s</td></tr>"
@@ -179,8 +266,8 @@ static void send_page(int fd)
         "<tr><td>Steer</td><td>%.2f &deg;</td></tr>",
         c.system_enable ? "val-hi" : "val-warn",
         c.system_enable ? "ON" : "OFF",
-        c.gear_position == sim::GearPosition::FORWARD  ? "FORWARD"  :
-        c.gear_position == sim::GearPosition::REVERSE  ? "REVERSE"  : "NEUTRAL",
+        c.gear_position == sim::GearPosition::FORWARD ? "FORWARD" :
+        c.gear_position == sim::GearPosition::REVERSE ? "REVERSE" : "NEUTRAL",
         c.drive_torque_cmd_nm, c.brake_cmd_pct, c.steer_cmd_deg);
     send_str(fd, buf);
     send_str(fd, "</table></div>");
@@ -202,9 +289,84 @@ static void send_page(int fd)
     send_str(fd, "</div>"); // right column
     send_str(fd, "</div>"); // grid
 
+    // ── Controls card ─────────────────────────────────────────────────────────
+    double sp5 = c.steer_cmd_deg + 5.0;
+    double sm5 = c.steer_cmd_deg - 5.0;
+    if (sp5 >  45.0) sp5 =  45.0;
+    if (sm5 < -45.0) sm5 = -45.0;
+
+    send_str(fd, "<div class='card'><h2>Controls</h2>");
+
+    // Quick-action buttons
+    send_str(fd, "<div class='ctrl-row'>");
+    send_str(fd,
+        "<a class='btn btn-stop' href='/?enable=1&gear=N&torque=0&brake=1.0&steer=0'>"
+        "&#9632;&nbsp;STOP</a>");
+    send_str(fd,
+        "<a class='btn btn-fwd' href='/?enable=1&gear=F&torque=50000&brake=0&steer=0'>"
+        "&#9654;&nbsp;Drive FWD</a>");
+    send_str(fd,
+        "<a class='btn btn-rev' href='/?enable=1&gear=R&torque=50000&brake=0&steer=0'>"
+        "&#9664;&nbsp;Drive REV</a>");
+
+    snprintf(buf, sizeof(buf),
+        "<a class='btn btn-steer' href='/?steer=%.0f'>&#8592;&nbsp;%.0f&deg;</a>"
+        "<a class='btn btn-steer' href='/?steer=%.0f'>%.0f&deg;&nbsp;&#8594;</a>",
+        sm5, sm5, sp5, sp5);
+    send_str(fd, buf);
+    send_str(fd, "</div>");
+
+    // Manual inject form
+    const char* sel_f = (c.gear_position == sim::GearPosition::FORWARD) ? " selected" : "";
+    const char* sel_n = (c.gear_position == sim::GearPosition::NEUTRAL) ? " selected" : "";
+    const char* sel_r = (c.gear_position == sim::GearPosition::REVERSE) ? " selected" : "";
+
+    send_str(fd, "<form method='get' action='/' style='margin-top:10px'>");
+    send_str(fd, "<div class='ctrl-row'>");
+
+    snprintf(buf, sizeof(buf),
+        "<label>Steer&nbsp;&deg;</label>"
+        "<input type='number' name='steer' min='-45' max='45' step='1' value='%.0f'>",
+        c.steer_cmd_deg);
+    send_str(fd, buf);
+
+    snprintf(buf, sizeof(buf),
+        "<label>Torque&nbsp;Nm</label>"
+        "<input type='number' name='torque' min='0' max='145000' step='5000' value='%.0f'>",
+        c.drive_torque_cmd_nm);
+    send_str(fd, buf);
+
+    snprintf(buf, sizeof(buf),
+        "<label>Brake</label>"
+        "<input type='number' name='brake' min='0' max='1' step='0.05' value='%.2f'>",
+        c.brake_cmd_pct);
+    send_str(fd, buf);
+
+    snprintf(buf, sizeof(buf),
+        "<label>Gear</label>"
+        "<select name='gear'>"
+        "<option value='F'%s>FORWARD</option>"
+        "<option value='N'%s>NEUTRAL</option>"
+        "<option value='R'%s>REVERSE</option>"
+        "</select>",
+        sel_f, sel_n, sel_r);
+    send_str(fd, buf);
+
+    snprintf(buf, sizeof(buf),
+        "<label><input type='checkbox' name='enable' value='1'%s>Enable</label>",
+        c.system_enable ? " checked" : "");
+    send_str(fd, buf);
+
+    send_str(fd, "</div>");
+    send_str(fd, "<div class='ctrl-row' style='margin-top:6px'>");
+    send_str(fd,
+        "<button class='btn btn-inject' type='submit'>Inject Command &#8594;</button>"
+        "<span class='meta'>&nbsp;watchdog: resend within 500&nbsp;ms to hold</span>");
+    send_str(fd, "</div></form></div>");
+
     // ── Full-width vehicle card ───────────────────────────────────────────────
     send_str(fd,
-        "<div class='card-full'>"
+        "<div class='card'>"
         "<h2>Vehicle &mdash; XCMG XDE320 Electric</h2>"
         "<table><tr>"
         "<td>Mass</td><td>218 000 kg (218 t)</td>"
@@ -225,7 +387,6 @@ static void send_page(int fd)
 
 static void http_server_thread(void*, void*, void*)
 {
-    // Wait for the network to come up before binding
     k_msleep(2000);
 
     int srv = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -265,10 +426,17 @@ static void http_server_thread(void*, void*, void*)
             continue;
         }
 
-        drain_request(client);
+        char query[128] = {};
+        read_request_line(client, query, sizeof(query));
+        drain_headers(client);
+
+        if (query[0] != '\0') {
+            apply_web_cmd(query);
+        }
+
         send_page(client);
         zsock_close(client);
     }
 }
 
-K_THREAD_DEFINE(http_tid, 4096, http_server_thread, NULL, NULL, NULL, 10, 0, 0);
+K_THREAD_DEFINE(http_tid, 8192, http_server_thread, NULL, NULL, NULL, 10, 0, 0);
