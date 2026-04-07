@@ -98,3 +98,9 @@ internal/
 image_web_ui.png
 Testing/
 *.pptx
+
+# -----------------------------
+# Zephyr HTTPS credentials (regenerate with scripts/gen_http_token.sh)
+# -----------------------------
+zephyr/certs/
+zephyr/src/http/http_auth.hpp

@@ -53,3 +53,8 @@
     status = "okay";
     local-mac-address = [02 00 5E 00 53 01];
 };
+
+/* Hardware watchdog — 1 s timeout, stroked by watchdog_thread.cpp */
+&iwdg {
+    status = "okay";
+};
