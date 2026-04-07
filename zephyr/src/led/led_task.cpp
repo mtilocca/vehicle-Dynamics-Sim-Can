@@ -1,4 +1,4 @@
-// zephyr/src/led_task.cpp
+// zephyr/src/led/led_task.cpp
 // Cycles the 3 user LEDs (LD1 green, LD2 yellow, LD3 red) through
 // pseudo-random on/off patterns every 3 seconds.
 //

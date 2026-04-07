@@ -1,4 +1,4 @@
-// zephyr/src/plant_thread.cpp
+// zephyr/src/plant/plant_thread.cpp
 // Phase 4 — 10 ms timer-driven plant loop.
 //
 // Timer fires every 10 ms → gives semaphore → plant_thread wakes,
@@ -55,7 +55,7 @@ static plant::PlantModelParams xcmg_params()
     p.drive.motor_power_max_w    = 2013000.0;
     p.drive.gear_ratio           = 28.0;
     p.drive.drivetrain_eff       = 0.92;
-    p.drive.brake_torque_max_nm  = 1250000.0; // 1.25 MNm → ~0.3g at full load (218 t)
+    p.drive.brake_torque_max_nm  = 2500000.0; // 2.5 MNm → ~0.6g at full load (218 t); tyre limit ~3 MNm
     p.drive.regen_eff_active     = 0.65;
     p.drive.regen_eff_coast      = 0.02;
     p.drive.drag_c               = 1.85;

@@ -1,42 +1,35 @@
-// zephyr/src/http_server.cpp
-// Minimal HTTP server — serves a live dashboard on port 80.
-// Single-threaded: accept → parse request line → apply command if query present
-//                 → build HTML → send → close.
-// Uses Zephyr native socket API (zsock_*) — no CONFIG_POSIX_API needed.
-//
-// Priority 10: below sim (Phase 4, prio 5), above LED (prio 12) and shell (prio 14).
+// zephyr/src/http/http_page.cpp
+// HTML dashboard page builder.
+// Assembles the full HTTP response (header + HTML) and writes it to the
+// client socket via send_str(). Also provides the kernel-threads card.
 
 #include <zephyr/kernel.h>
 #include <zephyr/net/socket.h>
-#include <zephyr/net/net_if.h>
-#include <zephyr/net/net_ip.h>
 #include <zephyr/logging/log.h>
-#include <stdio.h>    /* snprintf */
-#include <stdlib.h>   /* atof */
-#include <string.h>   /* strncmp, strlen */
+#include <stdio.h>   /* snprintf */
+#include <string.h>  /* strlen */
 
 #include "plant/plant_main/plant_state.hpp"
 #include "sim/actuator_cmd.hpp"
 
 LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
 
-// ── Shared state — defined in main.cpp ───────────────────────────────────────
-extern plant::PlantState g_state;
-extern sim::ActuatorCmd  g_cmd;
-extern struct k_mutex    g_state_mutex;
-extern struct k_mutex    g_cmd_mutex;
+// ── Shared globals (defined in main.cpp) ─────────────────────────────────────
+extern plant::PlantState    g_state;
+extern sim::ActuatorCmd     g_cmd;
+extern struct k_mutex       g_state_mutex;
+extern struct k_mutex       g_cmd_mutex;
+extern volatile uint32_t    g_can_tx_count;
+extern volatile uint32_t    g_can_rx_count;
+extern volatile uint32_t    g_can_timeout_count;
+extern volatile double      g_last_rx_t;
+extern double               g_surface_mu;
 
-extern volatile uint32_t g_can_tx_count;
-extern volatile uint32_t g_can_rx_count;
-extern volatile uint32_t g_can_timeout_count;
-extern volatile double   g_last_rx_t;
-extern double            g_surface_mu;
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Low-level send helper ─────────────────────────────────────────────────────
 
 static void send_str(int fd, const char* s)
 {
-    int len = (int)strlen(s);
+    int len  = (int)strlen(s);
     int sent = 0;
     while (sent < len) {
         int r = zsock_send(fd, s + sent, len - sent, 0);
@@ -45,96 +38,7 @@ static void send_str(int fd, const char* s)
     }
 }
 
-// Read the HTTP request line ("GET /path?query HTTP/1.1\r\n") byte-by-byte.
-// Copies everything after '?' and before the next ' ' into query_out.
-// query_out[0] == '\0' if there is no query string.
-static void read_request_line(int fd, char* query_out, int qlen)
-{
-    query_out[0] = '\0';
-
-    char line[192];
-    int  li = 0;
-
-    while (li < (int)sizeof(line) - 1) {
-        char c;
-        if (zsock_recv(fd, &c, 1, 0) <= 0) break;
-        if (c == '\n') break;
-        line[li++] = c;
-    }
-    line[li] = '\0';
-
-    // Find '?'
-    char* q = line;
-    while (*q && *q != '?') ++q;
-    if (!*q) return; // no query string
-
-    ++q; // skip '?'
-    int i = 0;
-    while (*q && *q != ' ' && *q != '\r' && i < qlen - 1)
-        query_out[i++] = *q++;
-    query_out[i] = '\0';
-}
-
-// Drain remaining HTTP headers until the blank line (\r\n\r\n).
-static void drain_headers(int fd)
-{
-    int state = 0;
-    while (state < 4) {
-        char c;
-        if (zsock_recv(fd, &c, 1, 0) <= 0) break;
-        if      (state == 0 && c == '\r') state = 1;
-        else if (state == 1 && c == '\n') state = 2;
-        else if (state == 2 && c == '\r') state = 3;
-        else if (state == 3 && c == '\n') state = 4;
-        else                              state = (c == '\r') ? 1 : 0;
-    }
-}
-
-// ── Query string parser ───────────────────────────────────────────────────────
-
-// Returns pointer to start of the value for 'key' in query string 'qs',
-// or NULL if not found.  Value ends at '&', ' ', '\0'.
-static const char* find_param(const char* qs, const char* key)
-{
-    int klen = (int)strlen(key);
-    const char* p = qs;
-    while (*p) {
-        if (strncmp(p, key, klen) == 0 && p[klen] == '=')
-            return p + klen + 1;
-        while (*p && *p != '&') ++p;
-        if (*p == '&') ++p;
-    }
-    return nullptr;
-}
-
-// Parse query string and apply found params to g_cmd (partial update).
-static void apply_web_cmd(const char* qs)
-{
-    sim::ActuatorCmd cmd;
-    k_mutex_lock(&g_cmd_mutex, K_FOREVER);
-    cmd = g_cmd;
-    k_mutex_unlock(&g_cmd_mutex);
-
-    const char* v;
-    if ((v = find_param(qs, "steer")))  cmd.steer_cmd_deg       = atof(v);
-    if ((v = find_param(qs, "torque"))) cmd.drive_torque_cmd_nm = atof(v);
-    if ((v = find_param(qs, "brake")))  cmd.brake_cmd_pct       = atof(v);
-    if ((v = find_param(qs, "gear"))) {
-        cmd.gear_position = (v[0] == 'F') ? sim::GearPosition::FORWARD :
-                            (v[0] == 'R') ? sim::GearPosition::REVERSE :
-                                            sim::GearPosition::NEUTRAL;
-    }
-    if ((v = find_param(qs, "enable"))) cmd.system_enable = (v[0] == '1');
-
-    k_mutex_lock(&g_cmd_mutex, K_FOREVER);
-    g_cmd = cmd;
-    k_mutex_unlock(&g_cmd_mutex);
-
-    // Poke watchdog so plant_thread keeps this command alive for 500 ms
-    g_last_rx_t = (double)k_uptime_get_32() / 1000.0;
-}
-
-// ── Thread info collection ────────────────────────────────────────────────────
+// ── Kernel threads card ───────────────────────────────────────────────────────
 
 struct ThreadInfo {
     char   name[24];
@@ -200,11 +104,11 @@ static void send_threads_card(int fd)
 
 // ── HTML page builder ─────────────────────────────────────────────────────────
 
-static void send_page(int fd)
+void send_page(int fd)
 {
     char buf[512];
 
-    // ── HTTP header ───────────────────────────────────────────────────────────
+    // HTTP header
     send_str(fd,
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: text/html; charset=utf-8\r\n"
@@ -212,7 +116,7 @@ static void send_page(int fd)
         "\r\n"
     );
 
-    // ── HTML head + global styles ─────────────────────────────────────────────
+    // HTML head + global styles
     send_str(fd,
         "<!DOCTYPE html><html lang='en'><head>"
         "<meta charset='utf-8'>"
@@ -255,7 +159,7 @@ static void send_page(int fd)
         "</style></head><body>"
     );
 
-    // ── Snapshot shared state ─────────────────────────────────────────────────
+    // Snapshot shared state
     plant::PlantState s{};
     sim::ActuatorCmd  c{};
 
@@ -267,13 +171,13 @@ static void send_page(int fd)
     c = g_cmd;
     k_mutex_unlock(&g_cmd_mutex);
 
-    uint32_t ms  = k_uptime_get_32();
-    uint32_t sec_up = ms / 1000;
-    uint32_t h   = sec_up / 3600;
-    uint32_t m   = (sec_up % 3600) / 60;
-    uint32_t sc  = sec_up % 60;
+    uint32_t ms      = k_uptime_get_32();
+    uint32_t sec_up  = ms / 1000;
+    uint32_t h       = sec_up / 3600;
+    uint32_t m       = (sec_up % 3600) / 60;
+    uint32_t sc      = sec_up % 60;
 
-    // ── Header bar ────────────────────────────────────────────────────────────
+    // Header bar
     snprintf(buf, sizeof(buf),
         "<div class='header'>"
         "<h1>XCMG XDE320 &mdash; Simulator Dashboard</h1>"
@@ -285,7 +189,7 @@ static void send_page(int fd)
         h, m, sc);
     send_str(fd, buf);
 
-    // ── Two-column grid ───────────────────────────────────────────────────────
+    // Two-column grid
     send_str(fd, "<div class='grid'>");
 
     // Left card — Plant State
@@ -320,7 +224,7 @@ static void send_page(int fd)
     // Right column — two stacked cards
     send_str(fd, "<div style='display:flex;flex-direction:column;gap:12px'>");
 
-    // Actuator cmd card
+    // Actuator command card
     send_str(fd, "<div class='card'><h2>Actuator Command</h2><table>");
     snprintf(buf, sizeof(buf),
         "<tr><td>Enable</td><td class='%s'>%s</td></tr>"
@@ -353,15 +257,13 @@ static void send_page(int fd)
     send_str(fd, "</div>"); // right column
     send_str(fd, "</div>"); // grid
 
-    // ── Controls card ─────────────────────────────────────────────────────────
+    // Controls card
     double sp5 = c.steer_cmd_deg + 5.0;
     double sm5 = c.steer_cmd_deg - 5.0;
     if (sp5 >  45.0) sp5 =  45.0;
     if (sm5 < -45.0) sm5 = -45.0;
 
     send_str(fd, "<div class='card'><h2>Controls</h2>");
-
-    // Quick-action buttons
     send_str(fd, "<div class='ctrl-row'>");
     send_str(fd,
         "<a class='btn btn-stop' href='/?enable=1&gear=N&torque=0&brake=100&steer=0'>"
@@ -428,10 +330,10 @@ static void send_page(int fd)
         "<span class='meta'>&nbsp;watchdog: resend within 500&nbsp;ms to hold</span>");
     send_str(fd, "</div></form></div>");
 
-    // ── Kernel threads card ───────────────────────────────────────────────────
+    // Kernel threads card
     send_threads_card(fd);
 
-    // ── Full-width vehicle card ───────────────────────────────────────────────
+    // Full-width vehicle info card
     send_str(fd,
         "<div class='card'>"
         "<h2>Vehicle &mdash; XCMG XDE320 Electric</h2>"
@@ -449,61 +351,3 @@ static void send_page(int fd)
 
     send_str(fd, "</body></html>");
 }
-
-// ── HTTP server thread ────────────────────────────────────────────────────────
-
-static void http_server_thread(void*, void*, void*)
-{
-    k_msleep(2000);
-
-    int srv = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (srv < 0) {
-        LOG_ERR("HTTP: socket() failed: %d", srv);
-        return;
-    }
-
-    int opt = 1;
-    zsock_setsockopt(srv, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-
-    struct sockaddr_in addr{};
-    addr.sin_family      = AF_INET;
-    addr.sin_port        = htons(80);
-    addr.sin_addr.s_addr = INADDR_ANY;
-
-    if (zsock_bind(srv, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        LOG_ERR("HTTP: bind() failed");
-        zsock_close(srv);
-        return;
-    }
-
-    if (zsock_listen(srv, 3) < 0) {
-        LOG_ERR("HTTP: listen() failed");
-        zsock_close(srv);
-        return;
-    }
-
-    LOG_INF("HTTP server listening on 192.168.1.80:80");
-
-    while (true) {
-        struct sockaddr_in client_addr{};
-        socklen_t client_len = sizeof(client_addr);
-        int client = zsock_accept(srv, (struct sockaddr*)&client_addr, &client_len);
-        if (client < 0) {
-            k_msleep(10);
-            continue;
-        }
-
-        char query[128] = {};
-        read_request_line(client, query, sizeof(query));
-        drain_headers(client);
-
-        if (query[0] != '\0') {
-            apply_web_cmd(query);
-        }
-
-        send_page(client);
-        zsock_close(client);
-    }
-}
-
-K_THREAD_DEFINE(http_tid, 8192, http_server_thread, NULL, NULL, NULL, 10, 0, 0);

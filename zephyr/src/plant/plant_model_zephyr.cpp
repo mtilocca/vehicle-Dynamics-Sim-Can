@@ -1,4 +1,4 @@
-// zephyr/src/plant_model_zephyr.cpp
+// zephyr/src/plant/plant_model_zephyr.cpp
 // Zephyr-only PlantModel constructor + set_params.
 // Replaces src/plant/plant_model.cpp in the Zephyr build.
 //
