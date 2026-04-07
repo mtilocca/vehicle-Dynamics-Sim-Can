@@ -15,7 +15,7 @@ echo
 mkdir -p "${BUILD_DIR}"
 
 # Configure
-CMAKE_BIN="${CMAKE_BIN:-/opt/homebrew/bin/cmake}"
+CMAKE_BIN="${CMAKE_BIN:-$(command -v cmake)}"
 
 echo "==> Configuring with CMake (${CMAKE_BIN})"
 "${CMAKE_BIN}" -S . -B "${BUILD_DIR}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"

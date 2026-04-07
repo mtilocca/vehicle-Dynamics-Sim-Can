@@ -31,18 +31,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ── apt cache ─────────────────────────────────────────────────────────────
-      # Caches .deb files keyed on the package list + Ubuntu image digest.
-      # Saves ~15-20 s per run. Bump version: if the package list changes.
-      - name: Cache apt packages
-        uses: awalsh128/cache-apt-pkgs-action@v1
-        with:
-          packages: >
-            pkg-config
-            libyaml-cpp-dev
-            liblua5.4-dev
+      # ── apt dependencies ───────────────────────────────────────────────────────
+      - name: Install apt dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libyaml-cpp-dev \
+            liblua5.4-dev \
             libcurl4-openssl-dev
-          version: 1.0
 
       # ── GTest FetchContent cache ─────────────────────────────────────────────
       # CMakeLists.txt contains GIT_TAG v1.14.0, so the cache auto-invalidates
@@ -149,8 +146,8 @@ jobs:
 
       - name: Run ARM64 cross-compile script
         run: |
-          chmod +x cross_arm_build.sh
-          ./cross_arm_build.sh arm64
+          chmod +x scripts/cross_arm_build.sh
+          ./scripts/cross_arm_build.sh arm64
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Job 3 — Package and upload release artifact

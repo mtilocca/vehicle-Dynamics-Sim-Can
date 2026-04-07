@@ -1,5 +1,6 @@
 site_name: XCMG XDE320 — Vehicle Dynamics Simulator
-site_description: Documentation for the XCMG XDE320 electric haul truck simulator, covering physics models, CAN architecture, and the Zephyr RTOS HIL port.
+site_url: https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/
+site_description: High-fidelity vehicle dynamics simulation for electric autonomous vehicles — physics models, CAN bus integration, and Zephyr RTOS HIL port.
 site_author: Mario Tilocca
 docs_dir: docs
 site_dir: site
@@ -33,6 +34,7 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.tabbed:
       alternate_style: true
+  - attr_list
   - tables
   - toc:
       permalink: true
@@ -43,15 +45,9 @@ extra_javascript:
 
 nav:
   - Home: index.md
-  - Physics Models:
-      - Vehicle Dynamics: VEHICLE_DYNAMICS.md
-      - Architecture & Subsystems: ARCHITECTURE.md
-      - Sensor System: SENSOR_SYSTEM.md
-  - Zephyr RTOS Port:
-      - Porting Guide: zephyr/ZEPHYR_PORT.md
-      - RPi5 Setup: zephyr/ZEPHYR_RPI5_SETUP.md
-      - Build, Flash & UART: zephyr/ZEPHYR_BUILD_FLASH_UART.md
-  - Reference PDFs:
-      - 3DOF Vehicle Dynamics: pdfs/3DOF_Vehicle_Dynamics_Implementation.pdf
-      - Dugoff Tyre & Sensor Models: pdfs/Dugoff_Tyre_Sensor_Models.pdf
-      - RTOS Implementation: pdfs/RTOS_Implementation.pdf
+  - Simulation Models:
+      - Overview: models_overview.md
+      - Sensor Suite: sensor_public.md
+  - Zephyr HIL Port:
+      - Overview: zephyr_overview.md
+  - Reference PDFs: pdfs/index.md

@@ -73,3 +73,28 @@ zephyr/build/
 
 # MkDocs build output
 site/
+
+# -----------------------------
+# Simulation run artifacts
+# -----------------------------
+sim_out.csv
+sim_debug.log
+*.csv
+/tmp/
+
+# -----------------------------
+# Python cache
+# -----------------------------
+__pycache__/
+
+# -----------------------------
+# Internal docs (kept in repo, not tracked for changes)
+# -----------------------------
+internal/
+
+# -----------------------------
+# Loose screenshots / one-off files
+# -----------------------------
+image_web_ui.png
+Testing/
+*.pptx

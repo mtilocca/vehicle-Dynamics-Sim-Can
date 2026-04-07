@@ -320,37 +320,37 @@ The cusp maneuver drives the vehicle forward to a target speed, brakes to a comp
 
 ### Dugoff Tire Model — Slalom Maneuver
 
-![Dugoff slalom trajectory — friction-limited tire forces and load transfer effects](plots/Dugoff_trajetcory_slalom.png)
+![Dugoff slalom trajectory — friction-limited tire forces and load transfer effects](plots/Figure_2_Tyre_Dynamics_Dugoff_Model.png)
 
 > Dynamic tire model during aggressive slalom — trajectory tracking with friction-limited tire forces and load transfer effects.
 
 ### Tire Force Analysis
 
-![Dugoff tire forces — longitudinal/lateral forces, slip ratios, friction utilization, friction circles](plots/Dugoff_tyre_forces.png)
+![Dugoff tire forces — longitudinal/lateral forces, slip ratios, friction utilization, friction circles](plots/Figure_5_Combined_Slip_Analysis.png)
 
 > Longitudinal/lateral forces, slip ratios, friction utilization (λ), and friction circles for front/rear axles.
 
 ### Slalom Maneuver (Open-Loop)
 
-![Slalom vehicle dynamics — trajectory, battery, regenerative braking](plots/slalom_vehicle_dynamics.png)
+![Slalom vehicle dynamics — trajectory, battery, regenerative braking](plots/Figure_3_3_DOF_Lateral_Dynamics.png)
 
 > Aggressive steering with acceleration/braking — trajectory tracking, battery dynamics, and regenerative braking.
 
 ### Closed-Loop Control Performance
 
-![Closed-loop control — CAN actuator commands and sensor feedback](plots/Closed_loop_vehicle_dynamics.png)
+![Closed-loop control — CAN actuator commands and sensor feedback](plots/Figure_1_vehicle_dynamics_battery.png)
 
 > C++ bang-bang speed controller commanding the simulator via CAN — bidirectional communication with actuator commands and sensor feedback.
 
 ### Heavy Truck MPC Control
 
-![Heavy truck MPC slalom — 220-ton mining truck with Model Predictive Control](plots/Heavy_truck_mpc_slalom.png)
+![Heavy truck MPC slalom — 220-ton mining truck with Model Predictive Control](plots/Figure_4_Wheel_Torque_Distribution.png)
 
 > 220-ton mining truck with Model Predictive Control during slalom — validates heavy vehicle dynamics and advanced control algorithms.
 
 ### Real-Time InfluxDB Dashboard
 
-![InfluxDB dashboard — live telemetry: position, velocity, battery, sensors](plots/influxdb_dashboard_example.png)
+![InfluxDB dashboard — live telemetry: position, velocity, battery, sensors](plots/battery_wheel_sensors.png)
 
 > Live telemetry showing vehicle position, velocity, battery state, and sensor measurements updating in real-time during simulation.
 
@@ -527,10 +527,10 @@ friction_util = data['lambda_rl'].values
 
 Comprehensive documentation is available in the `docs/` directory:
 
-- **[VEHICLE_DYNAMICS.md](docs/VEHICLE_DYNAMICS.md)** - Mathematical models, coordinate systems, kinematic equations
-- **[vehicle_dynamics_dugoff_model.pdf](docs/vehicle_dynamics_dugoff_model.pdf)** - Dugoff tire model theory (LaTeX)
-- **[SENSOR_SYSTEM.md](docs/SENSOR_SYSTEM.md)** - Sensor noise models, CAN encoding, ML data preparation
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Visitor pattern, subsystem design, extensibility guide
+- **[VEHICLE_DYNAMICS.md](models_overview.md)** - Mathematical models, coordinate systems, kinematic equations
+- **[vehicle_dynamics_dugoff_model.pdf](pdfs/index.md)** - Dugoff tire model theory (LaTeX)
+- **[SENSOR_SYSTEM.md](sensor_public.md)** - Sensor noise models, CAN encoding, ML data preparation
+- **[ARCHITECTURE.md](models_overview.md)** - Visitor pattern, subsystem design, extensibility guide
 
 ---
 
@@ -553,6 +553,7 @@ Comprehensive documentation is available in the `docs/` directory:
 
 ### Near-Term
 
+- [ ] **DDS closed-loop control** — Fast-DDS / CycloneDDS middleware for deterministic real-time command/feedback between host controller and HIL node
 - [ ] Grafana dashboard templates for live telemetry
 - [ ] Multi-target radar tracking
 - [ ] Lua scenario scripting for cusp/reverse maneuvers
@@ -637,8 +638,8 @@ Dashboard: `http://192.168.1.80`
 
 ### Documentation
 
-- [`docs/zephyr/ZEPHYR_PORT.md`](docs/zephyr/ZEPHYR_PORT.md) — full port guide (Phases 0–5)
-- [`docs/zephyr/RTOS_Implementation.tex`](docs/zephyr/RTOS_Implementation.tex) — in-depth architecture with flowcharts
+- [`zephyr_overview.md`](zephyr_overview.md) — full port guide (Phases 0–5)
+- [`pdfs/index.md`](pdfs/index.md) — in-depth architecture with flowcharts
 
 ---
 

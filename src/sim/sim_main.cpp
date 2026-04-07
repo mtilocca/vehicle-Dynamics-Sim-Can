@@ -150,7 +150,8 @@ int main(int argc, char** argv) {
     
     int opt;
     int option_index = 0;
-    
+    std::string vehicle_path;
+
     while ((opt = getopt_long(argc, argv, "h", long_options, &option_index)) != -1) {
         switch (opt) {
             case 'r':
@@ -194,6 +195,9 @@ int main(int argc, char** argv) {
                     fprintf(stderr, "Error: Invalid duration: %s\n", optarg);
                     return 1;
                 }
+                break;
+            case 'v':
+                vehicle_path = optarg;
                 break;
             case 'L':
                 if (!parse_log_level(optarg, log_level)) {
@@ -256,7 +260,9 @@ int main(int argc, char** argv) {
     // ========================================================================
     // Vehicle configuration (always XCMG XDE320 hardcoded defaults)
     // ========================================================================
-    config::VehicleConfig vehicle = config::VehicleConfig::get_default();
+    config::VehicleConfig vehicle = vehicle_path.empty()
+        ? config::VehicleConfig::get_default()
+        : config::VehicleConfig::load(vehicle_path);
     vehicle.print_summary();
     cfg.vehicle_params = vehicle.params;
 
