@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include <cmath>
 #include <cstring>
-#include <linux/can.h>
+#include "can/can_frame_compat.hpp"
 
 // Relative-tolerance helper (factor/offset values need this)
 static bool is_close(double actual, double expected, double tolerance = 0.001) {

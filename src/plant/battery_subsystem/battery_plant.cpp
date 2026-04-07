@@ -4,6 +4,9 @@
 
 #include "battery_plant.hpp"
 #include "utils/logging.hpp"
+#ifdef __ZEPHYR__
+LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
+#endif
 #include <algorithm>
 #include <cmath>
 

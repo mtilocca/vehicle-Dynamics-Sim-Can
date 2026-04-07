@@ -3,11 +3,10 @@ set -e
 
 # -------- Configuration --------
 BUILD_DIR="build"
-CMAKE_GENERATOR=""   # leave empty to use default
-BUILD_TYPE="Debug"   # Debug or Release
+BUILD_TYPE="${1:-Debug}"   # Pass "Release" as first arg, defaults to Debug
 # --------------------------------
 
-echo "==> Building plant-sensor-can-sim"
+echo "==> Building XCMG XDE320 plant-sensor-can-sim"
 echo "    Build type: ${BUILD_TYPE}"
 echo "    Build dir : ${BUILD_DIR}"
 echo
@@ -15,19 +14,15 @@ echo
 # Create build directory if missing
 mkdir -p "${BUILD_DIR}"
 
-# Configure (only re-runs if CMakeCache.txt missing)
-if [ ! -f "${BUILD_DIR}/CMakeCache.txt" ]; then
-    echo "==> Configuring with CMake"
-    cmake -S . -B "${BUILD_DIR}" \
-          -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
-          ${CMAKE_GENERATOR}
-else
-    echo "==> CMake already configured"
-fi
+# Configure
+CMAKE_BIN="${CMAKE_BIN:-/opt/homebrew/bin/cmake}"
+
+echo "==> Configuring with CMake (${CMAKE_BIN})"
+"${CMAKE_BIN}" -S . -B "${BUILD_DIR}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
 
 # Build
 echo "==> Building"
-cmake --build "${BUILD_DIR}" -j "$(nproc)"
+"${CMAKE_BIN}" --build "${BUILD_DIR}" -j "$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
 
 echo
 echo "==> Build complete"

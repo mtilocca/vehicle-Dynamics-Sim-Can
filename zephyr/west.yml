@@ -1,0 +1,10 @@
+manifest:
+  projects:
+    - name: zephyr
+      url: https://github.com/zephyrproject-rtos/zephyr
+      revision: v3.7.0
+      path: deps/zephyr
+      import: true
+
+  self:
+    path: vehicle-Dynamics-Sim-Can/zephyr

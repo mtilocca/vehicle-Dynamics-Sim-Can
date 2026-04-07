@@ -19,11 +19,11 @@
 #include <fstream>
 #include <thread>
 #include <iomanip>
-#include <linux/can.h>
+#include "can/can_frame_compat.hpp"
 
 namespace sim {
 
-SimApp::SimApp(SimAppConfig cfg) : cfg_(cfg), lua_() {
+SimApp::SimApp(SimAppConfig cfg) : cfg_(cfg) {
     if (cfg_.enable_debug_log_file) {
         utils::open_log_file(cfg_.debug_log_path);
     }
@@ -298,29 +298,14 @@ int SimApp::run_plant() {
     }
 
     // ========================================================================
-    // Lua scenario setup
-    // ========================================================================
-    if (cfg_.use_lua_scenario && !can_rx_active) {
-        if (!lua_.init(cfg_.lua_script_path, cfg_.scenario_json_path)) {
-            LOG_WARN("Failed to init Lua runtime");
-            LOG_INFO("Falling back to open-loop default commands");
-        } else {
-            lua_ready_ = true;
-            LOG_INFO("Lua scenario loaded: %s", cfg_.lua_script_path.c_str());
-        }
-    }
-
-    // ========================================================================
     // Main loop
     // ========================================================================
     LOG_INFO("Starting simulation loop (duration=%.1fs, dt=%.4fs)", cfg_.duration_s, dt);
     if (can_rx_active) {
         LOG_INFO("Mode: CLOSED-LOOP (waiting for CAN commands on 0x%08X)",
                  can_rx_decoder->get_frame_id());
-    } else if (lua_ready_) {
-        LOG_INFO("Mode: OPEN-LOOP (Lua scenario)");
     } else {
-        LOG_INFO("Mode: OPEN-LOOP (hardcoded defaults)");
+        LOG_INFO("Mode: SAFE (no CAN RX — cmd stays zeroed)");
     }
     
     LOG_INFO("Tire Model: DYNAMIC (Dugoff)");
@@ -370,20 +355,6 @@ int SimApp::run_plant() {
                 cmd.reset();
             }
             
-        } else if (lua_ready_) {
-            // OPEN-LOOP MODE: Lua
-            if (!lua_.get_actuator_cmd(t, s, cmd)) {
-                LOG_WARN("[t=%.2f] Lua get_actuator_cmd failed, using defaults", t);
-                lua_ready_ = false;
-            }
-        }
-        
-        if (!lua_ready_ && !can_rx_active) {
-            // FALLBACK: Hardcoded
-            cmd.drive_torque_cmd_nm = cfg_.motor_torque_nm;
-            cmd.brake_cmd_pct = cfg_.brake_pct;
-            cmd.steer_cmd_deg = cfg_.steer_amp_deg * 
-                                std::sin(2.0 * M_PI * cfg_.steer_freq_hz * t);
         }
 
         // ====================================================================

@@ -1,0 +1,55 @@
+/*
+ * app.overlay — DeviceTree overlay for Nucleo-H753ZI
+ *
+ * Phase 0: USART3 only (ST-Link VCP, no extra cable needed).
+ * Phase 1: uncomment FDCAN1 block.
+ *
+ * FDCAN1 wiring (when enabled):
+ *   PD0 (RX) = CN11 morpho pin 57  — marked CAN on board silkscreen
+ *   PD1 (TX) = CN11 morpho pin 55
+ *   Connect to SN65HVD230 or TCAN1042 transceiver (3.3V compatible).
+ */
+
+/ {
+    chosen {
+        zephyr,console    = &usart3;
+        zephyr,shell-uart = &usart3;
+        zephyr,canbus     = &fdcan1;
+    };
+
+    /* LD3 (red, PB14) — board DTS exposes this only as a PWM LED.
+     * Add it here as a plain GPIO so led_task.cpp can drive it directly. */
+    app_leds: app_leds {
+        compatible = "gpio-leds";
+        red_led: led_2 {
+            gpios = <&gpiob 14 GPIO_ACTIVE_HIGH>;
+        };
+    };
+
+    aliases {
+        led2 = &red_led;
+    };
+};
+
+/* Phase 3: FDCAN1 at 500 kbps — PD0 (RX), PD1 (TX)
+ * Connect to TCAN1042 or SN65HVD230 (3.3 V) transceiver.
+ * In loopback mode (CONFIG_XCMG_CAN_LOOPBACK=y) no transceiver is needed.
+ * Pinctrl nodes defined in Zephyr's stm32h7-pinctrl.dtsi. */
+&fdcan1 {
+    status = "okay";
+    pinctrl-0 = <&fdcan1_rx_pd0 &fdcan1_tx_pd1>;
+    pinctrl-names = "default";
+    bitrate = <500000>;
+    sample-point = <875>;
+};
+
+&usart3 {
+    status = "okay";
+    current-speed = <115200>;
+};
+
+/* Static MAC address — locally administered, unicast (safe on any network) */
+&mac {
+    status = "okay";
+    local-mac-address = [02 00 5E 00 53 01];
+};

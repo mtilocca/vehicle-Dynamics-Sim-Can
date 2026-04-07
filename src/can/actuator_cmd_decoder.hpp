@@ -4,7 +4,7 @@
 #include "can/can_map.hpp"
 #include "can/can_codec.hpp"
 #include "sim/actuator_cmd.hpp"
-#include <linux/can.h>
+#include "can/can_frame_compat.hpp"
 #include <string>
 
 namespace can {

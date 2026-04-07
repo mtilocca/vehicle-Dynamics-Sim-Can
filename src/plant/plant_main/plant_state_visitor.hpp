@@ -2,8 +2,10 @@
 #pragma once
 
 #include "plant_state.hpp"
-#include <functional>
-#include <string>
+#ifndef __ZEPHYR__
+#  include <functional>
+#  include <string>
+#endif
 
 namespace plant {
 

@@ -8,7 +8,7 @@
 #include <thread>
 #include <chrono>
 
-#include <linux/can.h>
+#include "can/can_frame_compat.hpp"
 
 #include "can/can_codec.hpp"
 #include "can/can_map.hpp"

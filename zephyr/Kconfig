@@ -1,0 +1,11 @@
+mainmenu "XCMG XDE320 Plant Simulator — Zephyr Configuration"
+
+config XCMG_CAN_LOOPBACK
+	bool "Start FDCAN1 in internal loopback mode (self-test without transceiver)"
+	default n
+	help
+	  When enabled the CAN RX thread calls can_set_mode(CAN_MODE_LOOPBACK)
+	  before can_start(). Frames sent via 'can tx_test' are echoed back to
+	  the RX filter without any external hardware. Disable for production.
+
+source "Kconfig.zephyr"

@@ -1,0 +1,52 @@
+// zephyr/cpp_compat/algorithm
+// Minimal <algorithm> shim for Zephyr builds (-nostdinc++).
+// Provides std::min, std::max, std::clamp, std::abs used by plant subsystems.
+#pragma once
+
+#include <math.h>          // fabsf, fabs (from newlib)
+#include "initializer_list" // std::initializer_list for max({a,b,c}) syntax
+
+namespace std {
+
+template<typename T>
+constexpr const T& min(const T& a, const T& b) {
+    return (b < a) ? b : a;
+}
+
+template<typename T>
+constexpr const T& max(const T& a, const T& b) {
+    return (a < b) ? b : a;
+}
+
+template<typename T>
+constexpr const T& clamp(const T& v, const T& lo, const T& hi) {
+    return (v < lo) ? lo : (hi < v) ? hi : v;
+}
+
+template<typename T>
+constexpr T abs(const T& v) {
+    return (v < T{}) ? -v : v;
+}
+
+// Specialisations to avoid ambiguity with math.h functions
+template<> constexpr float  abs<float> (const float&  v) { return fabsf(v); }
+template<> constexpr double abs<double>(const double& v) { return fabs(v);  }
+
+// initializer_list overloads — needed for max({a, b, c}) syntax
+template<typename T>
+constexpr T min(initializer_list<T> il) {
+    const T* best = il.begin();
+    for (const T* it = il.begin() + 1; it != il.end(); ++it)
+        if (*it < *best) best = it;
+    return *best;
+}
+
+template<typename T>
+constexpr T max(initializer_list<T> il) {
+    const T* best = il.begin();
+    for (const T* it = il.begin() + 1; it != il.end(); ++it)
+        if (*best < *it) best = it;
+    return *best;
+}
+
+} // namespace std

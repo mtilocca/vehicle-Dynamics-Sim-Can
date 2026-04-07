@@ -10,7 +10,7 @@
 #include "can/can_map.hpp"
 #include "can/can_codec.hpp"
 #include <gtest/gtest.h>
-#include <linux/can.h>
+#include "can/can_frame_compat.hpp"
 #include <cmath>
 #include <cstdlib>
 #include <string>

@@ -1,4 +1,22 @@
 #pragma once
+
+#ifdef __ZEPHYR__
+// ── Zephyr logging shim ───────────────────────────────────────────────────────
+// Maps host LOG_* macros to Zephyr's structured logging backend.
+// Each .cpp that uses these macros must have, before any LOG_* call:
+//   LOG_MODULE_REGISTER(name, level)   — exactly one TU per module
+//   LOG_MODULE_DECLARE(name, level)    — every other TU in that module
+// ─────────────────────────────────────────────────────────────────────────────
+#include <zephyr/logging/log.h>
+
+#define LOG_TRACE(...) LOG_DBG(__VA_ARGS__)
+#define LOG_DEBUG(...) LOG_DBG(__VA_ARGS__)
+#define LOG_INFO(...)  LOG_INF(__VA_ARGS__)
+#define LOG_WARN(...)  LOG_WRN(__VA_ARGS__)
+#define LOG_ERROR(...) LOG_ERR(__VA_ARGS__)
+
+#else  // ── Host (Linux / macOS / Windows) ────────────────────────────────────
+
 #include <cstdarg>
 #include <cstdio>
 #include <ctime>
@@ -183,3 +201,5 @@ namespace utils
 #define LOG_INFO(...)  ::utils::logf(::utils::LogLevel::Info,  __VA_ARGS__)
 #define LOG_WARN(...)  ::utils::logf(::utils::LogLevel::Warn,  __VA_ARGS__)
 #define LOG_ERROR(...) ::utils::logf(::utils::LogLevel::Error, __VA_ARGS__)
+
+#endif // __ZEPHYR__

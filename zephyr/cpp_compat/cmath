@@ -1,0 +1,48 @@
+// zephyr/cpp_compat/cmath
+// Minimal <cmath> shim for Zephyr builds (-nostdinc++).
+// Newlib provides math.h; we just expose it in the std:: namespace.
+#pragma once
+
+#ifndef _USE_MATH_DEFINES
+#  define _USE_MATH_DEFINES
+#endif
+#include <math.h>
+
+// newlib may not expose M_PI under strict ANSI — define it here if missing
+#ifndef M_PI
+#  define M_PI 3.14159265358979323846
+#endif
+#ifndef M_PI_2
+#  define M_PI_2 (M_PI / 2.0)
+#endif
+
+namespace std {
+
+using ::acos;  using ::acosf;
+using ::asin;  using ::asinf;
+using ::atan;  using ::atanf;
+using ::atan2; using ::atan2f;
+using ::cos;   using ::cosf;
+using ::sin;   using ::sinf;
+using ::tan;   using ::tanf;
+using ::cosh;  using ::coshf;
+using ::sinh;  using ::sinhf;
+using ::tanh;  using ::tanhf;
+using ::exp;   using ::expf;
+using ::log;   using ::logf;
+using ::log10; using ::log10f;
+using ::pow;   using ::powf;
+using ::sqrt;  using ::sqrtf;
+using ::fabs;  using ::fabsf;
+using ::floor; using ::floorf;
+using ::ceil;  using ::ceilf;
+using ::fmod;  using ::fmodf;
+using ::round; using ::roundf;
+using ::hypot; using ::hypotf;
+// isnan/isinf/isfinite are C99 macros — already in global scope via math.h
+
+// abs overloads (disambiguation from <cstdlib> int abs)
+inline float  abs(float  x) { return fabsf(x); }
+inline double abs(double x) { return fabs(x);  }
+
+} // namespace std
