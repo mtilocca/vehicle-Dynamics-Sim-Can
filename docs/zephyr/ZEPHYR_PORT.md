@@ -712,23 +712,84 @@ This lets you verify that the Dugoff model is building slip correctly and that `
 
 ---
 
-## Phase 5 — RAM / Flash Audit ← NEXT
+## Phase 5 — RAM / Flash Audit ✅
 
 **Goal:** Confirm the full build fits comfortably and heap is not exhausted at runtime.
 
-### Expected sizes (STM32H753ZI, Phase 4 complete)
+### Measured Flash footprint (`west build -t rom_report`)
 
-| Region | Budget | Expected |
+Total Flash: **236,957 B ≈ 231.4 KB** — 11.3 % of the 2 MB Flash budget.
+
+| Region | Budget | Measured | Notes |
+|---|---|---|---|
+| Total Flash | 2 MB | **231.4 KB** (236,957 B) | 11.3 % utilised, 1.77 MB free |
+| App (`zephyr/src/`) | — | **12.7 KB** (12,958 B) | threads, HTTP, CAN TX/RX, shell |
+| Shared plant physics | — | **12.8 KB** | subsystems compiled from `src/plant/` |
+| Zephyr RTOS | — | **121.1 KB** | kernel 10 KB + subsys 76 KB + drivers 19 KB |
+| Newlib / no-path symbols | — | **61.5 KB** | math (`__kernel_sin/cos/tan`), C stdlib |
+
+#### App Flash by source file
+
+| Source file | Flash | Dominant symbol |
 |---|---|---|
-| Flash (.text + .rodata) | 2 MB | ~400–500 KB |
-| SRAM (.bss + .data + stacks) | 1 MB | ~300–450 KB |
-| Heap (STL + Zephyr + net) | 65 KB (configured) | ~30–50 KB |
+| `can/can_tx.cpp` | 3,416 B | `can_tx_send_all()` 3,356 B |
+| `can/can_rx.cpp` | 1,000 B | `can_rx_thread()` + test frame |
+| `plant/plant_model_zephyr.cpp` | 1,046 B | constructor + `set_params()` |
+| `plant/plant_thread.cpp` | 1,488 B | `plant_thread()` 1,348 B |
+| `http/http_page.cpp` | 1,642 B | `send_page()` 1,456 B |
+| `http/http_cmd.cpp` | 602 B | `apply_web_cmd()` 324 B |
+| `http/http_server.cpp` | 320 B | socket loop 272 B |
+| `shell/debug_cmds.cpp` | 2,372 B | 11 shell command handlers |
+| `main.cpp` | 828 B | `main()` 168 B + rodata/datas |
+| `led/led_task.cpp` | 244 B | `led_thread()` 196 B |
+| **Embedded CSS** (`kDashboardCss`) | **1,758 B** | `.rodata` |
+
+### Measured RAM footprint (`west build -t ram_report`)
+
+Total static RAM: **241,075 B ≈ 235 KB** — 22.9 % of the 1 MB SRAM budget.
+
+| Region | Budget | Measured | Notes |
+|---|---|---|---|
+| Total SRAM | 1 MB | **235 KB** (241,075 B) | 22.9 % utilised |
+| App code | — | **27.4 KB** (28,100 B) | plant + HTTP + CAN + main + LED |
+| Zephyr kernel | — | **133.6 KB** | incl. 128 KB configurable `kheap` |
+| Networking subsystem | — | **34.0 KB** | TCP slab, net_pkt/buf pools, ARP |
+| ETH driver | — | **14.5 KB** | DMA RX+TX buffers in `eth_stm32` region |
+| Logging subsystem | — | **5.5 KB** | ring buffer + processing thread |
+
+#### App RAM breakdown
+
+| Source file | RAM | Dominant item |
+|---|---|---|
+| `plant/plant_thread.cpp` | 16,760 B | stack 16,448 B (16 KB) |
+| `http/http_server.cpp` | 8,488 B | stack 8,256 B (8 KB) |
+| `can/can_rx.cpp` | 1,372 B | stack 1,088 B + msgq 52 B |
+| `led/led_task.cpp` | 808 B | stack 576 B |
+| `main.cpp` | 672 B | `g_state` 560 B + `g_cmd` 40 B |
+
+#### Thread stack allocation (actual, post-alignment)
+
+| Thread | Configured | Actual (aligned) | Location |
+|---|---|---|---|
+| `plant_tid` | 16,384 B | **16,448 B** | `noinit` @ 0x24008080 |
+| `http_tid` | 8,192 B | **8,256 B** | `noinit` @ 0x24005c00 |
+| `z_main_stack` | 4,096 B | **4,160 B** | `noinit` @ 0x2400ecc0 |
+| `sys_work_q` | 1,024 B | **1,088 B** | `noinit` @ 0x2400fd00 |
+| `logging` | 1,024 B | **1,088 B** | `noinit` @ 0x2400c0c0 |
+| `can_rx_tid` | 1,024 B | **1,088 B** | `noinit` @ 0x24007c40 |
+| `led_tid` | 512 B | **576 B** | `noinit` @ 0x240059c0 |
+| `z_idle_stacks` | 320 B | **384 B** | `noinit` @ 0x2400eb40 |
+| `z_interrupt_stacks` | 2,048 B | **2,112 B** | `noinit` @ 0x2400e300 |
+
+> **Heap:** `kheap__system_heap` = 128 KB (131,072 B) — this is the *configured* pool size.
+> Runtime peak usage is visible via `kernel heap` shell command.
 
 ### Audit commands
 
 ```bash
-west build -t ram_report    # per-object RAM usage
+west build -t ram_report    # per-object RAM usage (static only)
 west build -t rom_report    # per-object Flash usage
+kernel heap                  # runtime heap peak (via Zephyr shell)
 ```
 
 ### Memory Map
@@ -737,37 +798,44 @@ west build -t rom_report    # per-object Flash usage
 graph LR
     subgraph FLASH["Flash 2 MB"]
         F1["Zephyr kernel + net stack"]
-        F2["Plant and sensor code"]
-        F3["CAN codec"]
-        F4["constexpr CAN map"]
-        F5["XCMG params"]
-        F6["HTTP server + LED task"]
+        F2["Plant physics code"]
+        F3["CAN codec + map"]
+        F4["dashboard.css (embedded .inc)"]
+        F5["HTTP page builder"]
+        F6["Shell commands"]
     end
 
-    subgraph AXI["AXI SRAM 512 KB"]
-        A1["Zephyr kernel data"]
-        A2["Thread stacks\nplant 16K + http 4K + shell 4K\nrx 2K + led 512B + log 1K"]
-        A3["Heap 65 KB\nSTL, net buffers, can_map"]
-        A4["Net PKT/BUF pool"]
+    subgraph AXI["AXI SRAM 512 KB (0x24000000)"]
+        A1["Zephyr kernel data / BSS"]
+        A2["Thread stacks\nplant 16KB · http 8KB · main 4KB\ncan_rx 1KB · led 576B · logging 1KB"]
+        A3["kheap 128 KB (configurable)\nSTL allocs, CAN map, net contexts"]
+        A4["Net PKT/BUF pool\n~22 KB rx/tx bufs + slabs"]
     end
 
-    subgraph SRAM12["SRAM1/2 288 KB"]
-        S1["LOG buffer 4 KB"]
-        S2["CAN msgq"]
-        S3["Shell buffer"]
-        S4["ETH DMA descriptors"]
+    subgraph ETH_SRAM["ETH SRAM (0x30040000)"]
+        S1["DMA TX buffer 6 KB"]
+        S2["DMA RX buffer 6 KB"]
+        S3["DMA descriptors 192 B"]
     end
 ```
 
-### Potential hotspots
+### Observations
 
-| Issue | Fix if needed |
-|---|---|
-| `std::unordered_map` in `can_codec.cpp` | Replace with `std::array` flat lookup |
-| `std::string` in `FrameDef` / `SignalDef` | Replace with `const char*` |
-| `std::vector<SignalDef>` in CAN map | Replace with fixed-size `std::array` |
-| `std::normal_distribution` in sensors | Keep — newlib supports it |
-| Net buffer pool exhaustion | Increase `CONFIG_NET_PKT_RX_COUNT` / `NET_BUF_RX_COUNT` |
+- **Ample headroom:** 235 KB used of 1 MB — 765 KB free. No trimming required.
+- **128 KB heap dominates** the Zephyr kernel entry. If RAM needs saving, reduce `CONFIG_HEAP_MEM_POOL_SIZE` in `prj.conf` (e.g. to 64 KB); the TCP + STL allocators will still fit.
+- **Net buffers are the next cost** at ~22 KB. Can be reduced by lowering `CONFIG_NET_PKT_RX_COUNT` / `CONFIG_NET_BUF_RX_COUNT` if the HTTP server is the only consumer.
+- **ETH DMA lives in dedicated SRAM** (0x30040000) — not counted against the main AXI budget.
+- **`g_state` (560 B)** is the largest single application object; its layout is fixed by the physics model struct.
+
+### Potential optimisations (if ever needed)
+
+| Item | Potential saving | Action |
+|---|---|---|
+| `kheap` 128 KB → 64 KB | −64 KB | Lower `CONFIG_HEAP_MEM_POOL_SIZE` |
+| Net buf pool halved | −11 KB | `CONFIG_NET_PKT_RX_COUNT=8` etc. |
+| `plant_tid` stack 16K → 12K | −4 KB | Profile deepest call and tighten |
+| `std::unordered_map` in CAN codec | variable | Replace with `std::array` flat lookup |
+| `std::string` in `FrameDef` | variable | Replace with `const char*` |
 
 ---
 
@@ -799,7 +867,7 @@ graph TD
     P2["✅ Phase 2\nStatic CAN Map\nDBC to constexpr"]
     P3["✅ Phase 3\nFDCAN1 open\nRX / TX verified"]
     P4["✅ Phase 4\nPlant loop 10 ms\nSensor frames TX\nWeb controls"]
-    P5["⬅ Phase 5\nRAM / Flash audit\nHeap tuned"]
+    P5["✅ Phase 5\nRAM 235 KB / 1 MB\nHeap 128 KB — headroom OK"]
     DONE["DONE\nDeployed on\nnucleo_h753zi"]
 
     P0 -->|"UART banner seen"| P1

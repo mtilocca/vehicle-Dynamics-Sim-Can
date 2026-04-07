@@ -293,8 +293,8 @@ K_THREAD_DEFINE(plant_tid, 16384, plant_thread, NULL, NULL, NULL, 5, 0, 0);
 Activity & Typical cost & Notes \\
 \midrule
 Mutex lock/unlock (×4) & \SI{<1}{\micro s} & \texttt{g\_cmd}, \texttt{g\_state} \\
-Physics step (\texttt{s\_plant.step}) & \SI{200--400}{\micro s} & Dugoff + 3-DOF + battery \\
-CAN TX (15 frames) & \SI{150--250}{\micro s} & \texttt{can\_send} non-blocking \\
+Physics step (\texttt{s\_plant.step}) & 200--\SI{400}{\micro s} & Dugoff + 3-DOF + battery \\
+CAN TX (15 frames) & 150--\SI{250}{\micro s} & \texttt{can\_send} non-blocking \\
 Brake diagnostics log & \SI{<10}{\micro s} & Only when \texttt{brake\_cmd\_pct > 1} \\
 \textbf{Total} & \textbf{\SI{<700}{\micro s}} & Budget: \SI{10000}{\micro s} \\
 \bottomrule
@@ -708,49 +708,106 @@ Command & Action \\
 \section{Memory Layout}
 % =============================================================================
 
-\subsection{Expected Footprint (Phase 4 complete)}
+\subsection{Measured Flash Footprint}
+
+Measured with \texttt{west build -t rom\_report} on a full Phase~4 build.
+Total Flash: \textbf{\SI{236957}{B} $\approx$ \SI{231.4}{KB}}
+--- \textbf{11.3\,\%} of the \SI{2}{MB} Flash budget; \SI{1.77}{MB} free.
 
 \begin{center}
 \begin{tabular}{lrrl}
 \toprule
-Region & Budget & Expected & Contents \\
+Region & Budget & Measured & Notes \\
 \midrule
-Flash (.text + .rodata) & \SI{2}{MB} & $\approx$\SI{450}{KB} & Zephyr kernel, plant code, CAN codec, CSS \\
-SRAM (.bss + .data + stacks) & \SI{1}{MB} & $\approx$\SI{380}{KB} & Stacks, heap, net buffers, LOG buffer \\
-Heap (STL + Zephyr + net) & \SI{65}{KB} (configured) & $\approx$\SI{40}{KB} & STL containers, net PKT/BUF pool \\
+Total Flash & \SI{2}{MB} & \SI{231.4}{KB} & 11.3\,\% utilised \\
+\addlinespace
+App (\texttt{zephyr/src/}) & --- & \SI{12.7}{KB} & threads, HTTP, CAN, shell \\
+\quad \texttt{can/can\_tx.cpp} & --- & \SI{3416}{B} & \texttt{can\_tx\_send\_all()} \\
+\quad \texttt{shell/debug\_cmds.cpp} & --- & \SI{2372}{B} & 11 command handlers \\
+\quad \texttt{plant/plant\_thread.cpp} & --- & \SI{1488}{B} & \texttt{plant\_thread()} \\
+\quad \texttt{http/http\_page.cpp} & --- & \SI{1642}{B} & \texttt{send\_page()} \\
+\quad \texttt{kDashboardCss} (rodata) & --- & \SI{1758}{B} & embedded CSS \\
+Shared plant physics & --- & \SI{12.8}{KB} & subsystems from \texttt{src/plant/} \\
+Zephyr RTOS & --- & \SI{121.1}{KB} & kernel + subsys + drivers \\
+Newlib / unresolved & --- & \SI{61.5}{KB} & math, C stdlib \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-\subsection{Thread Stack Allocation}
+\subsection{Measured RAM Footprint}
+
+Measured with \texttt{west build -t ram\_report} on a full Phase~4 build
+targeting \texttt{nucleo\_h753zi}.
+Total static RAM: \textbf{\SI{241075}{B} $\approx$ \SI{235}{KB}}
+--- \textbf{22.9\,\%} of the \SI{1}{MB} SRAM budget; \SI{765}{KB} free.
 
 \begin{center}
-\begin{tabular}{lr}
+\begin{tabular}{lrrl}
 \toprule
-Thread & Stack \\
+Region & Budget & Measured & Dominant item \\
 \midrule
-\texttt{plant\_tid} & \SI{16384}{B} (16~KB) \\
-\texttt{http\_tid} & \SI{8192}{B} (8~KB) \\
-\texttt{shell\_uart} & \SI{4096}{B} \\
-\texttt{main} & \SI{4096}{B} \\
-\texttt{stm\_eth} & \SI{1536}{B} \\
-\texttt{rx\_q[0]} & \SI{1536}{B} \\
-\texttt{can\_rx\_tid} & \SI{1024}{B} \\
-\texttt{tcp\_work} & \SI{1024}{B} \\
-\texttt{logging} & \SI{1024}{B} \\
-\texttt{led\_tid} & \SI{512}{B} \\
-\texttt{idle} & \SI{320}{B} \\
+Total SRAM & \SI{1}{MB} & \SI{235}{KB} (241\,075\,B) & 22.9\,\% utilised \\
+\addlinespace
+App code & --- & \SI{27.4}{KB} (28\,100\,B) & stacks + shared state \\
+\quad \texttt{plant\_thread.cpp} & --- & \SI{16760}{B} & stack 16\,448\,B \\
+\quad \texttt{http\_server.cpp} & --- & \SI{8488}{B} & stack 8\,256\,B \\
+\quad \texttt{can\_rx.cpp} & --- & \SI{1372}{B} & stack 1\,088\,B + msgq \\
+\quad \texttt{led\_task.cpp} & --- & \SI{808}{B} & stack 576\,B \\
+\quad \texttt{main.cpp} & --- & \SI{672}{B} & \texttt{g\_state} 560\,B \\
+\addlinespace
+Zephyr kernel & --- & \SI{133.6}{KB} & \texttt{kheap} 128\,KB \\
+Networking subsystem & --- & \SI{34.0}{KB} & TCP slab, pkt/buf pools \\
+ETH driver & --- & \SI{14.5}{KB} & DMA RX+TX buffers$^*$ \\
+Logging subsystem & --- & \SI{5.5}{KB} & ring buffer + thread \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent $^*$ ETH DMA buffers reside in a dedicated \texttt{eth\_stm32} SRAM
+region at \texttt{0x30040000}, separate from the main AXI SRAM.
+
+\medskip
+\noindent\textbf{Heap:} \texttt{kheap\_\_system\_heap} = \SI{128}{KB}
+(configured pool). Runtime peak is inspectable via the Zephyr shell:
+
+\begin{lstlisting}[language=bash]
+uart:~$ kernel heap
+\end{lstlisting}
+
+\noindent If RAM becomes constrained, reduce \texttt{CONFIG\_HEAP\_MEM\_POOL\_SIZE}
+in \texttt{prj.conf}; \SI{64}{KB} is sufficient for current allocations.
+
+\subsection{Thread Stack Allocation (Actual)}
+
+Zephyr adds alignment padding to each \texttt{K\_THREAD\_DEFINE} stack;
+the table below shows the aligned sizes from \texttt{ram\_report}.
+
+\begin{center}
+\begin{tabular}{lrrl}
+\toprule
+Thread & Configured & Actual & Base address \\
 \midrule
-\textbf{Total stacks} & \textbf{\SI{40768}{B} ($\approx$40~KB)} \\
+\texttt{plant\_tid} & \SI{16384}{B} & \SI{16448}{B} & \texttt{0x24008080} \\
+\texttt{http\_tid}  & \SI{8192}{B}  & \SI{8256}{B}  & \texttt{0x24005c00} \\
+\texttt{z\_main\_stack} & \SI{4096}{B} & \SI{4160}{B} & \texttt{0x2400ecc0} \\
+\texttt{z\_interrupt\_stacks} & \SI{2048}{B} & \SI{2112}{B} & \texttt{0x2400e300} \\
+\texttt{can\_rx\_tid} & \SI{1024}{B} & \SI{1088}{B} & \texttt{0x24007c40} \\
+\texttt{sys\_work\_q} & \SI{1024}{B} & \SI{1088}{B} & \texttt{0x2400fd00} \\
+\texttt{logging}     & \SI{1024}{B} & \SI{1088}{B} & \texttt{0x2400c0c0} \\
+\texttt{led\_tid}    & \SI{512}{B}  & \SI{576}{B}  & \texttt{0x240059c0} \\
+\texttt{z\_idle\_stacks} & \SI{320}{B} & \SI{384}{B} & \texttt{0x2400eb40} \\
+\midrule
+\textbf{Total} & --- & \textbf{\SI{35200}{B} ($\approx$\SI{34.4}{KB})} & \\
 \bottomrule
 \end{tabular}
 \end{center}
 
 \subsection{Audit Commands}
 
-\begin{lstlisting}[language=bash, caption={Flash and RAM reports}]
-west build -t ram_report   # per-object RAM usage
-west build -t rom_report   # per-object Flash usage
+\begin{lstlisting}[language=bash, caption={RAM and Flash audit}]
+west build -t ram_report   # per-object static RAM
+west build -t rom_report   # per-object Flash (.text + .rodata)
+uart:~$ kernel heap        # runtime heap peak (Zephyr shell)
 \end{lstlisting}
 
 % =============================================================================
