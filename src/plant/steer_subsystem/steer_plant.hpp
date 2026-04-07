@@ -6,7 +6,7 @@
 // - Rate-limited virtual steering angle
 // - Speed-dependent steering reduction (understeer protection)
 // - Ackermann geometry with configurable percentage
-// - XCMG mining truck default parameters
+// - Heavy-duty mining truck default parameters
 //
 // The Ackermann percentage controls how much the inner wheel
 // turns more than the outer wheel during cornering:
@@ -26,13 +26,13 @@ namespace plant {
 
 struct SteerParams {
     // ========================================================================
-    // Steering Limits (XCMG XDE320)
+    // Steering Limits (Heavy-Duty Electric Vehicle)
     // ========================================================================
     double delta_max_deg = 35.0;      // Max virtual steering angle [deg]
     double steer_rate_dps = 45.0;     // Max steering rate [deg/s] (hydraulic limited)
     
     // ========================================================================
-    // Vehicle Geometry (XCMG XDE320 Table 4)
+    // Vehicle Geometry (Heavy-Duty Electric Vehicle Table 4)
     // ========================================================================
     double wheelbase_m = 6.3;         // Front-to-rear axle distance [m]
     double track_width_m = 4.0;       // Left-to-right wheel distance [m]

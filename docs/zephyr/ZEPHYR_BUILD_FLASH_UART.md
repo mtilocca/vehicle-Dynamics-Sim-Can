@@ -109,7 +109,7 @@ The Zephyr shell is available at the `uart:~$` prompt as soon as the board boots
 | `plant reset` | Zero the plant state |
 | `can stats` | TX / RX frame counts, timeout count, last RX timestamp |
 | `can rx_frame` | Print last decoded ACTUATOR_CMD_1 fields |
-| `vehicle info` | XCMG XDE320 parameter summary + live surface mu |
+| `vehicle info` | Heavy-Duty Electric Vehicle parameter summary + live surface mu |
 | `kernel version` | Zephyr kernel version |
 | `kernel threads` | All running threads — priority, state, stack usage |
 | `kernel stacks` | Peak stack usage per thread (useful for tuning stack sizes) |

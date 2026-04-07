@@ -258,7 +258,7 @@ int main(int argc, char** argv) {
     utils::set_level(log_level);
 
     // ========================================================================
-    // Vehicle configuration (always XCMG XDE320 hardcoded defaults)
+    // Vehicle configuration (always Heavy-Duty Electric Vehicle hardcoded defaults)
     // ========================================================================
     config::VehicleConfig vehicle = vehicle_path.empty()
         ? config::VehicleConfig::get_default()

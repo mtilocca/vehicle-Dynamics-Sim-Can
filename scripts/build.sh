@@ -6,7 +6,7 @@ BUILD_DIR="build"
 BUILD_TYPE="${1:-Debug}"   # Pass "Release" as first arg, defaults to Debug
 # --------------------------------
 
-echo "==> Building XCMG XDE320 plant-sensor-can-sim"
+echo "==> Building Heavy-Duty Electric Vehicle plant-sensor-can-sim"
 echo "    Build type: ${BUILD_TYPE}"
 echo "    Build dir : ${BUILD_DIR}"
 echo

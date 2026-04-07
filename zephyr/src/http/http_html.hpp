@@ -14,7 +14,7 @@ static const char kHtmlHead[] =
     "<meta charset='utf-8'>"
     "<meta http-equiv='refresh' content='30'>"
     "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    "<title>XCMG XDE320 &mdash; Simulator</title>"
+    "<title>Heavy-Duty Electric Vehicle &mdash; Simulator</title>"
     "<style>";
 
 // Closes the <style> tag and <head>, opens <body>.
@@ -23,7 +23,7 @@ static const char kHtmlStyleClose[] = "</style></head><body>";
 // Vehicle info card — hardcoded specs, never changes at runtime.
 static const char kVehicleCard[] =
     "<div class='card'>"
-    "<h2>Vehicle &mdash; XCMG XDE320 Electric</h2>"
+    "<h2>Vehicle &mdash; Heavy-Duty Electric Vehicle</h2>"
     "<table><tr>"
     "<td>Mass</td><td>218 000 kg (218 t)</td>"
     "<td>Motor power</td><td>2 013 kW</td>"

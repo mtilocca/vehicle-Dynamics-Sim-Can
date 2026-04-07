@@ -12,8 +12,8 @@
 #include <gtest/gtest.h>
 #include <cmath>
 
-// ── XCMG XDE320 plant factory ─────────────────────────────────────────────────
-static plant::PlantModelParams make_xcmg_params() {
+// ── Heavy-Duty Electric Vehicle plant factory ─────────────────────────────────────────────────
+static plant::PlantModelParams make_vehicle_params() {
     plant::PlantModelParams p;
     p.wheelbase_m   = 6.30;
     p.track_width_m = 7.20;
@@ -76,7 +76,7 @@ static void run_steps(plant::PlantModel& model, plant::PlantState& s,
 // 3a: Reverse acceleration
 // REVERSE gear + negative drive torque must produce v_mps < 0.
 TEST(PlantReverse, ReverseAcceleration) {
-    auto params = make_xcmg_params();
+    auto params = make_vehicle_params();
     plant::PlantModel model(params);
     auto s = make_initial_state(params);
 
@@ -95,7 +95,7 @@ TEST(PlantReverse, ReverseAcceleration) {
 // 3b: Reverse steering
 // A steer input while reversing must produce a non-trivial yaw rate.
 TEST(PlantReverse, ReverseSteering) {
-    auto params = make_xcmg_params();
+    auto params = make_vehicle_params();
     plant::PlantModel model(params);
     auto s = make_initial_state(params);
 
@@ -124,7 +124,7 @@ TEST(PlantReverse, ReverseSteering) {
 // 3c: Reverse stop and standstill damp (Bugs #9/#13)
 // Braking from reverse must reduce |v| (Bug #9) and vy must decay (Bug #13).
 TEST(PlantReverse, ReverseStopAndDamp) {
-    auto params = make_xcmg_params();
+    auto params = make_vehicle_params();
     plant::PlantModel model(params);
     auto s = make_initial_state(params);
 

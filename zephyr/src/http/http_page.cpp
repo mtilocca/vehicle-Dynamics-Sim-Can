@@ -13,7 +13,7 @@
 #include "sim/actuator_cmd.hpp"
 #include "http_html.hpp"
 
-LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
+LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
 // CSS embedded from dashboard.css at build time via generate_inc_file_for_target()
 static const char kDashboardCss[] = {
@@ -143,7 +143,7 @@ void send_page(int fd)
     // Header bar
     snprintf(buf, sizeof(buf),
         "<div class='header'>"
-        "<h1>XCMG XDE320 &mdash; Simulator Dashboard</h1>"
+        "<h1>Heavy-Duty Electric Vehicle &mdash; Simulator Dashboard</h1>"
         "<span class='badge'>&#9679; ONLINE</span>"
         "<span class='meta'>Uptime&nbsp;%02u:%02u:%02u</span>"
         "<span class='meta'>IP&nbsp;192.168.1.80</span>"

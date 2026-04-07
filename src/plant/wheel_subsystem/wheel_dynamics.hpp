@@ -16,7 +16,7 @@ namespace plant {
 struct WheelDynamicsParams {
     // Wheel inertia (kg·m²)
     // Includes tire, rim, brake rotor, hub assembly
-    // Default: XCMG XDE320/360 heavy mining truck
+    // Default: Heavy-Duty Electric Vehicle heavy mining truck
     double inertia_kgm2 = 1000.0;
 
     // Effective rolling radius (m)

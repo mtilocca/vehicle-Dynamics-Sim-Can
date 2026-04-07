@@ -16,7 +16,7 @@
 
 #include "sim/actuator_cmd.hpp"
 
-LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
+LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
 // ── Shared state (defined in main.cpp) ───────────────────────────────────────
 extern sim::ActuatorCmd  g_cmd;
@@ -71,7 +71,7 @@ static void can_rx_thread(void*, void*, void*)
         return;
     }
 
-#ifdef CONFIG_XCMG_CAN_LOOPBACK
+#ifdef CONFIG_HDV_CAN_LOOPBACK
     // Internal loopback — frames TX'd on this bus are echoed back to RX filters.
     // Useful for self-test without a physical transceiver.
     int lret = can_set_mode(dev, CAN_MODE_LOOPBACK);

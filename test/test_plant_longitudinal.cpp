@@ -12,8 +12,8 @@
 #include <gtest/gtest.h>
 #include <cmath>
 
-// ── XCMG XDE320 plant factory ─────────────────────────────────────────────────
-static plant::PlantModelParams make_xcmg_params() {
+// ── Heavy-Duty Electric Vehicle plant factory ─────────────────────────────────────────────────
+static plant::PlantModelParams make_vehicle_params() {
     plant::PlantModelParams p;
     p.wheelbase_m   = 6.30;
     p.track_width_m = 7.20;
@@ -76,7 +76,7 @@ static void run_steps(plant::PlantModel& model, plant::PlantState& s,
 // 1a: Kinematic startup (Fix A)
 // Below 1 m/s the kinematic fallback uses F=τ/R (no Dugoff oscillation).
 TEST(PlantLongitudinal, KinematicStartup) {
-    auto params = make_xcmg_params();
+    auto params = make_vehicle_params();
     plant::PlantModel model(params);
     auto s = make_initial_state(params);
 
@@ -104,7 +104,7 @@ TEST(PlantLongitudinal, KinematicStartup) {
 // 1b: Cruise and brake (Bug #9)
 // Accelerate to cruise, then brake — brake_force_kN must be positive.
 TEST(PlantLongitudinal, CruiseAndBrake) {
-    auto params = make_xcmg_params();
+    auto params = make_vehicle_params();
     plant::PlantModel model(params);
     auto s = make_initial_state(params);
 
@@ -140,7 +140,7 @@ TEST(PlantLongitudinal, CruiseAndBrake) {
 // 1c: Standstill damping (Bug #13)
 // Inject vy and yaw_rate at standstill; both must decay within 2 s.
 TEST(PlantLongitudinal, StandstillDamping) {
-    auto params = make_xcmg_params();
+    auto params = make_vehicle_params();
     plant::PlantModel model(params);
     auto s = make_initial_state(params);
 

@@ -14,7 +14,7 @@
 
 #include "plant/plant_main/plant_state.hpp"
 
-LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
+LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
 extern volatile uint32_t g_can_tx_count;
 

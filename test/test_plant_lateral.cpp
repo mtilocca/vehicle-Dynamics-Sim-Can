@@ -12,8 +12,8 @@
 #include <gtest/gtest.h>
 #include <cmath>
 
-// ── XCMG XDE320 plant factory ─────────────────────────────────────────────────
-static plant::PlantModelParams make_xcmg_params() {
+// ── Heavy-Duty Electric Vehicle plant factory ─────────────────────────────────────────────────
+static plant::PlantModelParams make_vehicle_params() {
     plant::PlantModelParams p;
     p.wheelbase_m   = 6.30;
     p.track_width_m = 7.20;
@@ -77,7 +77,7 @@ static void run_steps(plant::PlantModel& model, plant::PlantState& s,
 // At speed, a positive (left) steer must produce positive yaw_rate
 // and correct Ackermann wheel angles.
 TEST(PlantLateral, YawRateFromSteering) {
-    auto params = make_xcmg_params();
+    auto params = make_vehicle_params();
     plant::PlantModel model(params);
     auto s = make_initial_state(params);
 
@@ -112,7 +112,7 @@ TEST(PlantLateral, YawRateFromSteering) {
 // 2b: vy clamp (Bug #10)
 // Under maximum steering at speed, |vy| must stay ≤ 2 m/s.
 TEST(PlantLateral, VyClamp) {
-    auto params = make_xcmg_params();
+    auto params = make_vehicle_params();
     plant::PlantModel model(params);
     auto s = make_initial_state(params);
 
@@ -139,7 +139,7 @@ TEST(PlantLateral, VyClamp) {
 // 2c: Load transfer during cornering (Bugs #7/#8)
 // During a left turn the outer (right) wheels must carry more load.
 TEST(PlantLateral, LoadTransferCornering) {
-    auto params = make_xcmg_params();
+    auto params = make_vehicle_params();
     plant::PlantModel model(params);
     auto s = make_initial_state(params);
 

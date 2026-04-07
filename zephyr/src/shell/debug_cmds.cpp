@@ -8,7 +8,7 @@
 //   plant reset      — zero plant state
 //   can stats        — TX/RX frame counts
 //   can rx_frame     — last decoded ACTUATOR_CMD_1
-//   vehicle info     — XCMG parameter summary
+//   vehicle info     — HDV parameter summary
 
 #include <zephyr/kernel.h>
 #include <zephyr/shell/shell.h>
@@ -20,7 +20,7 @@
 #include "sim/actuator_cmd.hpp"
 #include "can/can_map_static.hpp"
 
-LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
+LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
 // ── Shared state — defined in main.cpp ───────────────────────────────────────
 extern plant::PlantState g_state;
@@ -231,13 +231,13 @@ SHELL_STATIC_SUBCMD_SET_CREATE(can_cmds,
 SHELL_CMD_REGISTER(can, &can_cmds, "CAN bus commands", NULL);
 
 // ── vehicle info ──────────────────────────────────────────────────────────────
-// Hardcoded XCMG XDE320 summary for Phase 1.
+// Hardcoded Heavy-Duty Electric Vehicle summary for Phase 1.
 // Phase 4 will replace this with VehicleConfig::get_default().
 
 static int cmd_vehicle_info(const struct shell* sh, size_t argc, char** argv)
 {
     (void)argc; (void)argv;
-    shell_print(sh, "--- Vehicle: XCMG XDE320 Electric ---");
+    shell_print(sh, "--- Vehicle: Heavy-Duty Electric Vehicle ---");
     shell_print(sh, "  Mass          : 218000 kg (218 t)");
     shell_print(sh, "  Wheelbase     : 6.30 m");
     shell_print(sh, "  Track width   : 7.20 m");

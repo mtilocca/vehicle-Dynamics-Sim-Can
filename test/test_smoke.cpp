@@ -15,8 +15,8 @@
 #include <cstdlib>
 #include <string>
 
-// ── Shared XCMG factory (same as plant test files) ───────────────────────────
-static plant::PlantModelParams make_xcmg_params() {
+// ── Shared HDV factory (same as plant test files) ───────────────────────────
+static plant::PlantModelParams make_vehicle_params() {
     plant::PlantModelParams p;
     p.wheelbase_m   = 6.30;
     p.track_width_m = 7.20;
@@ -59,7 +59,7 @@ static plant::PlantModelParams make_xcmg_params() {
 // Smoke 1: PlantModel cold-start
 TEST(Smoke, PlantModelBoots) {
     ASSERT_NO_THROW({
-        plant::PlantModelParams p = make_xcmg_params();
+        plant::PlantModelParams p = make_vehicle_params();
         plant::PlantModel model(p);
 
         plant::PlantState s{};

@@ -1,11 +1,11 @@
-# XCMG XDE320 Electric Dump Truck Configuration
+# Heavy-Duty Electric Dump Truck Configuration
 # 320-ton payload electric mining haul truck (Pilbara, Western Australia)
-# Note: Real XDE320 is diesel-electric. This config simulates equivalent pure-electric performance.
+# Note: Simulates a heavy-duty pure-electric mining truck.
 
 vehicle:
-  name: "XCMG XDE320 Electric"
+  name: "Heavy-Duty Electric Vehicle"
   description: "320-ton electric dump truck - diesel-electric simulated as pure-electric"
-  manufacturer: "XCMG"
+  manufacturer: "HDV"
   year: 2025
 
   # Physical dimensions and mass
@@ -50,7 +50,7 @@ vehicle:
 
   # Operational limits
   limits:
-    v_max_mps: 17.78                   # 64 km/h (real XCMG spec)
+    v_max_mps: 17.78                   # 64 km/h (rated spec)
     v_stop_eps: 0.5                    # Stopped threshold [m/s]
 
 # ==============================================================================
