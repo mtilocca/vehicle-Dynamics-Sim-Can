@@ -50,5 +50,4 @@ nav:
       - Sensor Suite: sensor_public.md
   - Zephyr HIL Port:
       - Overview: zephyr_overview.md
-  - Reference PDFs:
-      - Overview: pdfs/index.md
+  - Reference PDFs: pdfs/index.md

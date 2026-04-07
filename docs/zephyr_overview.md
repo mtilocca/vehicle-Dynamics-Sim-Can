@@ -60,6 +60,16 @@ Ample headroom for additional subsystems or logging.
 
 ---
 
+## Live HTTP Dashboard
+
+A self-refreshing web dashboard is served directly from the MCU over Ethernet. No external server required — connect a browser to the board's IP and the page updates automatically.
+
+![XCMG XDE320 Simulator Dashboard](plots/image_web_ui.png)
+
+The dashboard shows plant state (velocity, position, yaw, wheel speeds, SOC), actuator commands, CAN frame counters, and kernel thread health — all live from the running firmware.
+
+---
+
 ## Shell Interface
 
 An interactive UART shell (115200 baud) provides runtime inspection:
