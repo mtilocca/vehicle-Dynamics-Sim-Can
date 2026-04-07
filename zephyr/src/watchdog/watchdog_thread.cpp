@@ -20,6 +20,11 @@ extern struct k_sem g_wdt_sem;
 
 static void watchdog_thread(void*, void*, void*)
 {
+    // Grace period: wait for plant_thread to finish subsystem initialization
+    // and enter its main loop before arming the IWDG.
+    // 8 subsystems × complex init can take 1-2 s on first boot.
+    k_msleep(50000);
+
     const struct device* wdt = DEVICE_DT_GET(DT_NODELABEL(iwdg));
     if (!device_is_ready(wdt)) {
         LOG_WRN("WDT: IWDG device not ready — watchdog disabled");
