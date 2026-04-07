@@ -6,17 +6,17 @@
 namespace config {
 
 VehicleConfig VehicleConfig::load(const std::string& /*yaml_path*/) {
-    LOG_WARN("[VehicleConfig] YAML loading disabled — using hardcoded XCMG XDE320 defaults");
+    LOG_WARN("[VehicleConfig] YAML loading disabled — using hardcoded Heavy-Duty Electric Vehicle defaults");
     return get_default();
 }
 
 VehicleConfig VehicleConfig::get_default() {
     VehicleConfig vehicle;
 
-    // XCMG XDE320 Electric Dump Truck
-    vehicle.name = "XCMG XDE320 Electric";
+    // Heavy-Duty Electric Dump Truck
+    vehicle.name = "Heavy-Duty Electric Vehicle";
     vehicle.description = "220-ton electric mining dump truck";
-    vehicle.manufacturer = "XCMG";
+    vehicle.manufacturer = "HDV";
     vehicle.year = 2025;
 
     // ========================================================================

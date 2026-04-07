@@ -3,7 +3,7 @@
 #include "tyre_models/tyre_dugoff.hpp"
 #include "utils/logging.hpp"
 #ifdef __ZEPHYR__
-LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
+LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 #endif
 #include <cmath>
 #include <algorithm>

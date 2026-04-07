@@ -5,7 +5,7 @@
 // Key difference from the host version:
 //   - Subsystems stored by value inside PlantModel (no heap, no unique_ptr)
 //   - SubsystemManager holds non-owning raw pointers sorted by priority
-//   - All XCMG XDE320 params are identical to the host build; only ownership
+//   - All Heavy-Duty Electric Vehicle params are identical to the host build; only ownership
 //     model differs.
 
 #include "plant/plant_model.hpp"
@@ -17,7 +17,7 @@
 #include "sim/actuator_cmd.hpp"
 #include "utils/logging.hpp"
 
-LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
+LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
 namespace plant {
 

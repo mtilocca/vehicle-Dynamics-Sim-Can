@@ -16,7 +16,7 @@
 #include "plant/plant_model.hpp"
 #include "sim/actuator_cmd.hpp"
 
-LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
+LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
 // ── Shared state (defined in main.cpp) ───────────────────────────────────────
 extern plant::PlantState  g_state;
@@ -35,8 +35,8 @@ extern void can_tx_send_all(const plant::PlantState& s, double t_s,
 static constexpr double   DT_S             = 0.01;    // 10 ms step
 static constexpr double   CAN_RX_TIMEOUT_S = 0.5;    // 500 ms watchdog
 
-// ── XCMG XDE320 plant params (mirrors vehicle_config.cpp without STL) ────────
-static plant::PlantModelParams xcmg_params()
+// ── Heavy-Duty Electric Vehicle plant params (mirrors vehicle_config.cpp without STL) ────────
+static plant::PlantModelParams vehicle_params()
 {
     plant::PlantModelParams p;
 
@@ -86,7 +86,7 @@ static plant::PlantModelParams xcmg_params()
 }
 
 // ── Static PlantModel instance (lives in .bss, not on any thread stack) ──────
-static plant::PlantModel  s_plant{xcmg_params()};
+static plant::PlantModel  s_plant{vehicle_params()};
 
 // ── 10 ms periodic timer ──────────────────────────────────────────────────────
 K_SEM_DEFINE(plant_sem, 0, 1);
@@ -97,7 +97,7 @@ K_TIMER_DEFINE(plant_timer, plant_timer_expiry, NULL);
 // ── Plant thread ──────────────────────────────────────────────────────────────
 static void plant_thread(void*, void*, void*)
 {
-    LOG_INF("[plant] XCMG XDE320 plant thread started (dt=10 ms, prio=5)");
+    LOG_INF("[plant] Heavy-Duty Electric Vehicle plant thread started (dt=10 ms, prio=5)");
 
     // Apply initial surface mu from the shell-settable global
     {

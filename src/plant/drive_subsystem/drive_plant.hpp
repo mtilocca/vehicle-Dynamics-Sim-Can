@@ -21,13 +21,13 @@ namespace plant {
 
 struct DriveParams {
     // ========================================================================
-    // Vehicle Mass (XCMG XDE320 Table 4)
+    // Vehicle Mass (Heavy-Duty Electric Vehicle Table 4)
     // ========================================================================
     double mass_kg = 218000.0;          // Empty mass [kg]
     // Loaded: 538000 kg (with 320t payload)
     
     // ========================================================================
-    // Wheel/Tire Geometry (XCMG XDE320 Table 4)
+    // Wheel/Tire Geometry (Heavy-Duty Electric Vehicle Table 4)
     // ========================================================================
     double wheel_radius_m = 1.93;       // 37.00R57 effective radius [m]
     
@@ -38,7 +38,7 @@ struct DriveParams {
     double roll_c = 1500.0;             // Rolling resistance [N] (μ_roll × m × g)
     
     // ========================================================================
-    // Motor Limits (XCMG XDE320 Table 4)
+    // Motor Limits (Heavy-Duty Electric Vehicle Table 4)
     // ========================================================================
     double motor_torque_max_nm = 9500.0;   // Peak motor torque [Nm]
     double motor_power_max_w = 2800000.0;  // 2800 kW continuous [W]
@@ -52,12 +52,12 @@ struct DriveParams {
     // Mining trucks are rear-heavy, need more rear braking
     
     // ========================================================================
-    // Drivetrain (XCMG XDE320 - electric drive)
+    // Drivetrain (Heavy-Duty Electric Vehicle - electric drive)
     // ========================================================================
     double gear_ratio = 25.0;           // Final drive ratio
     double drivetrain_eff = 0.92;       // Drivetrain efficiency
     
-    // Note: XCMG XDE320 is rear-wheel drive (RWD)
+    // Note: Heavy-Duty Electric Vehicle is rear-wheel drive (RWD)
     // Front wheels are non-driven, steering only
     
     // ========================================================================

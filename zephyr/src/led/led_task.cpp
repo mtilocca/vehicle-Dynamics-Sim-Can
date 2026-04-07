@@ -9,7 +9,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/logging/log.h>
 
-LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
+LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
 // ── Device tree LED specs ─────────────────────────────────────────────────────
 static const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);

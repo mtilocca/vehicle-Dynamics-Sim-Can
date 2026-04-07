@@ -1,6 +1,6 @@
-mainmenu "XCMG XDE320 Plant Simulator — Zephyr Configuration"
+mainmenu "Heavy-Duty Electric Vehicle Plant Simulator — Zephyr Configuration"
 
-config XCMG_CAN_LOOPBACK
+config HDV_CAN_LOOPBACK
 	bool "Start FDCAN1 in internal loopback mode (self-test without transceiver)"
 	default n
 	help

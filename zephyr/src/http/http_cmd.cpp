@@ -11,7 +11,7 @@
 
 #include "sim/actuator_cmd.hpp"
 
-LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
+LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
 // ── Shared globals (defined in main.cpp) ─────────────────────────────────────
 extern sim::ActuatorCmd g_cmd;

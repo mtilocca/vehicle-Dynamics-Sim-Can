@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20.0)
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
-project(xcmg_sim VERSION 1.0.0 LANGUAGES CXX C)
+project(hdv_sim VERSION 1.0.0 LANGUAGES CXX C)
 
 # ── Path to the host repo root (one level up from this zephyr/ dir) ──────────
 set(REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)

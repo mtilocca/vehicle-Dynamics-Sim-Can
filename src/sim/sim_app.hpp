@@ -75,7 +75,7 @@ struct SimAppConfig {
      *
      * Common values (Pilbara mining conditions):
      *   - Dry pavement:         0.85
-     *   - Gravel compact:       0.72 (default — XCMG haul roads)
+     *   - Gravel compact:       0.72 (default — heavy-duty haul roads)
      *   - Gravel loose:         0.55
      *   - Iron ore dust (dry):  0.45
      *   - Iron ore dust (wet):  0.30

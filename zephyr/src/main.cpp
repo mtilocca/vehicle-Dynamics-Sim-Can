@@ -1,5 +1,5 @@
 // zephyr/src/main.cpp
-// XCMG XDE320 Plant Simulator — Zephyr RTOS entry point
+// Heavy-Duty Electric Vehicle Plant Simulator — Zephyr RTOS entry point
 //
 // Phase 0: boot, print banner over USART3.
 // Phase 1: logging shim active, shell commands available.
@@ -17,7 +17,7 @@
 #include "plant/plant_main/plant_state.hpp"
 #include "sim/actuator_cmd.hpp"
 
-LOG_MODULE_REGISTER(xcmg_sim, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(hdv_sim, LOG_LEVEL_INF);
 
 // ── Shared state (written by plant thread, read by shell + CAN TX) ────────────
 plant::PlantState g_state{};
@@ -43,7 +43,7 @@ plant::PlantModel* g_plant = nullptr;
 int main(void)
 {
     LOG_INF("========================================");
-    LOG_INF("XCMG XDE320 Plant Simulator");
+    LOG_INF("Heavy-Duty Electric Vehicle Plant Simulator");
     LOG_INF("Board : nucleo_h753zi (STM32H753ZI)");
     LOG_INF("Phase : 1 - Logging + UART Shell");
     LOG_INF("========================================");

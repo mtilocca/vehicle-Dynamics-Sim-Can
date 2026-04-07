@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.16)
 # Simulation Executable
 # ============================================================================
 # Orchestrates:
-#   - Plant model stepping (XCMG XDE320, hardcoded params)
+#   - Plant model stepping (Heavy-Duty Electric Vehicle, hardcoded params)
 #   - CAN TX/RX interfaces (closed-loop control only)
 #   - Sensor simulation
 #   - InfluxDB telemetry logging
@@ -29,7 +29,7 @@ target_include_directories(sim_main PRIVATE
 # Dependency graph:
 #   sim_main -> plant -> utils (includes libcurl for InfluxDB)
 #   sim_main -> can -> utils (CAN communication layer)
-#   sim_main -> config (hardcoded XCMG vehicle params)
+#   sim_main -> config (hardcoded HDV vehicle params)
 # ============================================================================
 
 target_link_libraries(sim_main PRIVATE

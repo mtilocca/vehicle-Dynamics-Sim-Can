@@ -54,7 +54,7 @@
 \definecolor{colISR}{RGB}{0,96,100}
 
 \title{RTOS Implementation:\\
-XCMG XDE320 Plant Simulator on Zephyr / STM32H753ZI}
+Heavy-Duty Electric Vehicle Plant Simulator on Zephyr / STM32H753ZI}
 \author{Mario Tilocca}
 \date{April 2026 -- Version 1.0}
 
@@ -67,7 +67,7 @@ XCMG XDE320 Plant Simulator on Zephyr / STM32H753ZI}
 \section{Introduction}
 % =============================================================================
 
-This document describes the embedded real-time implementation of the XCMG XDE320
+This document describes the embedded real-time implementation of the Heavy-Duty Electric Vehicle
 electric haul-truck plant simulator on a \textbf{ST Nucleo-H753ZI} board
 (STM32H753ZI, ARM Cortex-M7 @ \SI{480}{MHz}) running \textbf{Zephyr RTOS v3.7.0}.
 
@@ -489,7 +489,7 @@ reads from and writes to the shared \texttt{PlantState} struct.}
 \label{fig:subsystems}
 \end{figure}
 
-\subsection{XCMG XDE320 Parameters}
+\subsection{Heavy-Duty Electric Vehicle Parameters}
 
 \begin{center}
 \begin{tabular}{lrl}
@@ -674,7 +674,7 @@ recompilation.
         steer $\pm 5^\circ$) and a manual-inject form; all via HTTP GET
   \item \textbf{Kernel Threads} — per-thread name, priority, stack used/total
         (via \texttt{k\_thread\_foreach})
-  \item \textbf{Vehicle Info} — hardcoded XCMG XDE320 specification table
+  \item \textbf{Vehicle Info} — hardcoded Heavy-Duty Electric Vehicle specification table
 \end{enumerate}
 
 % =============================================================================
@@ -697,7 +697,7 @@ Command & Action \\
 \texttt{can rx\_frame} & Last decoded \texttt{ACTUATOR\_CMD\_1} fields \\
 \texttt{can tx\_test <steer> <torque> <brake>} & Encode + transmit test frame (loopback) \\
 \texttt{can map} & Print static CAN frame table (16 entries) \\
-\texttt{vehicle info} & XCMG XDE320 parameters + live surface~$\mu$ \\
+\texttt{vehicle info} & Heavy-Duty Electric Vehicle parameters + live surface~$\mu$ \\
 \texttt{network mac} & MAC and IP from \texttt{net\_if\_get\_default()} \\
 \texttt{system uptime} & HH:MM:SS and ms \\
 \bottomrule
@@ -869,7 +869,7 @@ link is up (typically within 2–3 s of boot).
   \item \textbf{Boot banner} — UART shows:
     \begin{verbatim}
 *** Booting Zephyr OS build v3.7.0 ***
-[INF] xcmg_sim: XCMG XDE320 plant thread started (dt=10 ms, prio=5)
+[INF] hdv_sim: Heavy-Duty Electric Vehicle plant thread started (dt=10 ms, prio=5)
     \end{verbatim}
 
   \item \textbf{Plant state} — shell command \texttt{plant state} shows live

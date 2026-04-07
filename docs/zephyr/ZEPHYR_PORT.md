@@ -1,4 +1,4 @@
-# Zephyr RTOS Port — XCMG XDE320 Plant Simulator
+# Zephyr RTOS Port — Heavy-Duty Electric Vehicle Plant Simulator
 
 Porting the cleaned-up C++ plant simulator to run on the **STM32H753ZI** (Nucleo-H753ZI) under **Zephyr RTOS**, using the onboard FDCAN peripheral for closed-loop CAN control and UART shell for debugging.
 
@@ -67,7 +67,7 @@ graph TB
         K2["src/sensors/\nIMU, GNSS, wheel speed, radar"]
         K3["can_codec.cpp\nencode / decode signals"]
         K4["can_map - FrameDef / SignalDef structs"]
-        K5["vehicle_config.cpp\nXCMG XDE320 hardcoded params"]
+        K5["vehicle_config.cpp\nHeavy-Duty Electric Vehicle hardcoded params"]
         K6["utils/bitpack.hpp\nutils/noise.hpp"]
     end
 
@@ -141,7 +141,7 @@ vehicle-Dynamics-Sim-Can/
         ├── led/
         │   └── led_task.cpp    ← LED thread (prio 12, 3 s random patterns)
         ├── plant/              ← Physics loop (Phase 4)
-        │   ├── plant_model_zephyr.cpp  ← PlantModel constructor (XCMG params)
+        │   ├── plant_model_zephyr.cpp  ← PlantModel constructor (HDV params)
         │   └── plant_thread.cpp        ← 10 ms timer-driven plant loop
         ├── can/
         │   ├── zephyr_can_iface.hpp/cpp   ← replaces socketcan_iface
@@ -159,7 +159,7 @@ Both the host simulator and the embedded firmware compile from the **same** `src
 ```mermaid
 graph TD
     ROOT["vehicle-Dynamics-Sim-Can/\nsrc/  utils/  config/can_map.dbc"]
-    ROOT -->|"shared source"| SHARED["SHARED CORE\nsrc/plant and sensors\ncan_codec  utils\nvehicle_config XCMG params"]
+    ROOT -->|"shared source"| SHARED["SHARED CORE\nsrc/plant and sensors\ncan_codec  utils\nvehicle_config HDV params"]
     SHARED --> HOST
     SHARED --> ZEPH
 
@@ -235,10 +235,10 @@ picocom -b 115200 /dev/ttyACM0
 **Verified output:**
 ```
 *** Booting Zephyr OS build v3.7.0 ***
-[INF] xcmg_sim: XCMG XDE320 Plant Simulator
-[INF] xcmg_sim: Board : nucleo_h753zi (STM32H753ZI)
-[INF] xcmg_sim: Phase : 1 - Logging + UART Shell
-[INF] xcmg_sim: Shell ready on USART3 — type 'help' for commands
+[INF] hdv_sim: Heavy-Duty Electric Vehicle Plant Simulator
+[INF] hdv_sim: Board : nucleo_h753zi (STM32H753ZI)
+[INF] hdv_sim: Phase : 1 - Logging + UART Shell
+[INF] hdv_sim: Shell ready on USART3 — type 'help' for commands
 uart:~$
 ```
 
@@ -266,7 +266,7 @@ The host `LOG_*` macros are mapped to Zephyr's structured log backend via a comp
 #endif
 ```
 
-**Pitfall:** `LOG_MODULE_REGISTER` must appear in exactly one `.cpp` per module (it is in `main.cpp`). Every other `.cpp` that uses the macros needs `LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF)`.
+**Pitfall:** `LOG_MODULE_REGISTER` must appear in exactly one `.cpp` per module (it is in `main.cpp`). Every other `.cpp` that uses the macros needs `LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF)`.
 
 **Pitfall:** Zephyr compiles C++ with `-nostdinc++`. Use C headers (`<stdlib.h>`, `<stdio.h>`) not C++ wrappers (`<cstdlib>`, `<cstdio>`). Remove unused C++ stdlib includes from shared headers.
 
@@ -283,7 +283,7 @@ All commands registered in `zephyr/src/shell/debug_cmds.cpp`:
 | `plant reset` | Zero all PlantState fields |
 | `can stats` | TX / RX frame counts, timeout count, last RX timestamp |
 | `can rx_frame` | Last decoded ACTUATOR_CMD_1 fields |
-| `vehicle info` | XCMG XDE320 parameter summary + live surface mu |
+| `vehicle info` | Heavy-Duty Electric Vehicle parameter summary + live surface mu |
 | `network mac` | Print MAC address and IP from `net_if_get_default()` |
 | `system uptime` | Print uptime as HH:MM:SS and ms |
 
@@ -426,8 +426,8 @@ uart:~$ can map
 |------|------|
 | `zephyr/src/can/can_rx.cpp` | CAN RX thread + inline ACTUATOR_CMD_1 decoder |
 | `zephyr/app.overlay` | FDCAN1 enabled at 500 kbps, `zephyr,canbus = &fdcan1` |
-| `zephyr/prj.conf` | `CONFIG_CAN=y`, `CONFIG_XCMG_CAN_LOOPBACK=y` |
-| `zephyr/Kconfig` | `XCMG_CAN_LOOPBACK` option added |
+| `zephyr/prj.conf` | `CONFIG_CAN=y`, `CONFIG_HDV_CAN_LOOPBACK=y` |
+| `zephyr/Kconfig` | `HDV_CAN_LOOPBACK` option added |
 | `zephyr/src/shell/debug_cmds.cpp` | `can tx_test` command added |
 
 **No `std::string`, no heap** — the decoder reads directly from `zf.data[]` using the bit layout from the DBC.
@@ -492,7 +492,7 @@ sequenceDiagram
 
 ### Loopback self-test (no transceiver required)
 
-`CONFIG_XCMG_CAN_LOOPBACK=y` in `prj.conf` calls `can_set_mode(CAN_MODE_LOOPBACK)` before `can_start()`. Any transmitted frame is echoed back to the RX filter internally.
+`CONFIG_HDV_CAN_LOOPBACK=y` in `prj.conf` calls `can_set_mode(CAN_MODE_LOOPBACK)` before `can_start()`. Any transmitted frame is echoed back to the RX filter internally.
 
 ```
 uart:~$ can tx_test 10.0 50000 0
@@ -513,7 +513,7 @@ uart:~$ can stats
   Last RX    : 2.341 s
 ```
 
-Set `CONFIG_XCMG_CAN_LOOPBACK=n` and connect a **TCAN1042** or **SN65HVD230** transceiver on PD0/PD1 (CN11 pin 57/55) for real-bus operation.
+Set `CONFIG_HDV_CAN_LOOPBACK=n` and connect a **TCAN1042** or **SN65HVD230** transceiver on PD0/PD1 (CN11 pin 57/55) for real-bus operation.
 
 ### `cbprintf` float fix
 
@@ -547,7 +547,7 @@ Set `CONFIG_XCMG_CAN_LOOPBACK=n` and connect a **TCAN1042** or **SN65HVD230** tr
 | File | Role |
 |------|------|
 | `zephyr/src/plant/plant_thread.cpp` | 10 ms timer-driven plant loop + CAN watchdog + brake diagnostics |
-| `zephyr/src/plant/plant_model_zephyr.cpp` | `PlantModel` constructor: XCMG XDE320 parameters, Dugoff tyre config |
+| `zephyr/src/plant/plant_model_zephyr.cpp` | `PlantModel` constructor: Heavy-Duty Electric Vehicle parameters, Dugoff tyre config |
 | `zephyr/src/can/can_tx.cpp` | Pack all 15 TX frames from `PlantState` and call `can_send()` |
 | `zephyr/src/http/http_cmd.cpp` | Added web command injection (query-string → `g_cmd`) |
 | `zephyr/src/http/http_page.cpp` | Added Controls card, Kernel Threads panel, live plant values |
@@ -563,7 +563,7 @@ K_TIMER_DEFINE(plant_timer, plant_timer_expiry, NULL);
 K_THREAD_DEFINE(plant_tid, 16384, plant_thread, NULL, NULL, NULL, 5, 0, 0);
 
 static void plant_thread(void*, void*, void*) {
-    LOG_INF("[plant] XCMG XDE320 plant thread started (dt=10 ms, prio=5)");
+    LOG_INF("[plant] Heavy-Duty Electric Vehicle plant thread started (dt=10 ms, prio=5)");
     k_timer_start(&plant_timer, K_MSEC(10), K_MSEC(10));
 
     while (true) {
@@ -600,7 +600,7 @@ static void plant_thread(void*, void*, void*) {
 }
 ```
 
-### XCMG XDE320 plant parameters
+### Heavy-Duty Electric Vehicle plant parameters
 
 ```cpp
 // plant/plant_model_zephyr.cpp
