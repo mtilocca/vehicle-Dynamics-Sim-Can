@@ -565,10 +565,80 @@ Comprehensive documentation is available in the `docs/` directory:
 
 ### Long-Term
 
-- [ ] Hardware-in-the-Loop (HIL) with real CAN hardware
+- [x] **Hardware-in-the-Loop (HIL) — Zephyr RTOS on STM32H753ZI** ← *completed, see below*
 - [ ] Full 6-DOF vehicle dynamics (roll, pitch, heave)
 - [ ] ROS2 integration for sensor fusion nodes
 - [ ] Multi-vehicle simulation (convoy operations)
+
+---
+
+## Hardware-in-the-Loop — Zephyr RTOS Port
+
+The full plant model runs bare-metal on a **ST Nucleo-H753ZI** (STM32H753ZI, Cortex-M7 @ 480 MHz) under Zephyr RTOS v3.7.0. The same `src/plant/` C++ source compiles for both the Linux host simulator and the embedded target — only the platform layer differs.
+
+### Board
+
+| Property | Value |
+|---|---|
+| Board | ST Nucleo-H753ZI |
+| MCU | STM32H753ZI @ 480 MHz |
+| Flash | 2 MB |
+| RAM | 1 MB |
+| CAN | FDCAN1 @ 500 kbps (PD0/PD1) |
+| Network | 10/100 Ethernet → `192.168.1.80` |
+| Debug UART | USART3 → ST-Link virtual COM |
+
+### Thread Architecture
+
+```mermaid
+graph TD
+    TIMER["k_timer 10 ms"]
+    SEM["k_sem"]
+    PLANT["plant_tid  prio=5  16KB\nplant/plant_thread.cpp"]
+    CANRX["can_rx_tid  prio=3  1KB\ncan/can_rx.cpp"]
+    HTTP["http_tid  prio=10  8KB\nhttp/http_server.cpp"]
+    LED["led_tid  prio=12  512B\nled/led_task.cpp"]
+    GCMD["g_cmd  k_mutex"]
+    GSTATE["g_state  k_mutex"]
+    BUS["CAN Bus\nFDCAN1 500 kbps"]
+    ETH["Browser\n192.168.1.80"]
+
+    TIMER -->|k_sem_give| SEM
+    SEM -->|k_sem_take| PLANT
+    CANRX -->|write| GCMD
+    PLANT -->|read| GCMD
+    PLANT -->|write| GSTATE
+    HTTP -->|read| GSTATE
+    PLANT -->|TX frames| BUS
+    CANRX -->|ACTUATOR_CMD_1| BUS
+    HTTP --> ETH
+```
+
+### Key implementation facts
+
+- **10 ms deterministic plant step** — `k_timer` → `k_sem` → `plant_thread`; no `sleep_for`, no `std::chrono`
+- **CAN watchdog** — if no `ACTUATOR_CMD_1` for 500 ms the plant enters safe-mode (coast, zero torque/brake)
+- **Braking** — `brake_torque_max_nm = 2.5 MNm` → ~0.6 g at full 218 t load, limited by Dugoff tyre friction
+- **Web dashboard** — live plant state, Controls card (STOP / FWD / REV / steer ±5°), Kernel Threads stack-usage panel
+- **CSS embedded at build time** — `generate_inc_file_for_target(dashboard.css → dashboard.css.inc)`; edit `.css` without touching C++
+- **Shell** — `plant inject <steer> <torque> <brake>`, `plant mu <val>`, `can rx_frame`, `can tx_test`
+
+### Build & Flash
+
+```bash
+cd ~/zephyrproject
+rm -rf build
+west build -b nucleo_h753zi ~/repos/vehicle-Dynamics-Sim-Can/zephyr
+west flash
+picocom -b 115200 /dev/ttyACM0   # UART shell
+```
+
+Dashboard: `http://192.168.1.80`
+
+### Documentation
+
+- [`docs/zephyr/ZEPHYR_PORT.md`](docs/zephyr/ZEPHYR_PORT.md) — full port guide (Phases 0–5)
+- [`docs/zephyr/RTOS_Implementation.tex`](docs/zephyr/RTOS_Implementation.tex) — in-depth architecture with flowcharts
 
 ---
 

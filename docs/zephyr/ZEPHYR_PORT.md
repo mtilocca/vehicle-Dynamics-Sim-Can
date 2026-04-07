@@ -121,20 +121,33 @@ vehicle-Dynamics-Sim-Can/
 │   └── gen_can_map.py          ← generates can_map_static.hpp from DBC (Phase 2)
 ├── docs/zephyr/
 │   ├── ZEPHYR_PORT.md          ← this file
+│   ├── RTOS_Implementation.tex ← in-depth RTOS architecture document
 │   └── ZEPHYR_BUILD_FLASH_UART.md
 └── zephyr/
     ├── west.yml                ← pulls zephyrproject-rtos/zephyr v3.7.0
     ├── CMakeLists.txt          ← app CMake, includes src/ and utils/
     ├── Kconfig
-    ├── prj.conf                ← Zephyr configuration (logging, shell, net, C++)
-    ├── app.overlay             ← USART3, led2 GPIO, &mac static MAC, FDCAN1 (Phase 3)
+    ├── prj.conf                ← Zephyr configuration (logging, shell, net, CAN, C++)
+    ├── app.overlay             ← USART3, led2 GPIO, static MAC, FDCAN1
     └── src/
         ├── main.cpp            ← entry point, global state, mutexes, counters
-        ├── led_task.cpp        ← LED thread (prio 12, 3 s random patterns) ✅
-        ├── http_server.cpp     ← HTTP dashboard thread (prio 10, port 80) ✅
+        ├── http/               ← HTTP module (Phase 1 + Phase 4 controls)
+        │   ├── dashboard.css       ← all CSS rules (embedded at build time)
+        │   ├── http_html.hpp       ← static HTML fragments (head, vehicle card)
+        │   ├── http_internal.hpp   ← shared internal declarations
+        │   ├── http_server.cpp     ← socket lifecycle + K_THREAD_DEFINE
+        │   ├── http_cmd.cpp        ← request parsing + apply_web_cmd
+        │   └── http_page.cpp       ← HTML builder + kernel-thread card
+        ├── led/
+        │   └── led_task.cpp    ← LED thread (prio 12, 3 s random patterns)
+        ├── plant/              ← Physics loop (Phase 4)
+        │   ├── plant_model_zephyr.cpp  ← PlantModel constructor (XCMG params)
+        │   └── plant_thread.cpp        ← 10 ms timer-driven plant loop
         ├── can/
-        │   ├── zephyr_can_iface.hpp/cpp   ← replaces socketcan_iface (Phase 3)
-        │   └── can_map_static.hpp         ← generated from can_map.dbc (Phase 2)
+        │   ├── zephyr_can_iface.hpp/cpp   ← replaces socketcan_iface
+        │   ├── can_map_static.hpp         ← generated from can_map.dbc
+        │   ├── can_rx.cpp                 ← RX thread + ACTUATOR_CMD_1 decoder
+        │   └── can_tx.cpp                 ← TX: pack + send all sensor frames
         └── shell/
             └── debug_cmds.cpp  ← all shell commands
 ```
@@ -170,7 +183,7 @@ graph TD
 
 ---
 
-## Thread Priority Map (current state — end of Phase 1)
+## Thread Priority Map (final state — end of Phase 4)
 
 | Thread | Priority | Stack | Source |
 |--------|----------|-------|--------|
@@ -180,9 +193,10 @@ graph TD
 | `sysworkq` | -1 | 1024 B | Zephyr system workqueue |
 | `net_mgmt` | -1 | 768 B | Network management |
 | `main` | 0 | 4096 B | Boot + idle sleep |
-| sim *(Phase 4)* | 5 | 16384 B | Plant loop — not yet |
-| `http_tid` | **10** | 4096 B | `http_server.cpp` |
-| `led_tid` | **12** | 512 B | `led_task.cpp` |
+| **`can_rx_tid`** | **3** | **1024 B** | **`can/can_rx.cpp`** |
+| **`plant_tid`** | **5** | **16384 B** | **`plant/plant_thread.cpp`** |
+| `http_tid` | **10** | 8192 B | `http/http_server.cpp` |
+| `led_tid` | **12** | 512 B | `led/led_task.cpp` |
 | `shell_uart` | 14 | 4096 B | UART shell |
 | `logging` | 14 | 1024 B | LOG backend |
 | `idle` | 15 | 320 B | Zephyr idle |
@@ -285,19 +299,35 @@ A `K_THREAD_DEFINE` thread at **priority 12** drives LD1/LD2/LD3 with pseudo-ran
 K_THREAD_DEFINE(led_tid, 512, led_thread, NULL, NULL, NULL, 12, 0, 0);
 ```
 
-### 1d — HTTP dashboard (`zephyr/src/http_server.cpp`)
+### 1d — HTTP dashboard (`zephyr/src/http/`)
 
-A `K_THREAD_DEFINE` thread at **priority 10** serves a live HTML dashboard on port 80.
+A `K_THREAD_DEFINE` thread at **priority 10** serves a live HTML dashboard on port 80. The HTTP module is split across three source files for maintainability, plus a real CSS file embedded at build time.
 
-- Static IP `192.168.1.100`, MAC `02:00:5E:00:53:01` (locally administered, set in `app.overlay`)
-- Single-threaded: `zsock_socket → bind → listen → accept → drain headers → send HTML → close`
+| File | Responsibility |
+|------|---------------|
+| `http_server.cpp` | Socket lifecycle: `socket → bind → listen → accept → close` loop |
+| `http_cmd.cpp` | Request-line parsing, query-string decoder, `apply_web_cmd()` |
+| `http_page.cpp` | HTML page builder — all `snprintf`/`send_str` calls |
+| `http_html.hpp` | Static HTML fragments as `const char[]` (`kHtmlHead`, `kVehicleCard`, …) |
+| `dashboard.css` | All CSS rules as a real `.css` file; embedded at build time via `generate_inc_file_for_target()` |
+| `http_internal.hpp` | Shared internal declarations between the three `.cpp` files |
+
+- Static IP **`192.168.1.80`**, MAC `02:00:5E:00:53:01` (locally administered, set in `app.overlay`)
 - Uses Zephyr native socket API (`zsock_*`) — no `CONFIG_POSIX_API` required
-- HTML built live with `snprintf` from `g_state`, `g_cmd`, CAN counters — chunks sent separately to stay within stack budget
-- Auto-refresh every 2 s via `<meta http-equiv="refresh" content="2">`
+- HTML built live with `snprintf` from `g_state`, `g_cmd`, CAN counters
+- Auto-refresh every **30 s** via `<meta http-equiv="refresh" content="30">`
 - Dark + cards UI: background `#161b22`, cards `#21262d`, accent `#58a6ff`
+- CSS embedded via `generate_inc_file_for_target()` in `CMakeLists.txt`:
+
+```cmake
+generate_inc_file_for_target(app
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/http/dashboard.css
+    ${CMAKE_CURRENT_BINARY_DIR}/dashboard.css.inc
+)
+```
 
 ```cpp
-K_THREAD_DEFINE(http_tid, 4096, http_server_thread, NULL, NULL, NULL, 10, 0, 0);
+K_THREAD_DEFINE(http_tid, 8192, http_server_thread, NULL, NULL, NULL, 10, 0, 0);
 ```
 
 **`prj.conf` additions for networking:**
@@ -310,7 +340,7 @@ CONFIG_NET_SOCKETS=y
 CONFIG_NET_SOCKETS_POSIX_NAMES=y
 CONFIG_NET_CONFIG_SETTINGS=y
 CONFIG_NET_CONFIG_NEED_IPV4=y
-CONFIG_NET_CONFIG_MY_IPV4_ADDR="192.168.1.100"
+CONFIG_NET_CONFIG_MY_IPV4_ADDR="192.168.1.80"
 CONFIG_NET_CONFIG_MY_IPV4_NETMASK="255.255.255.0"
 CONFIG_NET_CONFIG_MY_IPV4_GW="192.168.1.1"
 CONFIG_ETH_STM32_HAL=y
@@ -325,8 +355,8 @@ RAM:    ~11 KB static / 1 MB
 ```
 
 **Verification:**
-- UART: `network mac` → `MAC: 02:00:5E:00:53:01`, `IP: 192.168.1.100`
-- Browser: `http://192.168.1.100` → dashboard auto-refreshing every 2 s
+- UART: `network mac` → `MAC: 02:00:5E:00:53:01`, `IP: 192.168.1.80`
+- Browser: `http://192.168.1.80` → dashboard auto-refreshing every 30 s
 - `kernel threads` shows `http_tid` prio 10, `led_tid` prio 12
 - All 3 LEDs changing pattern every 3 s
 
@@ -499,63 +529,112 @@ Set `CONFIG_XCMG_CAN_LOOPBACK=n` and connect a **TCAN1042** or **SN65HVD230** tr
 | `sysworkq` | -1 | 1024 B | System workqueue |
 | `main` | 0 | 4096 B | Boot + idle sleep |
 | **`can_rx_tid`** | **3** | **1024 B** | **`can/can_rx.cpp`** |
-| sim *(Phase 4)* | 5 | 16384 B | Plant loop — not yet |
-| `http_tid` | 10 | 4096 B | `http_server.cpp` |
-| `led_tid` | 12 | 512 B | `led_task.cpp` |
+| `plant_tid` *(Phase 4)* | 5 | 16384 B | Plant loop — added in Phase 4 |
+| `http_tid` | 10 | 8192 B | `http/http_server.cpp` |
+| `led_tid` | 12 | 512 B | `led/led_task.cpp` |
 | `shell_uart` | 14 | 4096 B | UART shell |
 | `logging` | 14 | 1024 B | LOG backend |
 | `idle` | 15 | 320 B | Zephyr idle |
 
 ---
 
-## Phase 4 — Plant Loop + CAN TX ← NEXT
+## Phase 4 — Plant Loop + CAN TX ✅
 
-**Goal:** Full 10 ms plant step running on-MCU, sensor frames broadcasting on FDCAN1.
+**Goal:** Full 10 ms plant step running on-MCU, sensor frames broadcasting on FDCAN1, web dashboard with live controls.
+
+### What was implemented
+
+| File | Role |
+|------|------|
+| `zephyr/src/plant/plant_thread.cpp` | 10 ms timer-driven plant loop + CAN watchdog + brake diagnostics |
+| `zephyr/src/plant/plant_model_zephyr.cpp` | `PlantModel` constructor: XCMG XDE320 parameters, Dugoff tyre config |
+| `zephyr/src/can/can_tx.cpp` | Pack all 15 TX frames from `PlantState` and call `can_send()` |
+| `zephyr/src/http/http_cmd.cpp` | Added web command injection (query-string → `g_cmd`) |
+| `zephyr/src/http/http_page.cpp` | Added Controls card, Kernel Threads panel, live plant values |
+| `zephyr/src/shell/debug_cmds.cpp` | Added `plant inject <steer> <torque> <brake>` shell command |
 
 ### Timer-driven plant thread
 
 ```cpp
-K_TIMER_DEFINE(plant_timer, plant_timer_expiry, NULL);
+// plant/plant_thread.cpp — prio 5, 16384 B stack
 K_SEM_DEFINE(plant_sem, 0, 1);
-
 static void plant_timer_expiry(struct k_timer*) { k_sem_give(&plant_sem); }
-
+K_TIMER_DEFINE(plant_timer, plant_timer_expiry, NULL);
 K_THREAD_DEFINE(plant_tid, 16384, plant_thread, NULL, NULL, NULL, 5, 0, 0);
 
 static void plant_thread(void*, void*, void*) {
+    LOG_INF("[plant] XCMG XDE320 plant thread started (dt=10 ms, prio=5)");
     k_timer_start(&plant_timer, K_MSEC(10), K_MSEC(10));
+
     while (true) {
         k_sem_take(&plant_sem, K_FOREVER);
-        double t = k_uptime_get_32() / 1000.0;
+        const double t_s = k_uptime_get_32() / 1000.0;
 
-        if ((t - g_last_rx_t) > CAN_RX_TIMEOUT_S) g_cmd.reset();
+        // CAN watchdog: zero command if no RX for 500 ms
+        sim::ActuatorCmd cmd;
+        k_mutex_lock(&g_cmd_mutex, K_FOREVER);
+        cmd = g_cmd;
+        k_mutex_unlock(&g_cmd_mutex);
+        if ((t_s - g_last_rx_t) > 0.5) {
+            cmd = sim::ActuatorCmd{};   // safe-mode: coast with no drive/brake
+        }
 
-        plant_model.step(g_state, g_cmd, 0.01);
-        sensor_bank.step(t, g_state, 0.01);
-        can_tx_pack_and_send 3(t, g_state, sensor_bank.get_output(t));
+        // Step physics (10 ms)
+        plant::PlantState local_state;
+        k_mutex_lock(&g_state_mutex, K_FOREVER);
+        local_state = g_state;
+        k_mutex_unlock(&g_state_mutex);
+
+        s_plant.step(local_state, cmd, DT_S);
+
+        k_mutex_lock(&g_state_mutex, K_FOREVER);
+        g_state = local_state;
+        k_mutex_unlock(&g_state_mutex);
+
+        // Brake diagnostics: log every 100 ms while brake > 1%
+        if (cmd.brake_cmd_pct > 1.0) { /* LOG_INF("[brk] ... "); */ }
+
+        // CAN TX: pack all sensor frames
+        can_tx_send_all(local_state, t_s, loop_us);
     }
 }
 ```
 
-### Thread Architecture (Phase 4 complete)
+### XCMG XDE320 plant parameters
+
+```cpp
+// plant/plant_model_zephyr.cpp
+p.drive.mass_kg              = 218000.0;      // 218 t
+p.drive.wheel_radius_m       = 1.93;
+p.drive.motor_torque_max_nm  = 145000.0;
+p.drive.motor_power_max_w    = 2013000.0;
+p.drive.gear_ratio           = 28.0;
+p.drive.drivetrain_eff       = 0.92;
+p.drive.brake_torque_max_nm  = 2500000.0;    // 2.5 MNm → ~0.6 g at full load
+p.drive.drag_c               = 1.85;
+p.drive.roll_c               = 9500.0;
+p.drive.v_max_mps            = 17.78;        // 64 km/h
+p.dynamic_config.enabled     = true;
+p.dynamic_config.surface_mu  = 0.72;         // compact gravel (default)
+```
+
+### Thread architecture (Phase 4 complete)
 
 ```mermaid
 graph TD
     TIMER["k_timer\n10 ms periodic"]
     SEM["k_sem\nplant_sem"]
-    PLANT["Plant Thread\nprio=5 stack=16KB"]
-    CANRX["CAN RX Thread\nprio=2 stack=2KB"]
-    HTTP["HTTP Thread\nprio=10 stack=4KB"]
-    LED["LED Thread\nprio=12 stack=512B"]
-    SHELL["Shell Thread\nprio=14 stack=4KB"]
-    LOGB["LOG Backend\nprio=14 stack=1KB"]
+    PLANT["plant_tid\nprio=5 stack=16KB"]
+    CANRX["can_rx_tid\nprio=3 stack=1KB"]
+    HTTP["http_tid\nprio=10 stack=8KB"]
+    LED["led_tid\nprio=12 stack=512B"]
+    SHELL["shell_uart\nprio=14 stack=4KB"]
     ISR["FDCAN1 RX ISR"]
     MSGQ["k_msgq\ncan_rx_msgq"]
     GCMD["g_cmd\nk_mutex"]
     GSTATE["g_state\nk_mutex"]
     FDTX["FDCAN1 TX"]
-    UART["USART3 DMA"]
-    ETH["Ethernet\n192.168.1.100"]
+    ETH["Ethernet\n192.168.1.80"]
     BUS["CAN Bus"]
 
     TIMER -->|k_sem_give| SEM
@@ -569,7 +648,6 @@ graph TD
     HTTP -->|read| GSTATE
     PLANT -->|can_send| FDTX
     FDTX --> BUS
-    LOGB -->|DMA| UART
     HTTP --> ETH
 ```
 
@@ -579,13 +657,62 @@ graph TD
 |---|---|
 | `steady_clock::now()` | `k_uptime_get_32()` (ms) |
 | `duration_cast<microseconds>` | `k_cycle_get_32()` + `k_cyc_to_us_ceil32()` |
-| `sleep_for(10ms)` | `k_msleep(10)` |
+| `sleep_for(10ms)` | `k_msleep(10)` (not used — timer-driven) |
 
-**Verification:** CAN analyzer on bus shows IMU/GNSS/WHEEL/BATT frames at correct rates (10–100 ms). `plant state` updates every call. Web dashboard shows live plant values.
+### Web dashboard — Phase 4 additions
+
+The HTTP dashboard was extended with two new cards:
+
+**Controls card** — one-click quick actions and a manual inject form (no JavaScript):
+- `■ STOP` — sets `brake=100`, `gear=N`, `torque=0`
+- `▶ Drive FWD` / `◀ Drive REV` — 50 000 Nm traction
+- `← -5°` / `+5° →` — incremental steer (clamped ±45°)
+- Manual form: steer, torque, brake, gear, enable; submitted via HTTP GET
+
+**Kernel Threads card** — uses `k_thread_foreach()` to display all threads with stack usage:
+```cpp
+k_thread_foreach(collect_thread_cb, nullptr);  // fills s_threads[]
+```
+
+### CAN watchdog / safe-mode
+
+If no `ACTUATOR_CMD_1` is received for **500 ms**, the plant thread substitutes a zeroed `ActuatorCmd` (no torque, no brake, neutral gear). This prevents the vehicle from running away if the controller disconnects. The `g_can_timeout_count` counter is visible on the dashboard under _CAN Stats_.
+
+### Brake diagnostics logging
+
+Every 100 ms while braking (`brake_cmd_pct > 1`), the plant thread emits:
+```
+[brk] t=12.34 vx=8.320 a=-5.91 Fx=-1291kN tau=-2500kNm mode=dyn
+[brk] omega FL=4.31 FR=4.31 RL=4.31 RR=4.31 ref=4.31 rad/s
+```
+This lets you verify that the Dugoff model is building slip correctly and that `a_long` matches the expected `~0.6 g` braking.
+
+### Updated thread table (end of Phase 4)
+
+| Thread | Priority | Stack | Source |
+|--------|----------|-------|--------|
+| `stm_eth` | -14 | 1536 B | STM32 Ethernet HAL |
+| `tcp_work` | -14 | 1024 B | Zephyr TCP stack |
+| `rx_q[0]` | -1 | 1536 B | Network RX queue |
+| `sysworkq` | -1 | 1024 B | System workqueue |
+| `main` | 0 | 4096 B | Boot + idle sleep |
+| **`can_rx_tid`** | **3** | **1024 B** | **`can/can_rx.cpp`** |
+| **`plant_tid`** | **5** | **16384 B** | **`plant/plant_thread.cpp`** |
+| `http_tid` | 10 | 8192 B | `http/http_server.cpp` |
+| `led_tid` | 12 | 512 B | `led/led_task.cpp` |
+| `shell_uart` | 14 | 4096 B | UART shell |
+| `logging` | 14 | 1024 B | LOG backend |
+| `idle` | 15 | 320 B | Zephyr idle |
+
+**Verification:**
+- `plant state` shell command shows live `vx`, `yaw`, `SOC`, wheel speeds, Fx
+- CAN analyzer on bus shows IMU/GNSS/WHEEL/BATT/VEHICLE frames at 5–100 ms rates
+- Dashboard at `http://192.168.1.80` updates plant values; STOP/FWD/REV buttons work
+- Brake logging on UART: `a ≈ -5.9 m/s²` (≈ 0.6 g) when `brake=100` at speed
 
 ---
 
-## Phase 5 — RAM / Flash Audit
+## Phase 5 — RAM / Flash Audit ← NEXT
 
 **Goal:** Confirm the full build fits comfortably and heap is not exhausted at runtime.
 
@@ -669,10 +796,10 @@ graph LR
 graph TD
     P0["✅ Phase 0\nWest workspace\nBoard boots"]
     P1["✅ Phase 1\nLogging + Shell\n+ LEDs + HTTP dashboard"]
-    P2["⬅ Phase 2\nStatic CAN Map\nDBC to constexpr"]
-    P3["Phase 3\nFDCAN1 open\nRX / TX verified"]
-    P4["Phase 4\nPlant loop 10 ms\nSensor frames TX"]
-    P5["Phase 5\nRAM / Flash audit\nHeap tuned"]
+    P2["✅ Phase 2\nStatic CAN Map\nDBC to constexpr"]
+    P3["✅ Phase 3\nFDCAN1 open\nRX / TX verified"]
+    P4["✅ Phase 4\nPlant loop 10 ms\nSensor frames TX\nWeb controls"]
+    P5["⬅ Phase 5\nRAM / Flash audit\nHeap tuned"]
     DONE["DONE\nDeployed on\nnucleo_h753zi"]
 
     P0 -->|"UART banner seen"| P1
