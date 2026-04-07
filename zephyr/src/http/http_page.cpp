@@ -11,8 +11,15 @@
 
 #include "plant/plant_main/plant_state.hpp"
 #include "sim/actuator_cmd.hpp"
+#include "http_html.hpp"
 
 LOG_MODULE_DECLARE(xcmg_sim, LOG_LEVEL_INF);
+
+// CSS embedded from dashboard.css at build time via generate_inc_file_for_target()
+static const char kDashboardCss[] = {
+#include "dashboard.css.inc"
+    '\0'
+};
 
 // ── Shared globals (defined in main.cpp) ─────────────────────────────────────
 extern plant::PlantState    g_state;
@@ -108,56 +115,12 @@ void send_page(int fd)
 {
     char buf[512];
 
-    // HTTP header
-    send_str(fd,
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Type: text/html; charset=utf-8\r\n"
-        "Connection: close\r\n"
-        "\r\n"
-    );
-
-    // HTML head + global styles
-    send_str(fd,
-        "<!DOCTYPE html><html lang='en'><head>"
-        "<meta charset='utf-8'>"
-        "<meta http-equiv='refresh' content='2'>"
-        "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        "<title>XCMG XDE320 &mdash; Simulator</title>"
-        "<style>"
-        "*{box-sizing:border-box;margin:0;padding:0}"
-        "body{background:#161b22;color:#e6edf3;font-family:monospace;font-size:14px;padding:16px}"
-        "h1{font-size:18px;font-weight:600;color:#58a6ff}"
-        "h2{font-size:13px;font-weight:600;color:#58a6ff;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em}"
-        ".header{display:flex;align-items:center;gap:16px;padding:12px 16px;background:#21262d;border-radius:8px;margin-bottom:16px}"
-        ".badge{background:#1a7f37;color:#fff;font-size:11px;padding:2px 8px;border-radius:12px}"
-        ".meta{color:#8b949e;font-size:12px}"
-        ".grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}"
-        ".card{background:#21262d;border-radius:8px;padding:14px;margin-bottom:12px}"
-        "table{width:100%;border-collapse:collapse}"
-        "td{padding:3px 0;vertical-align:top}"
-        "td:first-child{color:#8b949e;width:52%;padding-right:8px}"
-        "td:last-child{color:#e6edf3;font-weight:500}"
-        ".val-hi{color:#3fb950}"
-        ".val-warn{color:#d29922}"
-    );
-    send_str(fd,
-        ".btn{display:inline-block;padding:6px 14px;border-radius:6px;font-family:monospace;"
-        "font-size:13px;font-weight:600;text-decoration:none;border:none;cursor:pointer;margin:3px 2px}"
-        ".btn-stop{background:#da3633;color:#fff}"
-        ".btn-fwd{background:#238636;color:#fff}"
-        ".btn-rev{background:#1f6feb;color:#fff}"
-        ".btn-steer{background:#30363d;color:#e6edf3;border:1px solid #444}"
-        ".btn-inject{background:#1f6feb;color:#fff;padding:7px 20px}"
-        "label{color:#8b949e;font-size:12px;margin-right:4px}"
-        "input[type=number],select{"
-        "background:#0d1117;color:#e6edf3;border:1px solid #30363d;"
-        "border-radius:4px;padding:4px 6px;font-family:monospace;font-size:13px;"
-        "width:100px;margin-right:12px}"
-        "select{width:auto}"
-        "input[type=checkbox]{margin-right:4px;vertical-align:middle}"
-        ".ctrl-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:8px}"
-        "</style></head><body>"
-    );
+    // HTTP header + <head> + <style> open tag
+    send_str(fd, kHtmlHead);
+    // Embedded CSS from dashboard.css (built via generate_inc_file_for_target)
+    send_str(fd, kDashboardCss);
+    // </style></head><body>
+    send_str(fd, kHtmlStyleClose);
 
     // Snapshot shared state
     plant::PlantState s{};
@@ -333,21 +296,7 @@ void send_page(int fd)
     // Kernel threads card
     send_threads_card(fd);
 
-    // Full-width vehicle info card
-    send_str(fd,
-        "<div class='card'>"
-        "<h2>Vehicle &mdash; XCMG XDE320 Electric</h2>"
-        "<table><tr>"
-        "<td>Mass</td><td>218 000 kg (218 t)</td>"
-        "<td>Motor power</td><td>2 013 kW</td>"
-        "<td>Motor torque</td><td>145 000 Nm</td>"
-        "</tr><tr>"
-        "<td>Battery</td><td>1 650 kWh</td>"
-        "<td>Max speed</td><td>17.8 m/s (64 km/h)</td>"
-        "<td>Gear ratio</td><td>28.0</td>"
-        "</tr></table>"
-        "</div>"
-    );
-
-    send_str(fd, "</body></html>");
+    // Vehicle info card (static — defined in http_html.hpp)
+    send_str(fd, kVehicleCard);
+    send_str(fd, kHtmlFoot);
 }

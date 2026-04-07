@@ -40,12 +40,19 @@ list(APPEND APP_SRCS
 
 target_sources(app PRIVATE ${APP_SRCS})
 
+# Embed dashboard CSS at build time — converts dashboard.css → dashboard.css.inc
+generate_inc_file_for_target(app
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/http/dashboard.css
+    ${CMAKE_CURRENT_BINARY_DIR}/dashboard.css.inc
+)
+
 target_include_directories(app PRIVATE
     ${REPO_ROOT}          # needed for #include "utils/logging.hpp"
     ${REPO_ROOT}/src
     ${REPO_ROOT}/src/plant   # "tyre_models/tyre_dugoff.hpp" etc.
     ${REPO_ROOT}/utils
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/http     # http_internal.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/http     # http_internal.hpp, http_html.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cpp_compat   # std::min/max/clamp/cmath shims (-nostdinc++)
+    ${CMAKE_CURRENT_BINARY_DIR}              # dashboard.css.inc
 )
