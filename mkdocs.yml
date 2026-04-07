@@ -1,4 +1,5 @@
 site_name: XCMG XDE320 — Vehicle Dynamics Simulator
+site_url: https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/
 site_description: Documentation for the XCMG XDE320 electric haul truck simulator, covering physics models, CAN architecture, and the Zephyr RTOS HIL port.
 site_author: Mario Tilocca
 docs_dir: docs
