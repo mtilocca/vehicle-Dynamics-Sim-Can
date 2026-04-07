@@ -26,6 +26,7 @@ list(APPEND APP_SRCS
     src/http/http_server.cpp
     src/http/http_cmd.cpp
     src/http/http_page.cpp
+    src/http/http_session.cpp
 )
 
 # Phase 3: CAN RX thread
