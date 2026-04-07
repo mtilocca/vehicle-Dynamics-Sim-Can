@@ -320,37 +320,37 @@ The cusp maneuver drives the vehicle forward to a target speed, brakes to a comp
 
 ### Dugoff Tire Model — Slalom Maneuver
 
-![Dugoff tyre dynamics](plots/Figure_2_Tyre_Dynamics_Dugoff_Model.png)
+![Dugoff slalom trajectory — friction-limited tire forces and load transfer effects](plots/Dugoff_trajetcory_slalom.png)
 
 > Dynamic tire model during aggressive slalom — trajectory tracking with friction-limited tire forces and load transfer effects.
 
 ### Tire Force Analysis
 
-![Combined slip analysis](plots/Figure_5_Combined_Slip_Analysis.png)
+![Dugoff tire forces — longitudinal/lateral forces, slip ratios, friction utilization, friction circles](plots/Dugoff_tyre_forces.png)
 
 > Longitudinal/lateral forces, slip ratios, friction utilization (λ), and friction circles for front/rear axles.
 
 ### Slalom Maneuver (Open-Loop)
 
-![Vehicle dynamics — 3-DOF lateral dynamics](plots/Figure_3_3_DOF_Lateral_Dynamics.png)
+![Slalom vehicle dynamics — trajectory, battery, regenerative braking](plots/slalom_vehicle_dynamics.png)
 
 > Aggressive steering with acceleration/braking — trajectory tracking, battery dynamics, and regenerative braking.
 
 ### Closed-Loop Control Performance
 
-![Vehicle dynamics — battery and energy model](plots/Figure_1_vehicle_dynamics_battery.png)
+![Closed-loop control — CAN actuator commands and sensor feedback](plots/Closed_loop_vehicle_dynamics.png)
 
 > C++ bang-bang speed controller commanding the simulator via CAN — bidirectional communication with actuator commands and sensor feedback.
 
 ### Heavy Truck MPC Control
 
-![Wheel torque distribution](plots/Figure_4_Wheel_Torque_Distribution.png)
+![Heavy truck MPC slalom — 220-ton mining truck with Model Predictive Control](plots/Heavy_truck_mpc_slalom.png)
 
 > 220-ton mining truck with Model Predictive Control during slalom — validates heavy vehicle dynamics and advanced control algorithms.
 
 ### Real-Time InfluxDB Dashboard
 
-![Battery and sensor analysis](plots/battery_wheel_sensors.png)
+![InfluxDB dashboard — live telemetry: position, velocity, battery, sensors](plots/influxdb_dashboard_example.png)
 
 > Live telemetry showing vehicle position, velocity, battery state, and sensor measurements updating in real-time during simulation.
 
@@ -527,10 +527,10 @@ friction_util = data['lambda_rl'].values
 
 Comprehensive documentation is available in the `docs/` directory:
 
-- **[VEHICLE_DYNAMICS.md](VEHICLE_DYNAMICS.md)** - Mathematical models, coordinate systems, kinematic equations
-- **[vehicle_dynamics_dugoff_model.pdf](pdfs/Vehicle Dynamics, Battery, and Sensor Models (Dugoff Tire + Sensor Simulation).pdf)** - Dugoff tire model theory (LaTeX)
-- **[SENSOR_SYSTEM.md](SENSOR_SYSTEM.md)** - Sensor noise models, CAN encoding, ML data preparation
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Visitor pattern, subsystem design, extensibility guide
+- **[VEHICLE_DYNAMICS.md](docs/VEHICLE_DYNAMICS.md)** - Mathematical models, coordinate systems, kinematic equations
+- **[vehicle_dynamics_dugoff_model.pdf](docs/vehicle_dynamics_dugoff_model.pdf)** - Dugoff tire model theory (LaTeX)
+- **[SENSOR_SYSTEM.md](docs/SENSOR_SYSTEM.md)** - Sensor noise models, CAN encoding, ML data preparation
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Visitor pattern, subsystem design, extensibility guide
 
 ---
 
@@ -637,8 +637,8 @@ Dashboard: `http://192.168.1.80`
 
 ### Documentation
 
-- [`zephyr/ZEPHYR_PORT.md`](zephyr/ZEPHYR_PORT.md) — full port guide (Phases 0–5)
-- [`pdfs/RTOS_Implementation.pdf`](pdfs/RTOS_Implementation.pdf) — in-depth architecture with flowcharts
+- [`docs/zephyr/ZEPHYR_PORT.md`](docs/zephyr/ZEPHYR_PORT.md) — full port guide (Phases 0–5)
+- [`docs/zephyr/RTOS_Implementation.tex`](docs/zephyr/RTOS_Implementation.tex) — in-depth architecture with flowcharts
 
 ---
 

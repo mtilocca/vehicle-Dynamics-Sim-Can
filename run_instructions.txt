@@ -6,7 +6,7 @@ west flash
 
 picocom -b 115200 /dev/ttyACM0
 
-
+# created docs site 
 
 # Terminal 1: Start simulation (real-time mode)
 ./build/src/sim/sim_main config/scenarios/slalom.json
