@@ -73,4 +73,3 @@ zephyr/build/
 
 # MkDocs build output
 site/
-docs/index.md
