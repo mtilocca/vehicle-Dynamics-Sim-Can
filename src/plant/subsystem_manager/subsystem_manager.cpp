@@ -76,12 +76,8 @@ void SubsystemManager::sort_by_priority() {
     }
 }
 
-} // namespace plant
-
 #else
 // ── Host implementation (unique_ptr vector) ───────────────────────────────────
-
-namespace plant {
 
 void SubsystemManager::register_subsystem(std::unique_ptr<PhysicsSubsystem> subsystem) {
     if (!subsystem) {
@@ -189,5 +185,6 @@ void SubsystemManager::sort_by_priority() {
     }
 }
 
-} // namespace plant
 #endif // __ZEPHYR__
+
+} // namespace plant

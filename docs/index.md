@@ -553,6 +553,7 @@ Comprehensive documentation is available in the `docs/` directory:
 
 ### Near-Term
 
+- [ ] **DDS closed-loop control** — Fast-DDS / CycloneDDS middleware for deterministic real-time command/feedback between host controller and HIL node
 - [ ] Grafana dashboard templates for live telemetry
 - [ ] Multi-target radar tracking
 - [ ] Lua scenario scripting for cusp/reverse maneuvers
