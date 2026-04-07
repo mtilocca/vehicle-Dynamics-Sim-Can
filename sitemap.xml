@@ -1,3 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/</loc>
+         <lastmod>2026-04-07</lastmod>
+    </url>
+    <url>
+         <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/ARCHITECTURE/</loc>
+         <lastmod>2026-04-07</lastmod>
+    </url>
+    <url>
+         <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/SENSOR_SYSTEM/</loc>
+         <lastmod>2026-04-07</lastmod>
+    </url>
+    <url>
+         <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/VEHICLE_DYNAMICS/</loc>
+         <lastmod>2026-04-07</lastmod>
+    </url>
+    <url>
+         <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr/ZEPHYR_BUILD_FLASH_UART/</loc>
+         <lastmod>2026-04-07</lastmod>
+    </url>
+    <url>
+         <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr/ZEPHYR_PORT/</loc>
+         <lastmod>2026-04-07</lastmod>
+    </url>
+    <url>
+         <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr/ZEPHYR_RPI5_SETUP/</loc>
+         <lastmod>2026-04-07</lastmod>
+    </url>
 </urlset>
