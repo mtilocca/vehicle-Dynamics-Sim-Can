@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Documentation for the XCMG XDE320 electric haul truck simulator, covering physics models, CAN architecture, and the Zephyr RTOS HIL port.">
+        <meta name="description" content="High-fidelity vehicle dynamics simulation for electric autonomous vehicles — physics models, CAN bus integration, and Zephyr RTOS HIL port.">
       
       
         <meta name="author" content="Mario Tilocca">
@@ -15,10 +15,6 @@
         <link rel="canonical" href="https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr/ZEPHYR_BUILD_FLASH_UART/">
       
       
-        <link rel="prev" href="../ZEPHYR_RPI5_SETUP/">
-      
-      
-        <link rel="next" href="../../pdfs/3DOF_Vehicle_Dynamics_Implementation.pdf">
       
       
         
@@ -29,7 +25,7 @@
     
     
       
-        <title>Build, Flash & UART - XCMG XDE320 — Vehicle Dynamics Simulator</title>
+        <title>Zephyr — Build, Flash & UART Reference - XCMG XDE320 — Vehicle Dynamics Simulator</title>
       
     
     
@@ -112,7 +108,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Build, Flash & UART
+              Zephyr — Build, Flash &amp; UART Reference
             
           </span>
         </div>
@@ -206,33 +202,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../VEHICLE_DYNAMICS/" class="md-tabs__link">
+        <a href="../../models_overview/" class="md-tabs__link">
           
   
   
-  Physics Models
-
-        </a>
-      </li>
-    
-  
-
-      
-        
-  
-  
-  
-    
-  
-  
-    
-    
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../ZEPHYR_PORT/" class="md-tabs__link">
-          
-  
-  
-  Zephyr RTOS Port
+  Simulation Models
 
         </a>
       </li>
@@ -248,7 +222,27 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../pdfs/3DOF_Vehicle_Dynamics_Implementation.pdf" class="md-tabs__link">
+        <a href="../../zephyr_overview/" class="md-tabs__link">
+          
+  
+  
+  Zephyr HIL Port
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../pdfs/" class="md-tabs__link">
           
   
   
@@ -350,7 +344,7 @@
   <span class="md-ellipsis">
     
   
-    Physics Models
+    Simulation Models
   
 
     
@@ -366,7 +360,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Physics Models
+    Simulation Models
   
 
           </label>
@@ -379,14 +373,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../VEHICLE_DYNAMICS/" class="md-nav__link">
+      <a href="../../models_overview/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Vehicle Dynamics
+    Overview
   
 
     
@@ -407,42 +401,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ARCHITECTURE/" class="md-nav__link">
+      <a href="../../sensor_public/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Architecture & Subsystems
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../SENSOR_SYSTEM/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Sensor System
+    Sensor Suite
   
 
     
@@ -467,38 +433,33 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
     
   
-    Zephyr RTOS Port
+    Zephyr HIL Port
   
 
     
@@ -509,12 +470,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Zephyr RTOS Port
+    Zephyr HIL Port
   
 
           </label>
@@ -527,14 +488,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../ZEPHYR_PORT/" class="md-nav__link">
+      <a href="../../zephyr_overview/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Porting Guide
+    Overview
   
 
     
@@ -543,214 +504,6 @@
   
 
       </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ZEPHYR_RPI5_SETUP/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    RPi5 Setup
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Build, Flash & UART
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Build, Flash & UART
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Prerequisites
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#build" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Build
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#flash" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Flash
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#serial-monitor-uart-shell" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Serial Monitor (UART Shell)
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Serial Monitor (UART Shell)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#if-the-port-is-busy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        If the port is busy
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#if-you-are-not-in-the-dialout-plugdev-group" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        If you are not in the dialout / plugdev group
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#shell-commands" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Shell Commands
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#troubleshooting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Troubleshooting
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#quick-reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quick Reference
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -822,70 +575,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../pdfs/3DOF_Vehicle_Dynamics_Implementation.pdf" class="md-nav__link">
+      <a href="../../pdfs/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    3DOF Vehicle Dynamics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../pdfs/Dugoff_Tyre_Sensor_Models.pdf" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Dugoff Tyre & Sensor Models
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../pdfs/RTOS_Implementation.pdf" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    RTOS Implementation
+    Overview
   
 
     

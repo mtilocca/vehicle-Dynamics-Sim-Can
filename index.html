@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Documentation for the XCMG XDE320 electric haul truck simulator, covering physics models, CAN architecture, and the Zephyr RTOS HIL port.">
+        <meta name="description" content="High-fidelity vehicle dynamics simulation for electric autonomous vehicles — physics models, CAN bus integration, and Zephyr RTOS HIL port.">
       
       
         <meta name="author" content="Mario Tilocca">
@@ -16,7 +16,7 @@
       
       
       
-        <link rel="next" href="VEHICLE_DYNAMICS/">
+        <link rel="next" href="models_overview/">
       
       
         
@@ -206,11 +206,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="VEHICLE_DYNAMICS/" class="md-tabs__link">
+        <a href="models_overview/" class="md-tabs__link">
           
   
   
-  Physics Models
+  Simulation Models
 
         </a>
       </li>
@@ -226,11 +226,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="zephyr/ZEPHYR_PORT/" class="md-tabs__link">
+        <a href="zephyr_overview/" class="md-tabs__link">
           
   
   
-  Zephyr RTOS Port
+  Zephyr HIL Port
 
         </a>
       </li>
@@ -246,7 +246,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="pdfs/3DOF_Vehicle_Dynamics_Implementation.pdf" class="md-tabs__link">
+        <a href="pdfs/" class="md-tabs__link">
           
   
   
@@ -1228,7 +1228,7 @@
   <span class="md-ellipsis">
     
   
-    Physics Models
+    Simulation Models
   
 
     
@@ -1244,7 +1244,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Physics Models
+    Simulation Models
   
 
           </label>
@@ -1257,14 +1257,14 @@
   
   
     <li class="md-nav__item">
-      <a href="VEHICLE_DYNAMICS/" class="md-nav__link">
+      <a href="models_overview/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Vehicle Dynamics
+    Overview
   
 
     
@@ -1285,42 +1285,14 @@
   
   
     <li class="md-nav__item">
-      <a href="ARCHITECTURE/" class="md-nav__link">
+      <a href="sensor_public/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Architecture & Subsystems
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="SENSOR_SYSTEM/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Sensor System
+    Sensor Suite
   
 
     
@@ -1371,7 +1343,7 @@
   <span class="md-ellipsis">
     
   
-    Zephyr RTOS Port
+    Zephyr HIL Port
   
 
     
@@ -1387,7 +1359,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Zephyr RTOS Port
+    Zephyr HIL Port
   
 
           </label>
@@ -1400,70 +1372,14 @@
   
   
     <li class="md-nav__item">
-      <a href="zephyr/ZEPHYR_PORT/" class="md-nav__link">
+      <a href="zephyr_overview/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Porting Guide
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="zephyr/ZEPHYR_RPI5_SETUP/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    RPi5 Setup
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="zephyr/ZEPHYR_BUILD_FLASH_UART/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Build, Flash & UART
+    Overview
   
 
     
@@ -1543,70 +1459,14 @@
   
   
     <li class="md-nav__item">
-      <a href="pdfs/3DOF_Vehicle_Dynamics_Implementation.pdf" class="md-nav__link">
+      <a href="pdfs/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    3DOF Vehicle Dynamics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="pdfs/Dugoff_Tyre_Sensor_Models.pdf" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Dugoff Tyre & Sensor Models
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="pdfs/RTOS_Implementation.pdf" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    RTOS Implementation
+    Overview
   
 
     
@@ -2813,32 +2673,32 @@
 </blockquote>
 <hr />
 <h3 id="dugoff-tire-model-slalom-maneuver">Dugoff Tire Model — Slalom Maneuver<a class="headerlink" href="#dugoff-tire-model-slalom-maneuver" title="Permanent link">&para;</a></h3>
-<p><img alt="Dugoff slalom trajectory — friction-limited tire forces and load transfer effects" src="plots/Dugoff_trajetcory_slalom.png" /></p>
+<p><img alt="Dugoff slalom trajectory — friction-limited tire forces and load transfer effects" src="plots/Figure_2_Tyre_Dynamics_Dugoff_Model.png" /></p>
 <blockquote>
 <p>Dynamic tire model during aggressive slalom — trajectory tracking with friction-limited tire forces and load transfer effects.</p>
 </blockquote>
 <h3 id="tire-force-analysis">Tire Force Analysis<a class="headerlink" href="#tire-force-analysis" title="Permanent link">&para;</a></h3>
-<p><img alt="Dugoff tire forces — longitudinal/lateral forces, slip ratios, friction utilization, friction circles" src="plots/Dugoff_tyre_forces.png" /></p>
+<p><img alt="Dugoff tire forces — longitudinal/lateral forces, slip ratios, friction utilization, friction circles" src="plots/Figure_5_Combined_Slip_Analysis.png" /></p>
 <blockquote>
 <p>Longitudinal/lateral forces, slip ratios, friction utilization (λ), and friction circles for front/rear axles.</p>
 </blockquote>
 <h3 id="slalom-maneuver-open-loop">Slalom Maneuver (Open-Loop)<a class="headerlink" href="#slalom-maneuver-open-loop" title="Permanent link">&para;</a></h3>
-<p><img alt="Slalom vehicle dynamics — trajectory, battery, regenerative braking" src="plots/slalom_vehicle_dynamics.png" /></p>
+<p><img alt="Slalom vehicle dynamics — trajectory, battery, regenerative braking" src="plots/Figure_3_3_DOF_Lateral_Dynamics.png" /></p>
 <blockquote>
 <p>Aggressive steering with acceleration/braking — trajectory tracking, battery dynamics, and regenerative braking.</p>
 </blockquote>
 <h3 id="closed-loop-control-performance">Closed-Loop Control Performance<a class="headerlink" href="#closed-loop-control-performance" title="Permanent link">&para;</a></h3>
-<p><img alt="Closed-loop control — CAN actuator commands and sensor feedback" src="plots/Closed_loop_vehicle_dynamics.png" /></p>
+<p><img alt="Closed-loop control — CAN actuator commands and sensor feedback" src="plots/Figure_1_vehicle_dynamics_battery.png" /></p>
 <blockquote>
 <p>C++ bang-bang speed controller commanding the simulator via CAN — bidirectional communication with actuator commands and sensor feedback.</p>
 </blockquote>
 <h3 id="heavy-truck-mpc-control">Heavy Truck MPC Control<a class="headerlink" href="#heavy-truck-mpc-control" title="Permanent link">&para;</a></h3>
-<p><img alt="Heavy truck MPC slalom — 220-ton mining truck with Model Predictive Control" src="plots/Heavy_truck_mpc_slalom.png" /></p>
+<p><img alt="Heavy truck MPC slalom — 220-ton mining truck with Model Predictive Control" src="plots/Figure_4_Wheel_Torque_Distribution.png" /></p>
 <blockquote>
 <p>220-ton mining truck with Model Predictive Control during slalom — validates heavy vehicle dynamics and advanced control algorithms.</p>
 </blockquote>
 <h3 id="real-time-influxdb-dashboard">Real-Time InfluxDB Dashboard<a class="headerlink" href="#real-time-influxdb-dashboard" title="Permanent link">&para;</a></h3>
-<p><img alt="InfluxDB dashboard — live telemetry: position, velocity, battery, sensors" src="plots/influxdb_dashboard_example.png" /></p>
+<p><img alt="InfluxDB dashboard — live telemetry: position, velocity, battery, sensors" src="plots/battery_wheel_sensors.png" /></p>
 <blockquote>
 <p>Live telemetry showing vehicle position, velocity, battery state, and sensor measurements updating in real-time during simulation.</p>
 </blockquote>
@@ -3167,10 +3027,10 @@
 <h2 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">&para;</a></h2>
 <p>Comprehensive documentation is available in the <code>docs/</code> directory:</p>
 <ul>
-<li><strong><a href="docs/VEHICLE_DYNAMICS.md">VEHICLE_DYNAMICS.md</a></strong> - Mathematical models, coordinate systems, kinematic equations</li>
-<li><strong><a href="docs/vehicle_dynamics_dugoff_model.pdf">vehicle_dynamics_dugoff_model.pdf</a></strong> - Dugoff tire model theory (LaTeX)</li>
-<li><strong><a href="docs/SENSOR_SYSTEM.md">SENSOR_SYSTEM.md</a></strong> - Sensor noise models, CAN encoding, ML data preparation</li>
-<li><strong><a href="docs/ARCHITECTURE.md">ARCHITECTURE.md</a></strong> - Visitor pattern, subsystem design, extensibility guide</li>
+<li><strong><a href="models_overview/">VEHICLE_DYNAMICS.md</a></strong> - Mathematical models, coordinate systems, kinematic equations</li>
+<li><strong><a href="pdfs/">vehicle_dynamics_dugoff_model.pdf</a></strong> - Dugoff tire model theory (LaTeX)</li>
+<li><strong><a href="sensor_public/">SENSOR_SYSTEM.md</a></strong> - Sensor noise models, CAN encoding, ML data preparation</li>
+<li><strong><a href="models_overview/">ARCHITECTURE.md</a></strong> - Visitor pattern, subsystem design, extensibility guide</li>
 </ul>
 <hr />
 <h2 id="future-roadmap">Future Roadmap<a class="headerlink" href="#future-roadmap" title="Permanent link">&para;</a></h2>
@@ -3291,8 +3151,8 @@
 <p>Dashboard: <code>http://192.168.1.80</code></p>
 <h3 id="documentation_1">Documentation<a class="headerlink" href="#documentation_1" title="Permanent link">&para;</a></h3>
 <ul>
-<li><a href="docs/zephyr/ZEPHYR_PORT.md"><code>docs/zephyr/ZEPHYR_PORT.md</code></a> — full port guide (Phases 0–5)</li>
-<li><a href="docs/zephyr/RTOS_Implementation.tex"><code>docs/zephyr/RTOS_Implementation.tex</code></a> — in-depth architecture with flowcharts</li>
+<li><a href="zephyr_overview/"><code>zephyr_overview.md</code></a> — full port guide (Phases 0–5)</li>
+<li><a href="pdfs/"><code>pdfs/index.md</code></a> — in-depth architecture with flowcharts</li>
 </ul>
 <hr />
 <h2 id="performance-metrics">Performance Metrics<a class="headerlink" href="#performance-metrics" title="Permanent link">&para;</a></h2>

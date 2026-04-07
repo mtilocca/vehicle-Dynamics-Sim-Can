@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Documentation for the XCMG XDE320 electric haul truck simulator, covering physics models, CAN architecture, and the Zephyr RTOS HIL port.">
+        <meta name="description" content="High-fidelity vehicle dynamics simulation for electric autonomous vehicles — physics models, CAN bus integration, and Zephyr RTOS HIL port.">
       
       
         <meta name="author" content="Mario Tilocca">
@@ -15,10 +15,6 @@
         <link rel="canonical" href="https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/ARCHITECTURE/">
       
       
-        <link rel="prev" href="../VEHICLE_DYNAMICS/">
-      
-      
-        <link rel="next" href="../SENSOR_SYSTEM/">
       
       
         
@@ -29,7 +25,7 @@
     
     
       
-        <title>Architecture & Subsystems - XCMG XDE320 — Vehicle Dynamics Simulator</title>
+        <title>Plant Architecture & Subsystem Design - XCMG XDE320 — Vehicle Dynamics Simulator</title>
       
     
     
@@ -112,7 +108,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Architecture & Subsystems
+              Plant Architecture &amp; Subsystem Design
             
           </span>
         </div>
@@ -202,17 +198,15 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../VEHICLE_DYNAMICS/" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../models_overview/" class="md-tabs__link">
           
   
   
-  Physics Models
+  Simulation Models
 
         </a>
       </li>
@@ -228,11 +222,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="../zephyr/ZEPHYR_PORT/" class="md-tabs__link">
+        <a href="../zephyr_overview/" class="md-tabs__link">
           
   
   
-  Zephyr RTOS Port
+  Zephyr HIL Port
 
         </a>
       </li>
@@ -248,7 +242,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../pdfs/3DOF_Vehicle_Dynamics_Implementation.pdf" class="md-tabs__link">
+        <a href="../pdfs/" class="md-tabs__link">
           
   
   
@@ -324,38 +318,33 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
     
   
-    Physics Models
+    Simulation Models
   
 
     
@@ -366,12 +355,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Physics Models
+    Simulation Models
   
 
           </label>
@@ -384,14 +373,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../VEHICLE_DYNAMICS/" class="md-nav__link">
+      <a href="../models_overview/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Vehicle Dynamics
+    Overview
   
 
     
@@ -400,770 +389,6 @@
   
 
       </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Architecture & Subsystems
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Architecture & Subsystems
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#table-of-contents" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Table of Contents
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Overview
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Overview">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#design-goals" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Design Goals
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#architectural-evolution" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Architectural Evolution
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#visitor-pattern-architecture" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Visitor Pattern Architecture
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Visitor Pattern Architecture">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#problem-statement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Problem Statement
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#pattern-overview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pattern Overview
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#implementation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Implementation
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Implementation">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-plantstate-with-visitor-interface" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. PlantState with Visitor Interface
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-fieldvisitor-type-erasing-wrapper" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. FieldVisitor (Type-Erasing Wrapper)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-usage-in-plantstatepacker" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. Usage in PlantStatePacker
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#visitor-use-cases" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Visitor Use Cases
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Visitor Use Cases">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#use-case-1-can-frame-packing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Use Case 1: CAN Frame Packing
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#use-case-2-csv-logging" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Use Case 2: CSV Logging
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#use-case-3-debugging-output" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Use Case 3: Debugging Output
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#use-case-4-json-serialization-future" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Use Case 4: JSON Serialization (Future)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#subsystem-manager" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Subsystem Manager
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Subsystem Manager">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#architecture" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Architecture
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#physicssubsystem-interface" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        PhysicsSubsystem Interface
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#subsystemmanager-implementation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SubsystemManager Implementation
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#priority-guidelines" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Priority Guidelines
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#subsystem-implementations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Subsystem Implementations
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Subsystem Implementations">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-steersubsystem-priority-50" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. SteerSubsystem (Priority 50)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-drivesubsystem-priority-100" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. DriveSubsystem (Priority 100)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-batterysubsystem-priority-150" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. BatterySubsystem (Priority 150)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#dependency-injection" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Dependency Injection
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Dependency Injection">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#pattern-overview_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pattern Overview
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#implementation_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Implementation
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#dependency-graph" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Dependency Graph
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#extensibility-guide" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Extensibility Guide
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Extensibility Guide">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#adding-a-new-subsystem" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Adding a New Subsystem
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Adding a New Subsystem">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#example-thermalsubsystem" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example: ThermalSubsystem
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#future-subsystems-planned" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Future Subsystems (Planned)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#performance-considerations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Performance Considerations
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Performance Considerations">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#zero-overhead-abstractions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Zero-Overhead Abstractions
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#inline-optimizations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Inline Optimizations
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#cache-performance" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cache Performance
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#real-time-guarantees" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Real-Time Guarantees
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#testing-validation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Testing &amp; Validation
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Testing &amp; Validation">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#unit-tests" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Unit Tests
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#integration-tests" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Integration Tests
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#design-patterns-summary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Design Patterns Summary
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Design Patterns Summary">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-visitor-pattern" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Visitor Pattern
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-dependency-injection" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Dependency Injection
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-strategy-pattern-physicssubsystem" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. Strategy Pattern (PhysicsSubsystem)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#4-template-method-presteppost" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. Template Method (pre/step/post)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#5-priority-queue-implicit-in-manager" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5. Priority Queue (implicit in manager)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#future-enhancements" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Future Enhancements
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Future Enhancements">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#short-term" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Short-Term
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#medium-term" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Medium-Term
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#long-term" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Long-Term
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#references" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        References
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="References">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#design-patterns" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Design Patterns
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#c-best-practices" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        C++ Best Practices
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#real-time-systems" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Real-Time Systems
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1176,14 +401,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../SENSOR_SYSTEM/" class="md-nav__link">
+      <a href="../sensor_public/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Sensor System
+    Sensor Suite
   
 
     
@@ -1234,7 +459,7 @@
   <span class="md-ellipsis">
     
   
-    Zephyr RTOS Port
+    Zephyr HIL Port
   
 
     
@@ -1250,7 +475,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Zephyr RTOS Port
+    Zephyr HIL Port
   
 
           </label>
@@ -1263,70 +488,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../zephyr/ZEPHYR_PORT/" class="md-nav__link">
+      <a href="../zephyr_overview/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Porting Guide
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../zephyr/ZEPHYR_RPI5_SETUP/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    RPi5 Setup
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../zephyr/ZEPHYR_BUILD_FLASH_UART/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Build, Flash & UART
+    Overview
   
 
     
@@ -1406,70 +575,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../pdfs/3DOF_Vehicle_Dynamics_Implementation.pdf" class="md-nav__link">
+      <a href="../pdfs/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    3DOF Vehicle Dynamics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../pdfs/Dugoff_Tyre_Sensor_Models.pdf" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Dugoff Tyre & Sensor Models
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../pdfs/RTOS_Implementation.pdf" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    RTOS Implementation
+    Overview
   
 
     

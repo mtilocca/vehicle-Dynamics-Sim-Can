@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Documentation for the XCMG XDE320 electric haul truck simulator, covering physics models, CAN architecture, and the Zephyr RTOS HIL port.">
+        <meta name="description" content="High-fidelity vehicle dynamics simulation for electric autonomous vehicles — physics models, CAN bus integration, and Zephyr RTOS HIL port.">
       
       
         <meta name="author" content="Mario Tilocca">
@@ -15,10 +15,6 @@
         <link rel="canonical" href="https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr/ZEPHYR_PORT/">
       
       
-        <link rel="prev" href="../../SENSOR_SYSTEM/">
-      
-      
-        <link rel="next" href="../ZEPHYR_RPI5_SETUP/">
       
       
         
@@ -29,7 +25,7 @@
     
     
       
-        <title>Porting Guide - XCMG XDE320 — Vehicle Dynamics Simulator</title>
+        <title>Zephyr RTOS Port — XCMG XDE320 Plant Simulator - XCMG XDE320 — Vehicle Dynamics Simulator</title>
       
     
     
@@ -112,7 +108,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Porting Guide
+              Zephyr RTOS Port — XCMG XDE320 Plant Simulator
             
           </span>
         </div>
@@ -206,33 +202,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../VEHICLE_DYNAMICS/" class="md-tabs__link">
+        <a href="../../models_overview/" class="md-tabs__link">
           
   
   
-  Physics Models
-
-        </a>
-      </li>
-    
-  
-
-      
-        
-  
-  
-  
-    
-  
-  
-    
-    
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
-          
-  
-  
-  Zephyr RTOS Port
+  Simulation Models
 
         </a>
       </li>
@@ -248,7 +222,27 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../pdfs/3DOF_Vehicle_Dynamics_Implementation.pdf" class="md-tabs__link">
+        <a href="../../zephyr_overview/" class="md-tabs__link">
+          
+  
+  
+  Zephyr HIL Port
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../pdfs/" class="md-tabs__link">
           
   
   
@@ -350,7 +344,7 @@
   <span class="md-ellipsis">
     
   
-    Physics Models
+    Simulation Models
   
 
     
@@ -366,7 +360,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Physics Models
+    Simulation Models
   
 
           </label>
@@ -379,14 +373,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../VEHICLE_DYNAMICS/" class="md-nav__link">
+      <a href="../../models_overview/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Vehicle Dynamics
+    Overview
   
 
     
@@ -407,42 +401,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ARCHITECTURE/" class="md-nav__link">
+      <a href="../../sensor_public/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Architecture & Subsystems
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../SENSOR_SYSTEM/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Sensor System
+    Sensor Suite
   
 
     
@@ -467,38 +433,33 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
     
   
-    Zephyr RTOS Port
+    Zephyr HIL Port
   
 
     
@@ -509,12 +470,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Zephyr RTOS Port
+    Zephyr HIL Port
   
 
           </label>
@@ -524,702 +485,17 @@
                 
   
   
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Porting Guide
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Porting Guide
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#hardware-target" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Hardware Target
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Hardware Target">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#user-leds" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        User LEDs
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#fdcan-pin-mapping" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        FDCAN Pin Mapping
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#system-context" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        System Context
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-changes-what-stays" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What Changes, What Stays
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#repository-layout" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Repository Layout
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Repository Layout">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#dual-build-paths" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Dual Build Paths
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#thread-priority-map-final-state-end-of-phase-4" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Thread Priority Map (final state — end of Phase 4)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#phase-0-west-workspace-board-skeleton" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Phase 0 — West Workspace + Board Skeleton ✅
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#phase-1-logging-uart-shell-led-task-http-dashboard" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Phase 1 — Logging + UART Shell + LED Task + HTTP Dashboard ✅
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Phase 1 — Logging + UART Shell + LED Task + HTTP Dashboard ✅">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1a-logging-shim-utilslogginghpp" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1a — Logging shim (utils/logging.hpp)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#1b-uart-shell-commands" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1b — UART Shell commands
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#1c-led-task-zephyrsrcled_taskcpp" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1c — LED task (zephyr/src/led_task.cpp)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#1d-http-dashboard-zephyrsrchttp" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1d — HTTP dashboard (zephyr/src/http/)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#phase-2-static-can-map" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Phase 2 — Static CAN Map ✅
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Phase 2 — Static CAN Map ✅">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#generator-script" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Generator script
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#phase-3-zephyr-can-transport" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Phase 3 — Zephyr CAN Transport ✅
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Phase 3 — Zephyr CAN Transport ✅">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#what-was-implemented" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What was implemented
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#actuator_cmd_1-inline-decoder" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ACTUATOR_CMD_1 inline decoder
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#can-rx-thread" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CAN RX thread
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#can-rx-message-flow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CAN RX message flow
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#devicetree-fdcan1-500-kbps" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DeviceTree — FDCAN1 @ 500 kbps
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#loopback-self-test-no-transceiver-required" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Loopback self-test (no transceiver required)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#cbprintf-float-fix" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        cbprintf float fix
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#updated-thread-table-end-of-phase-3" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Updated thread table (end of Phase 3)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#phase-4-plant-loop-can-tx" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Phase 4 — Plant Loop + CAN TX ✅
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Phase 4 — Plant Loop + CAN TX ✅">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#what-was-implemented_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What was implemented
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#timer-driven-plant-thread" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Timer-driven plant thread
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#xcmg-xde320-plant-parameters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        XCMG XDE320 plant parameters
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#thread-architecture-phase-4-complete" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Thread architecture (Phase 4 complete)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#timing-replacing-stdchrono" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Timing — replacing std::chrono
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#web-dashboard-phase-4-additions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Web dashboard — Phase 4 additions
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#can-watchdog-safe-mode" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CAN watchdog / safe-mode
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#brake-diagnostics-logging" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Brake diagnostics logging
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#updated-thread-table-end-of-phase-4" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Updated thread table (end of Phase 4)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#phase-5-ram-flash-audit" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Phase 5 — RAM / Flash Audit ✅
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Phase 5 — RAM / Flash Audit ✅">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#measured-flash-footprint-west-build-t-rom_report" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Measured Flash footprint (west build -t rom_report)
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Measured Flash footprint (west build -t rom_report)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#app-flash-by-source-file" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        App Flash by source file
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#measured-ram-footprint-west-build-t-ram_report" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Measured RAM footprint (west build -t ram_report)
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Measured RAM footprint (west build -t ram_report)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#app-ram-breakdown" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        App RAM breakdown
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#thread-stack-allocation-actual-post-alignment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Thread stack allocation (actual, post-alignment)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#audit-commands" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Audit commands
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#memory-map" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Memory Map
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#observations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Observations
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#potential-optimisations-if-ever-needed" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Potential optimisations (if ever needed)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#key-api-mapping-reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key API Mapping Reference
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#execution-order-summary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Execution Order Summary
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#dependencies-tools-needed" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Dependencies / Tools Needed
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
   
   
     <li class="md-nav__item">
-      <a href="../ZEPHYR_RPI5_SETUP/" class="md-nav__link">
+      <a href="../../zephyr_overview/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    RPi5 Setup
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ZEPHYR_BUILD_FLASH_UART/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Build, Flash & UART
+    Overview
   
 
     
@@ -1299,70 +575,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../pdfs/3DOF_Vehicle_Dynamics_Implementation.pdf" class="md-nav__link">
+      <a href="../../pdfs/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    3DOF Vehicle Dynamics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../pdfs/Dugoff_Tyre_Sensor_Models.pdf" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Dugoff Tyre & Sensor Models
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../pdfs/RTOS_Implementation.pdf" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    RTOS Implementation
+    Overview
   
 
     

@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Documentation for the XCMG XDE320 electric haul truck simulator, covering physics models, CAN architecture, and the Zephyr RTOS HIL port.">
+        <meta name="description" content="High-fidelity vehicle dynamics simulation for electric autonomous vehicles — physics models, CAN bus integration, and Zephyr RTOS HIL port.">
       
       
         <meta name="author" content="Mario Tilocca">
@@ -15,10 +15,6 @@
         <link rel="canonical" href="https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/SENSOR_SYSTEM/">
       
       
-        <link rel="prev" href="../ARCHITECTURE/">
-      
-      
-        <link rel="next" href="../zephyr/ZEPHYR_PORT/">
       
       
         
@@ -29,7 +25,7 @@
     
     
       
-        <title>Sensor System - XCMG XDE320 — Vehicle Dynamics Simulator</title>
+        <title>Sensor System Architecture & Machine Learning Integration - XCMG XDE320 — Vehicle Dynamics Simulator</title>
       
     
     
@@ -112,7 +108,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Sensor System
+              Sensor System Architecture &amp; Machine Learning Integration
             
           </span>
         </div>
@@ -202,17 +198,15 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../VEHICLE_DYNAMICS/" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../models_overview/" class="md-tabs__link">
           
   
   
-  Physics Models
+  Simulation Models
 
         </a>
       </li>
@@ -228,11 +222,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="../zephyr/ZEPHYR_PORT/" class="md-tabs__link">
+        <a href="../zephyr_overview/" class="md-tabs__link">
           
   
   
-  Zephyr RTOS Port
+  Zephyr HIL Port
 
         </a>
       </li>
@@ -248,7 +242,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../pdfs/3DOF_Vehicle_Dynamics_Implementation.pdf" class="md-tabs__link">
+        <a href="../pdfs/" class="md-tabs__link">
           
   
   
@@ -324,38 +318,33 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
     
   
-    Physics Models
+    Simulation Models
   
 
     
@@ -366,12 +355,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Physics Models
+    Simulation Models
   
 
           </label>
@@ -384,14 +373,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../VEHICLE_DYNAMICS/" class="md-nav__link">
+      <a href="../models_overview/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Vehicle Dynamics
+    Overview
   
 
     
@@ -412,14 +401,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../ARCHITECTURE/" class="md-nav__link">
+      <a href="../sensor_public/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Architecture & Subsystems
+    Sensor Suite
   
 
     
@@ -428,698 +417,6 @@
   
 
       </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Sensor System
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Sensor System
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#table-of-contents" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Table of Contents
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Overview
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Overview">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#design-philosophy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Design Philosophy
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sensor-suite-architecture" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sensor Suite Architecture
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Sensor Suite Architecture">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#system-overview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        System Overview
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#sensor-specifications" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sensor Specifications
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#noise-models-realism" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Noise Models &amp; Realism
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Noise Models &amp; Realism">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-battery-sensor" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Battery Sensor
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-wheel-speed-sensors" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Wheel Speed Sensors
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-imu-6-dof-inertial-measurement-unit" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. IMU 6-DOF (Inertial Measurement Unit)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#4-gnss-receiver" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. GNSS Receiver
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#5-automotive-radar" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5. Automotive Radar
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#coordinate-transformations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Coordinate Transformations
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Coordinate Transformations">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-vehicle-frame-ned-gnss-velocity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Vehicle Frame → NED (GNSS Velocity)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-local-xy-wgs84-gnss-position" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Local XY → WGS84 (GNSS Position)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-imu-body-frame-alignment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. IMU Body Frame Alignment
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#can-bus-integration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CAN Bus Integration
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="CAN Bus Integration">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#frame-encoding-scheme" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Frame Encoding Scheme
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#example-imu-accelerometer-frame-0x200" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example: IMU Accelerometer Frame (0x200)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#multi-rate-transmission" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Multi-Rate Transmission
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#machine-learning-readiness" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Machine Learning Readiness
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Machine Learning Readiness">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#csv-data-format" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CSV Data Format
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#supervised-learning-setup" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Supervised Learning Setup
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Supervised Learning Setup">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#example-1-ekf-training-data" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example 1: EKF Training Data
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#example-2-imu-bias-estimation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example 2: IMU Bias Estimation
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#example-3-gnss-outlier-detection" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example 3: GNSS Outlier Detection
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#training-data-generation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Training Data Generation
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#algorithm-validation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Algorithm Validation
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#validation-results" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Validation Results
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Validation Results">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#statistical-validation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Statistical Validation
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Statistical Validation">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#noise-magnitude-verification" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Noise Magnitude Verification
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#bias-drift-analysis" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Bias Drift Analysis
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#sensor-performance-summary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sensor Performance Summary
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#implementation-guide" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Implementation Guide
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Implementation Guide">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#adding-a-new-sensor" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Adding a New Sensor
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Adding a New Sensor">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#step-1-create-sensor-class" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 1: Create Sensor Class
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#step-2-implement-sensor-logic" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 2: Implement Sensor Logic
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#step-3-register-in-sensorbank" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 3: Register in SensorBank
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#step-4-add-to-sensorout-structure" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 4: Add to SensorOut Structure
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#step-5-add-can-frame-definition" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 5: Add CAN Frame Definition
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#step-6-register-in-sensorstatepacker" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 6: Register in SensorStatePacker
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#future-enhancements" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Future Enhancements
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Future Enhancements">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#short-term" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Short-Term
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#medium-term" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Medium-Term
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#long-term" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Long-Term
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#references" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        References
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="References">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#sensor-specifications_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sensor Specifications
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#noise-modeling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Noise Modeling
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#machine-learning" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Machine Learning
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1162,7 +459,7 @@
   <span class="md-ellipsis">
     
   
-    Zephyr RTOS Port
+    Zephyr HIL Port
   
 
     
@@ -1178,7 +475,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Zephyr RTOS Port
+    Zephyr HIL Port
   
 
           </label>
@@ -1191,70 +488,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../zephyr/ZEPHYR_PORT/" class="md-nav__link">
+      <a href="../zephyr_overview/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Porting Guide
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../zephyr/ZEPHYR_RPI5_SETUP/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    RPi5 Setup
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../zephyr/ZEPHYR_BUILD_FLASH_UART/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Build, Flash & UART
+    Overview
   
 
     
@@ -1334,70 +575,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../pdfs/3DOF_Vehicle_Dynamics_Implementation.pdf" class="md-nav__link">
+      <a href="../pdfs/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    3DOF Vehicle Dynamics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../pdfs/Dugoff_Tyre_Sensor_Models.pdf" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Dugoff Tyre & Sensor Models
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../pdfs/RTOS_Implementation.pdf" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    RTOS Implementation
+    Overview
   
 
     
