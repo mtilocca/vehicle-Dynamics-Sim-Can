@@ -6,6 +6,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/atomic.h>
 #include <stdio.h>   /* snprintf */
 #include <string.h>  /* strlen */
 
@@ -26,10 +27,9 @@ extern plant::PlantState    g_state;
 extern sim::ActuatorCmd     g_cmd;
 extern struct k_mutex       g_state_mutex;
 extern struct k_mutex       g_cmd_mutex;
-extern volatile uint32_t    g_can_tx_count;
-extern volatile uint32_t    g_can_rx_count;
-extern volatile uint32_t    g_can_timeout_count;
-extern volatile double      g_last_rx_t;
+extern atomic_t             g_can_tx_count;
+extern atomic_t             g_can_rx_count;
+extern atomic_t             g_can_timeout_count;
 extern double               g_surface_mu;
 
 // ── Low-level send helper ─────────────────────────────────────────────────────
@@ -210,10 +210,11 @@ void send_page(int fd)
         "<tr><td>RX frames</td><td>%u</td></tr>"
         "<tr><td>Timeouts</td><td class='%s'>%u</td></tr>"
         "<tr><td>Last RX</td><td>%.3f s</td></tr>",
-        g_can_tx_count, g_can_rx_count,
-        g_can_timeout_count ? "val-warn" : "",
-        g_can_timeout_count,
-        g_last_rx_t);
+        (uint32_t)atomic_get(&g_can_tx_count),
+        (uint32_t)atomic_get(&g_can_rx_count),
+        atomic_get(&g_can_timeout_count) ? "val-warn" : "",
+        (uint32_t)atomic_get(&g_can_timeout_count),
+        c.last_update_t_s);
     send_str(fd, buf);
     send_str(fd, "</table></div>");
 
