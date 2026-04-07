@@ -1,0 +1,3407 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the XCMG XDE320 electric haul truck simulator, covering physics models, CAN architecture, and the Zephyr RTOS HIL port.">
+      
+      
+        <meta name="author" content="Mario Tilocca">
+      
+      
+      
+      
+        <link rel="next" href="VEHICLE_DYNAMICS/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>XCMG XDE320 — Vehicle Dynamics Simulator</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#electric-vehicle-dynamics-simulation-framework" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="." title="XCMG XDE320 — Vehicle Dynamics Simulator" class="md-header__button md-logo" aria-label="XCMG XDE320 — Vehicle Dynamics Simulator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            XCMG XDE320 — Vehicle Dynamics Simulator
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Home
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="VEHICLE_DYNAMICS/" class="md-tabs__link">
+          
+  
+  
+  Physics Models
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="zephyr/ZEPHYR_PORT/" class="md-tabs__link">
+          
+  
+  
+  Zephyr RTOS Port
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="pdfs/3DOF_Vehicle_Dynamics_Implementation.pdf" class="md-tabs__link">
+          
+  
+  
+  Reference PDFs
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="." title="XCMG XDE320 — Vehicle Dynamics Simulator" class="md-nav__button md-logo" aria-label="XCMG XDE320 — Vehicle Dynamics Simulator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    XCMG XDE320 — Vehicle Dynamics Simulator
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="." class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-capabilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Capabilities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#target-applications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Target Applications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#high-level-data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High-Level Data Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#subsystem-architecture-3-dof" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Subsystem Architecture (3-DOF)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-open-loop-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run Open-Loop Simulation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-closed-loop-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run Closed-Loop Simulation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Run Closed-Loop Simulation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-1-manual-two-terminals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 1: Manual (Two Terminals)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-2-interactive-script-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 2: Interactive Script (Recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#visualize-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visualize Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#monitor-can-traffic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monitor CAN Traffic
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dugoff-tire-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dugoff Tire Model
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dugoff Tire Model">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tire-force-equations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tire Force Equations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#surface-friction-coefficients" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Surface Friction Coefficients
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#command-line-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command-Line Options
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vehicle-dynamics-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vehicle Dynamics Results
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Vehicle Dynamics Results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cusp-maneuver-full-5-figure-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cusp Maneuver — Full 5-Figure Analysis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cusp Maneuver — Full 5-Figure Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#figure-1-vehicle-dynamics-battery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Figure 1: Vehicle Dynamics &amp; Battery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#figure-2-tire-dynamics-dugoff-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Figure 2: Tire Dynamics (Dugoff Model)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#figure-3-3-dof-lateral-dynamics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Figure 3: 3-DOF Lateral Dynamics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#figure-4-wheel-torque-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Figure 4: Wheel Torque Distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#figure-5-combined-slip-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Figure 5: Combined Slip Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dugoff-tire-model-slalom-maneuver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dugoff Tire Model — Slalom Maneuver
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tire-force-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tire Force Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slalom-maneuver-open-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Slalom Maneuver (Open-Loop)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#closed-loop-control-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Closed-Loop Control Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#heavy-truck-mpc-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Heavy Truck MPC Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#real-time-influxdb-dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Real-Time InfluxDB Dashboard
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#influxdb-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        InfluxDB Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="InfluxDB Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Schema
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#command-line-options_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command-Line Options
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sensor-system-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensor System Performance
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sensor System Performance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sensor-suite-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensor Suite Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validated-sensor-specifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validated Sensor Specifications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vehicle-configurations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vehicle Configurations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Vehicle Configurations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#available-configurations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Available Configurations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#can-bus-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CAN Bus Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CAN Bus Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#frame-schedule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frame Schedule
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#closed-loop-control-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Closed-Loop Control Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#machine-learning-readiness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Machine Learning Readiness
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Machine Learning Readiness">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dual-export-csv-influxdb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dual Export: CSV + InfluxDB
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supported-ml-use-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supported ML Use Cases
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future-roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Future Roadmap
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Future Roadmap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#completed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Completed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#near-term" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Near-Term
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#medium-term" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Medium-Term
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#long-term" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Long-Term
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hardware-in-the-loop-zephyr-rtos-port" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hardware-in-the-Loop — Zephyr RTOS Port
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Hardware-in-the-Loop — Zephyr RTOS Port">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#board" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Board
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#thread-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thread Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-implementation-facts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key implementation facts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-flash" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build &amp; Flash
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#documentation_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Metrics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Metrics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#simulation-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simulation Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-output-rates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Output Rates
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="References">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#academic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Academic
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#industry-standards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Industry Standards
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        License
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Physics Models
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Physics Models
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="VEHICLE_DYNAMICS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vehicle Dynamics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ARCHITECTURE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture & Subsystems
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="SENSOR_SYSTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zephyr RTOS Port
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Zephyr RTOS Port
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="zephyr/ZEPHYR_PORT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Porting Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="zephyr/ZEPHYR_RPI5_SETUP/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RPi5 Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="zephyr/ZEPHYR_BUILD_FLASH_UART/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build, Flash & UART
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference PDFs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference PDFs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pdfs/3DOF_Vehicle_Dynamics_Implementation.pdf" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3DOF Vehicle Dynamics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pdfs/Dugoff_Tyre_Sensor_Models.pdf" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dugoff Tyre & Sensor Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pdfs/RTOS_Implementation.pdf" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RTOS Implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-capabilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Capabilities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#target-applications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Target Applications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#high-level-data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High-Level Data Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#subsystem-architecture-3-dof" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Subsystem Architecture (3-DOF)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-open-loop-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run Open-Loop Simulation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-closed-loop-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run Closed-Loop Simulation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Run Closed-Loop Simulation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-1-manual-two-terminals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 1: Manual (Two Terminals)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-2-interactive-script-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 2: Interactive Script (Recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#visualize-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visualize Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#monitor-can-traffic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monitor CAN Traffic
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dugoff-tire-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dugoff Tire Model
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dugoff Tire Model">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tire-force-equations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tire Force Equations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#surface-friction-coefficients" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Surface Friction Coefficients
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#command-line-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command-Line Options
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vehicle-dynamics-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vehicle Dynamics Results
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Vehicle Dynamics Results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cusp-maneuver-full-5-figure-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cusp Maneuver — Full 5-Figure Analysis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cusp Maneuver — Full 5-Figure Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#figure-1-vehicle-dynamics-battery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Figure 1: Vehicle Dynamics &amp; Battery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#figure-2-tire-dynamics-dugoff-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Figure 2: Tire Dynamics (Dugoff Model)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#figure-3-3-dof-lateral-dynamics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Figure 3: 3-DOF Lateral Dynamics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#figure-4-wheel-torque-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Figure 4: Wheel Torque Distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#figure-5-combined-slip-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Figure 5: Combined Slip Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dugoff-tire-model-slalom-maneuver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dugoff Tire Model — Slalom Maneuver
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tire-force-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tire Force Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slalom-maneuver-open-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Slalom Maneuver (Open-Loop)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#closed-loop-control-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Closed-Loop Control Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#heavy-truck-mpc-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Heavy Truck MPC Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#real-time-influxdb-dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Real-Time InfluxDB Dashboard
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#influxdb-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        InfluxDB Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="InfluxDB Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Schema
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#command-line-options_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command-Line Options
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sensor-system-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensor System Performance
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sensor System Performance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sensor-suite-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensor Suite Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validated-sensor-specifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validated Sensor Specifications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vehicle-configurations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vehicle Configurations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Vehicle Configurations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#available-configurations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Available Configurations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#can-bus-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CAN Bus Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CAN Bus Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#frame-schedule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frame Schedule
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#closed-loop-control-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Closed-Loop Control Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#machine-learning-readiness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Machine Learning Readiness
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Machine Learning Readiness">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dual-export-csv-influxdb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dual Export: CSV + InfluxDB
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supported-ml-use-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supported ML Use Cases
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future-roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Future Roadmap
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Future Roadmap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#completed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Completed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#near-term" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Near-Term
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#medium-term" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Medium-Term
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#long-term" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Long-Term
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hardware-in-the-loop-zephyr-rtos-port" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hardware-in-the-Loop — Zephyr RTOS Port
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Hardware-in-the-Loop — Zephyr RTOS Port">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#board" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Board
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#thread-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thread Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-implementation-facts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key implementation facts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-flash" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build &amp; Flash
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#documentation_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Metrics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Metrics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#simulation-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simulation Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-output-rates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Output Rates
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="References">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#academic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Academic
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#industry-standards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Industry Standards
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        License
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="electric-vehicle-dynamics-simulation-framework">Electric Vehicle Dynamics Simulation Framework<a class="headerlink" href="#electric-vehicle-dynamics-simulation-framework" title="Permanent link">&para;</a></h1>
+<p><strong>Author:</strong> Mario Tilocca<br />
+<strong>Purpose:</strong> High-fidelity vehicle dynamics simulation for Electric Autonomous Vehicles with real-time telemetry</p>
+<hr />
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>This repository implements a comprehensive <strong>Software-in-the-Loop (SIL)</strong> simulation framework for electric vehicle dynamics, designed to support autonomous vehicle development. The system features deterministic physics models, realistic sensor simulation with validated noise characteristics, industry-standard CAN bus integration, and <strong>real-time InfluxDB telemetry</strong> for live monitoring and analysis.</p>
+<h3 id="key-capabilities">Key Capabilities<a class="headerlink" href="#key-capabilities" title="Permanent link">&para;</a></h3>
+<ul>
+<li>✅ <strong>3-DOF vehicle dynamics</strong> — full rigid-body integration of longitudinal (vx), lateral (vy), and yaw (ψ) motion with centripetal coupling terms</li>
+<li>✅ <strong>Hybrid kinematic/dynamic blend</strong> — pure kinematic below ~1 m/s, smooth transition to full dynamic model at ~4 m/s</li>
+<li>✅ <strong>Dugoff tire model</strong> — physics-based Fx/Fy from combined slip with friction circle saturation and first-order lag (τ = 0.3 s)</li>
+<li>✅ <strong>Per-wheel rotational dynamics</strong> — individual wheel ODE (Iw·ω̇ = τ_drive − τ_brake − Fx·R)</li>
+<li>✅ <strong>Load transfer</strong> — longitudinal and lateral weight redistribution on all four wheels</li>
+<li>✅ <strong>Gear selector via CAN</strong> — Forward / Neutral / Reverse with explicit tire force direction control</li>
+<li>✅ <strong>Closed-loop control</strong> — bang-bang speed controller with schedule-driven steering, fully CAN-connected</li>
+<li>✅ <strong>5 sensor types</strong> with realistic noise models (Battery, Wheel Speed, IMU, GNSS, Radar)</li>
+<li>✅ <strong>CAN bus integration</strong> broadcasting 7+ frames at 10–100 Hz update rates</li>
+<li>✅ <strong>Real-time InfluxDB telemetry</strong> — time-series data logging with wall-clock timestamps</li>
+<li>✅ <strong>Visitor pattern architecture</strong> enabling scalable subsystem development</li>
+<li>✅ <strong>ML-ready sensor data</strong> — 93-column CSV with ground truth + measurements + full tire state</li>
+</ul>
+<h3 id="target-applications">Target Applications<a class="headerlink" href="#target-applications" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Sensor Fusion Algorithm Development</strong> — IMU + GNSS data for Extended Kalman Filter (EKF)</li>
+<li><strong>Control System Validation</strong> — closed-loop testing including cusp maneuvers and reverse operations</li>
+<li><strong>Traction Control Development</strong> — Dugoff tire model for TCS/ABS algorithm testing with real slip data</li>
+<li><strong>Hardware-in-the-Loop (HIL)</strong> preparation — CAN-based actuator/sensor interfaces</li>
+<li><strong>Real-time Fleet Monitoring</strong> — InfluxDB + Grafana dashboards for live telemetry</li>
+</ol>
+<hr />
+<h2 id="system-architecture">System Architecture<a class="headerlink" href="#system-architecture" title="Permanent link">&para;</a></h2>
+<h3 id="high-level-data-flow">High-Level Data Flow<a class="headerlink" href="#high-level-data-flow" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>flowchart TB
+    subgraph Input["Input Layer"]
+        JSON[JSON Scenario]
+        CANRX[CAN RX Commands]
+        YAML[Vehicle Config YAML]
+    end
+
+    subgraph Core["Simulation Core"]
+        LUA[Lua Runtime]
+        PLANT[Plant Model]
+        SENSORS[Sensor Bank]
+    end
+
+    subgraph Output["Output Layer"]
+        CANTX[CAN TX Frames]
+        CSV[CSV Data Log]
+        INFLUX[InfluxDB Time-Series]
+        GRAFANA[Grafana Dashboards]
+    end
+
+    JSON --&gt; LUA
+    YAML --&gt; PLANT
+    CANRX -.-&gt; PLANT
+    LUA --&gt; PLANT
+    PLANT --&gt; SENSORS
+    SENSORS --&gt; CANTX
+    SENSORS --&gt; CSV
+    SENSORS --&gt; INFLUX
+    INFLUX --&gt; GRAFANA
+
+    style PLANT fill:#4CAF50
+    style SENSORS fill:#2196F3
+    style CANTX fill:#FF9800
+    style INFLUX fill:#9C27B0
+    style GRAFANA fill:#E91E63</code></pre>
+<h3 id="subsystem-architecture-3-dof">Subsystem Architecture (3-DOF)<a class="headerlink" href="#subsystem-architecture-3-dof" title="Permanent link">&para;</a></h3>
+<p>Subsystems execute in priority order each timestep:</p>
+<pre class="mermaid"><code>flowchart LR
+    CMD["ActuatorCmd&lt;br/&gt;CAN RX"]
+
+    subgraph Plant["Plant Model — priority order"]
+        STEER["Steer (50)&lt;br/&gt;Ackermann geometry&lt;br/&gt;→ δ_fl, δ_fr"]
+        DRIVE["Drive (100)&lt;br/&gt;Motor / brake torques&lt;br/&gt;Dugoff Fx · Fy&lt;br/&gt;Wheel ω ODE&lt;br/&gt;Load transfer Fz"]
+        VEHICLE["Vehicle (110)&lt;br/&gt;3-DOF rigid body&lt;br/&gt;vx · vy · ψ̇ · x · y"]
+        STEER --&gt; DRIVE --&gt; VEHICLE
+    end
+
+    SENSORS[/"Sensor Bank&lt;br/&gt;Wheel · IMU · GNSS · Radar · Battery"/]
+
+    CMD --&gt; STEER
+    VEHICLE --&gt; SENSORS
+
+    style STEER   fill:#607D8B,color:#fff
+    style DRIVE   fill:#FF5722,color:#fff
+    style VEHICLE fill:#4CAF50,color:#fff
+    style SENSORS fill:#1565C0,color:#fff</code></pre>
+<p><strong>Physics equations (body frame):</strong></p>
+<table>
+<thead>
+<tr>
+<th>DOF</th>
+<th>Equation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Longitudinal</td>
+<td><code>v̇x = ΣFx/m − Fdrag/m − Froll/m + vy·ψ̇</code></td>
+</tr>
+<tr>
+<td>Lateral</td>
+<td><code>v̇y = ΣFy/m − vx·ψ̇</code></td>
+</tr>
+<tr>
+<td>Yaw</td>
+<td><code>Iz·ψ̈ = Σ(xi·Fyi − yi·Fxi)</code></td>
+</tr>
+<tr>
+<td>Position</td>
+<td><code>ẋ = vx·cosψ − vy·sinψ</code>, <code>ẏ = vx·sinψ + vy·cosψ</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
+<h3 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Install dependencies (Ubuntu/Debian)</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>update
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span>build-essential<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span>cmake<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span>pkg-config<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span>libyaml-cpp-dev<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span>liblua5.4-dev<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span>libcurl4-openssl-dev
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="c1"># Optional: InfluxDB for real-time telemetry</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="c1"># See https://docs.influxdata.com/influxdb/v2/install/</span>
+</code></pre></div>
+<h3 id="build">Build<a class="headerlink" href="#build" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Build entire project</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>./build.sh
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Setup virtual CAN interface (required for CAN TX/RX)</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>sudo<span class="w"> </span>./config/setup-vcan0.sh
+</code></pre></div>
+<h3 id="run-open-loop-simulation">Run Open-Loop Simulation<a class="headerlink" href="#run-open-loop-simulation" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Basic simulation with scenario file</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>./build/src/sim/sim_main<span class="w"> </span>config/scenarios/slalom.json
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># With dynamic tire model enabled</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>./build/src/sim/sim_main<span class="w"> </span>--dynamic-model<span class="w"> </span>config/scenarios/slalom.json
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c1"># With specific vehicle configuration</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>./build/src/sim/sim_main<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">  </span>--vehicle<span class="w"> </span>config/vehicles/heavy_truck.yaml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span>--dynamic-model<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">  </span>config/scenarios/slalom.json
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="c1"># Specify surface friction (wet conditions)</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>./build/src/sim/sim_main<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">  </span>--dynamic-model<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="w">  </span>--surface-mu<span class="w"> </span><span class="m">0</span>.30<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="w">  </span>config/scenarios/brake_test.json
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="c1"># Real-time mode with InfluxDB logging</span>
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>./build/src/sim/sim_main<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="w">  </span>--real-time<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="w">  </span>--influx<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="w">  </span>--influx-token<span class="w"> </span><span class="s2">&quot;YOUR_INFLUXDB_TOKEN&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a><span class="w">  </span>config/scenarios/slalom.json
+</code></pre></div>
+<h3 id="run-closed-loop-simulation">Run Closed-Loop Simulation<a class="headerlink" href="#run-closed-loop-simulation" title="Permanent link">&para;</a></h3>
+<h4 id="option-1-manual-two-terminals">Option 1: Manual (Two Terminals)<a class="headerlink" href="#option-1-manual-two-terminals" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Terminal 1: Start simulator (waits for CAN commands)</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>./build/src/sim/sim_main<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>--can-rx<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span>--real-time<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span>--dynamic-model<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span>--duration<span class="w"> </span><span class="m">600</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span>--vehicle<span class="w"> </span>config/vehicles/heavy_truck.yaml
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="c1"># Terminal 2: Start external controller (Go-based)</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="nb">cd</span><span class="w"> </span>closed_loop
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>go<span class="w"> </span>run<span class="w"> </span>.<span class="w"> </span>scenarios/pid_velocity_tracking.json
+</code></pre></div>
+<h4 id="option-2-interactive-script-recommended">Option 2: Interactive Script (Recommended)<a class="headerlink" href="#option-2-interactive-script-recommended" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># One-command setup with InfluxDB integration</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>./run_closed_loop_influx.sh
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># The script will prompt for:</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># - Duration (default: 600s)</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="c1"># - InfluxDB URL (default: http://localhost:8086)</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># - InfluxDB Token (required for authentication)</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="c1"># - Organization (default: Autonomy)</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="c1"># - Bucket (default: vehicle-sim)</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="c1"># - Write interval (default: 250ms)</span>
+</code></pre></div>
+<h3 id="visualize-results">Visualize Results<a class="headerlink" href="#visualize-results" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Plot vehicle dynamics from CSV</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>python3<span class="w"> </span>sim_plotter.py<span class="w"> </span>sim_out.csv
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Plot tire dynamics (Dugoff model)</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>python3<span class="w"> </span>plot_sim.py<span class="w"> </span>sim_out.csv
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># View InfluxDB data (if using telemetry)</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>firefox<span class="w"> </span>http://localhost:8086
+</code></pre></div>
+<h3 id="monitor-can-traffic">Monitor CAN Traffic<a class="headerlink" href="#monitor-can-traffic" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Live decoding of all frames</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>./build/src/can/vcan_listener<span class="w"> </span>vcan0<span class="w"> </span>config/can_map.csv<span class="w"> </span>--decode-tx
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Filter specific frames</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>./build/src/can/vcan_listener<span class="w"> </span>vcan0<span class="w"> </span>config/can_map.csv<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">  </span>--decode-tx<span class="w"> </span>--filter<span class="o">=</span>0x200,0x210
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="c1"># Raw hex dump</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>candump<span class="w"> </span>vcan0
+</code></pre></div>
+<hr />
+<h2 id="dugoff-tire-model">Dugoff Tire Model<a class="headerlink" href="#dugoff-tire-model" title="Permanent link">&para;</a></h2>
+<p>The simulation includes a physics-based <strong>Dugoff tire model</strong> that captures:</p>
+<ul>
+<li><strong>Friction-limited forces</strong> based on normal load and surface coefficient</li>
+<li><strong>Longitudinal and lateral slip</strong> ratio computation</li>
+<li><strong>Load transfer</strong> during acceleration/braking</li>
+<li><strong>Friction circle</strong> constraint for combined maneuvers</li>
+<li><strong>Surface friction effects</strong> (dry, gravel, wet, mud)</li>
+</ul>
+<h3 id="tire-force-equations">Tire Force Equations<a class="headerlink" href="#tire-force-equations" title="Permanent link">&para;</a></h3>
+<p>The Dugoff model computes tire forces as:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>Fx = Cx · σx · f(λ)
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>Fy = Cy · σy · f(λ)
+</code></pre></div>
+<p>Where the friction saturation function ensures forces stay within the friction circle:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>λ = μ·Fz / (2·√((Cx·σx)² + (Cy·σy)²))
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>f(λ) = { (2-λ)·λ  if λ &lt; 1  (saturated)
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>       { 1        if λ ≥ 1  (linear)
+</code></pre></div>
+<h3 id="surface-friction-coefficients">Surface Friction Coefficients<a class="headerlink" href="#surface-friction-coefficients" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>μ_peak</th>
+<th>μ_slide</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dry pavement</td>
+<td>0.85</td>
+<td>0.70</td>
+<td>Urban roads</td>
+</tr>
+<tr>
+<td>Compact gravel</td>
+<td>0.72</td>
+<td>0.60</td>
+<td>Mining haul roads</td>
+</tr>
+<tr>
+<td>Loose gravel</td>
+<td>0.55</td>
+<td>0.45</td>
+<td>Unpaved surfaces</td>
+</tr>
+<tr>
+<td>Wet surfaces</td>
+<td>0.45</td>
+<td>0.35</td>
+<td>Rain conditions</td>
+</tr>
+<tr>
+<td>Mud</td>
+<td>0.25</td>
+<td>0.18</td>
+<td>Extreme conditions</td>
+</tr>
+</tbody>
+</table>
+<h3 id="command-line-options">Command-Line Options<a class="headerlink" href="#command-line-options" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>--dynamic-model<span class="w">              </span><span class="c1"># Enable Dugoff tire model (vs kinematic)</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>--surface-mu<span class="w"> </span>VALUE<span class="w">           </span><span class="c1"># Surface friction coefficient (default: 0.72)</span>
+</code></pre></div>
+<hr />
+<h2 id="vehicle-dynamics-results">Vehicle Dynamics Results<a class="headerlink" href="#vehicle-dynamics-results" title="Permanent link">&para;</a></h2>
+<h3 id="cusp-maneuver-full-5-figure-analysis">Cusp Maneuver — Full 5-Figure Analysis<a class="headerlink" href="#cusp-maneuver-full-5-figure-analysis" title="Permanent link">&para;</a></h3>
+<p>The cusp maneuver drives the vehicle forward to a target speed, brakes to a complete stop, then reverses — exercising the full 3-DOF model across gear changes and low-speed dynamics. The trajectory plot uses direction-coded colors (green = forward, red = reverse) with a stop marker at the cusp point.</p>
+<h4 id="figure-1-vehicle-dynamics-battery">Figure 1: Vehicle Dynamics &amp; Battery<a class="headerlink" href="#figure-1-vehicle-dynamics-battery" title="Permanent link">&para;</a></h4>
+<p><img alt="Figure 1 — Vehicle Dynamics &amp; Battery: trajectory (forward/reverse coloring), speed, steering, inputs, battery" src="plots/Figure_cusp_1.png" /></p>
+<blockquote>
+<p>Trajectory with forward/reverse coloring and stop dot at the cusp, speed &amp; acceleration, steering &amp; yaw rate, motor/brake inputs, battery SOC, voltage, current, and power flows.</p>
+</blockquote>
+<h4 id="figure-2-tire-dynamics-dugoff-model">Figure 2: Tire Dynamics (Dugoff Model)<a class="headerlink" href="#figure-2-tire-dynamics-dugoff-model" title="Permanent link">&para;</a></h4>
+<p><img alt="Figure 2 — Tire Dynamics: longitudinal/lateral forces, slip ratios, friction utilization, friction circles" src="plots/Figure_cusp_2.png" /></p>
+<blockquote>
+<p>Per-wheel longitudinal and lateral forces, normal loads with load transfer, slip ratios (σx, σy), friction utilization (λ), and friction circles for front and rear axles.</p>
+</blockquote>
+<h4 id="figure-3-3-dof-lateral-dynamics">Figure 3: 3-DOF Lateral Dynamics<a class="headerlink" href="#figure-3-3-dof-lateral-dynamics" title="Permanent link">&para;</a></h4>
+<p><img alt="Figure 3 — 3-DOF Lateral Dynamics: lateral velocity, yaw rate, sideslip, slip angles, phase portrait" src="plots/Figure_cusp_3.png" /></p>
+<blockquote>
+<p>Lateral velocity (vy), yaw rate, lateral acceleration, vehicle sideslip angle (β), per-wheel slip angles, phase portraits, and trajectory with velocity vectors.</p>
+</blockquote>
+<h4 id="figure-4-wheel-torque-distribution">Figure 4: Wheel Torque Distribution<a class="headerlink" href="#figure-4-wheel-torque-distribution" title="Permanent link">&para;</a></h4>
+<p><img alt="Figure 4 — Wheel Torque Distribution: drive/brake torques, wheel speeds, asymmetry, mechanical power" src="plots/Figure_cusp_4.png" /></p>
+<blockquote>
+<p>Drive and brake torques per wheel, torque asymmetry, wheel angular velocities (RPM), wheel speed asymmetry, torque vs speed operating points, and mechanical power (τ × ω).</p>
+</blockquote>
+<h4 id="figure-5-combined-slip-analysis">Figure 5: Combined Slip Analysis<a class="headerlink" href="#figure-5-combined-slip-analysis" title="Permanent link">&para;</a></h4>
+<p><img alt="Figure 5 — Combined Slip Analysis: slip ratios, force vectors, friction circles, friction utilization" src="plots/Figure_cusp_5.png" /></p>
+<blockquote>
+<p>Longitudinal and lateral slip ratios, total slip magnitude √(σx² + σy²), combined slip diagrams, force vectors (Fx vs Fy), and friction utilization vs total slip.</p>
+</blockquote>
+<hr />
+<h3 id="dugoff-tire-model-slalom-maneuver">Dugoff Tire Model — Slalom Maneuver<a class="headerlink" href="#dugoff-tire-model-slalom-maneuver" title="Permanent link">&para;</a></h3>
+<p><img alt="Dugoff tyre dynamics" src="plots/Figure_2_Tyre_Dynamics_Dugoff_Model.png" /></p>
+<blockquote>
+<p>Dynamic tire model during aggressive slalom — trajectory tracking with friction-limited tire forces and load transfer effects.</p>
+</blockquote>
+<h3 id="tire-force-analysis">Tire Force Analysis<a class="headerlink" href="#tire-force-analysis" title="Permanent link">&para;</a></h3>
+<p><img alt="Combined slip analysis" src="plots/Figure_5_Combined_Slip_Analysis.png" /></p>
+<blockquote>
+<p>Longitudinal/lateral forces, slip ratios, friction utilization (λ), and friction circles for front/rear axles.</p>
+</blockquote>
+<h3 id="slalom-maneuver-open-loop">Slalom Maneuver (Open-Loop)<a class="headerlink" href="#slalom-maneuver-open-loop" title="Permanent link">&para;</a></h3>
+<p><img alt="Vehicle dynamics — 3-DOF lateral dynamics" src="plots/Figure_3_3_DOF_Lateral_Dynamics.png" /></p>
+<blockquote>
+<p>Aggressive steering with acceleration/braking — trajectory tracking, battery dynamics, and regenerative braking.</p>
+</blockquote>
+<h3 id="closed-loop-control-performance">Closed-Loop Control Performance<a class="headerlink" href="#closed-loop-control-performance" title="Permanent link">&para;</a></h3>
+<p><img alt="Vehicle dynamics — battery and energy model" src="plots/Figure_1_vehicle_dynamics_battery.png" /></p>
+<blockquote>
+<p>C++ bang-bang speed controller commanding the simulator via CAN — bidirectional communication with actuator commands and sensor feedback.</p>
+</blockquote>
+<h3 id="heavy-truck-mpc-control">Heavy Truck MPC Control<a class="headerlink" href="#heavy-truck-mpc-control" title="Permanent link">&para;</a></h3>
+<p><img alt="Wheel torque distribution" src="plots/Figure_4_Wheel_Torque_Distribution.png" /></p>
+<blockquote>
+<p>220-ton mining truck with Model Predictive Control during slalom — validates heavy vehicle dynamics and advanced control algorithms.</p>
+</blockquote>
+<h3 id="real-time-influxdb-dashboard">Real-Time InfluxDB Dashboard<a class="headerlink" href="#real-time-influxdb-dashboard" title="Permanent link">&para;</a></h3>
+<p><img alt="Battery and sensor analysis" src="plots/battery_wheel_sensors.png" /></p>
+<blockquote>
+<p>Live telemetry showing vehicle position, velocity, battery state, and sensor measurements updating in real-time during simulation.</p>
+</blockquote>
+<hr />
+<h2 id="influxdb-integration">InfluxDB Integration<a class="headerlink" href="#influxdb-integration" title="Permanent link">&para;</a></h2>
+<p>Real-time time-series logging to InfluxDB enables:</p>
+<ul>
+<li><strong>Live monitoring</strong> of vehicle dynamics during simulation</li>
+<li><strong>Historical analysis</strong> with microsecond-precision timestamps</li>
+<li><strong>Grafana dashboards</strong> for visual telemetry</li>
+<li><strong>Performance benchmarking</strong> across multiple simulation runs</li>
+</ul>
+<h3 id="data-schema">Data Schema<a class="headerlink" href="#data-schema" title="Permanent link">&para;</a></h3>
+<p>Seven measurements logged at configurable intervals (default: 250ms = 4Hz):</p>
+<table>
+<thead>
+<tr>
+<th>Measurement</th>
+<th>Fields</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vehicle_truth</code></td>
+<td>x_m, y_m, yaw_deg, v_mps, steer_deg, motor_power_kW</td>
+<td>Vehicle dynamics ground truth</td>
+</tr>
+<tr>
+<td><code>battery_sensors</code></td>
+<td>batt_soc_truth/meas, batt_v_truth/meas, batt_i_truth/meas</td>
+<td>Battery state with truth comparison</td>
+</tr>
+<tr>
+<td><code>wheel_sensors</code></td>
+<td>wheel_fl/fr/rl/rr_rps_truth/meas</td>
+<td>Individual wheel speeds</td>
+</tr>
+<tr>
+<td><code>imu_sensors</code></td>
+<td>imu_gx/gy/gz_rps, imu_ax/ay/az_mps2</td>
+<td>6-DOF inertial measurements</td>
+</tr>
+<tr>
+<td><code>gnss_sensors</code></td>
+<td>gnss_lat/lon_deg, gnss_alt_m, gnss_vn/ve_mps</td>
+<td>GPS position and velocity</td>
+</tr>
+<tr>
+<td><code>radar_sensors</code></td>
+<td>radar_target_range_m, radar_target_rel_vel_mps</td>
+<td>Radar target tracking</td>
+</tr>
+<tr>
+<td><code>tire_dynamics</code></td>
+<td>Fx/Fy per wheel, slip ratios, lambda, surface_mu</td>
+<td>Tire forces and slip (dynamic model)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="command-line-options_1">Command-Line Options<a class="headerlink" href="#command-line-options_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>--influx<span class="w">                          </span><span class="c1"># Enable InfluxDB logging</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>--influx-url<span class="w"> </span>URL<span class="w">                  </span><span class="c1"># Server URL (default: http://localhost:8086)</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>--influx-token<span class="w"> </span>TOKEN<span class="w">              </span><span class="c1"># Authentication token (required)</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>--influx-org<span class="w"> </span>ORG<span class="w">                  </span><span class="c1"># Organization (default: Autonomy)</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>--influx-bucket<span class="w"> </span>BUCKET<span class="w">            </span><span class="c1"># Bucket name (default: vehicle-sim)</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>--influx-interval<span class="w"> </span>MS<span class="w">              </span><span class="c1"># Write interval in milliseconds (default: 250)</span>
+</code></pre></div>
+<hr />
+<h2 id="sensor-system-performance">Sensor System Performance<a class="headerlink" href="#sensor-system-performance" title="Permanent link">&para;</a></h2>
+<p>The simulation includes 5 sensor types with noise models validated against industry specifications:</p>
+<h3 id="sensor-suite-validation">Sensor Suite Validation<a class="headerlink" href="#sensor-suite-validation" title="Permanent link">&para;</a></h3>
+<p><img alt="Battery and wheel speed sensors — truth vs measured comparison" src="plots/battery_wheel_sensors.png" />
+<img alt="IMU sensor — truth vs measured comparison" src="plots/imu_sensor.png" />
+<img alt="GNSS sensor — truth vs measured comparison" src="plots/gnss_sensor.png" />
+<img alt="Radar sensor — truth vs measured comparison" src="plots/radar_sensor.png" /></p>
+<blockquote>
+<p>Truth vs. measured comparison for all 5 sensor types — realistic noise characteristics suitable for ML training.</p>
+</blockquote>
+<h3 id="validated-sensor-specifications">Validated Sensor Specifications<a class="headerlink" href="#validated-sensor-specifications" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Sensor</th>
+<th>Rate</th>
+<th>Noise</th>
+<th>Validated RMSE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Battery Voltage</td>
+<td>10 Hz</td>
+<td>σ = 0.5V</td>
+<td>0.456V ✅</td>
+</tr>
+<tr>
+<td>Battery SOC</td>
+<td>10 Hz</td>
+<td>σ = 0.2%</td>
+<td>0.183% ✅</td>
+</tr>
+<tr>
+<td>Wheel Encoders</td>
+<td>100 Hz</td>
+<td>σ = 0.5 rad/s</td>
+<td>0.486 rad/s ✅</td>
+</tr>
+<tr>
+<td>IMU Gyroscope</td>
+<td>100 Hz</td>
+<td>σ = 0.1°/s</td>
+<td>0.098°/s ✅</td>
+</tr>
+<tr>
+<td>IMU Accelerometer</td>
+<td>100 Hz</td>
+<td>σ = 0.05 m/s²</td>
+<td>0.047 m/s² ✅</td>
+</tr>
+<tr>
+<td>GNSS Position</td>
+<td>10 Hz</td>
+<td>σ = 2.0m CEP</td>
+<td>2.14m ✅</td>
+</tr>
+<tr>
+<td>GNSS Velocity</td>
+<td>10 Hz</td>
+<td>σ = 0.1 m/s</td>
+<td>0.095 m/s ✅</td>
+</tr>
+<tr>
+<td>Radar Range</td>
+<td>20 Hz</td>
+<td>σ = 0.2m</td>
+<td>0.198m ✅</td>
+</tr>
+<tr>
+<td>Radar Angle</td>
+<td>20 Hz</td>
+<td>σ = 0.5°</td>
+<td>0.512° ✅</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="vehicle-configurations">Vehicle Configurations<a class="headerlink" href="#vehicle-configurations" title="Permanent link">&para;</a></h2>
+<p>The framework supports multiple vehicle profiles via YAML configuration:</p>
+<h3 id="available-configurations">Available Configurations<a class="headerlink" href="#available-configurations" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Vehicle</th>
+<th>Mass</th>
+<th>Power</th>
+<th>Top Speed</th>
+<th>Battery</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Heavy Truck</strong></td>
+<td>220,000 kg</td>
+<td>2.1 MW</td>
+<td>67 km/h</td>
+<td>1,650 kWh</td>
+<td>Heavy-duty mining truck</td>
+</tr>
+<tr>
+<td><strong>Performance EV</strong></td>
+<td>2,200 kg</td>
+<td>750 kW</td>
+<td>322 km/h</td>
+<td>100 kWh</td>
+<td>High-performance testing</td>
+</tr>
+<tr>
+<td><strong>Default EV</strong></td>
+<td>1,800 kg</td>
+<td>300 kW</td>
+<td>216 km/h</td>
+<td>75 kWh</td>
+<td>Standard passenger vehicle</td>
+</tr>
+</tbody>
+</table>
+<h3 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Use vehicle from scenario JSON</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>./build/src/sim/sim_main<span class="w"> </span>config/scenarios/brake_test.json
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># Override with specific vehicle</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>./build/src/sim/sim_main<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">  </span>--vehicle<span class="w"> </span>config/vehicles/heavy_truck.yaml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">  </span>--dynamic-model<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">  </span>config/scenarios/brake_test.json
+</code></pre></div>
+<hr />
+<h2 id="can-bus-integration">CAN Bus Integration<a class="headerlink" href="#can-bus-integration" title="Permanent link">&para;</a></h2>
+<h3 id="frame-schedule">Frame Schedule<a class="headerlink" href="#frame-schedule" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Frame ID</th>
+<th>Name</th>
+<th>Rate</th>
+<th>Signals</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x100</td>
+<td>ACTUATOR_CMD_1</td>
+<td>20 Hz</td>
+<td>Torque, brake, steering</td>
+<td><strong>RX</strong> from controller</td>
+</tr>
+<tr>
+<td>0x200</td>
+<td>IMU_ACC</td>
+<td>100 Hz</td>
+<td>Accel X/Y/Z, temp</td>
+<td><strong>TX</strong> accelerometer</td>
+</tr>
+<tr>
+<td>0x201</td>
+<td>IMU_GYR</td>
+<td>100 Hz</td>
+<td>Gyro X/Y/Z, status</td>
+<td><strong>TX</strong> gyroscope</td>
+</tr>
+<tr>
+<td>0x210</td>
+<td>GNSS_LL</td>
+<td>10 Hz</td>
+<td>Lat, lon</td>
+<td><strong>TX</strong> GPS position</td>
+</tr>
+<tr>
+<td>0x211</td>
+<td>GNSS_AV</td>
+<td>10 Hz</td>
+<td>Alt, vel, fix quality</td>
+<td><strong>TX</strong> GPS velocity</td>
+</tr>
+<tr>
+<td>0x220</td>
+<td>WHEELS_1</td>
+<td>100 Hz</td>
+<td>FL/FR/RL/RR speeds</td>
+<td><strong>TX</strong> wheel encoders</td>
+</tr>
+<tr>
+<td>0x230</td>
+<td>BATT_STATE</td>
+<td>10 Hz</td>
+<td>V, I, SOC, temp, power</td>
+<td><strong>TX</strong> battery state</td>
+</tr>
+<tr>
+<td>0x240</td>
+<td>RADAR_1</td>
+<td>20 Hz</td>
+<td>Range, vel, angle</td>
+<td><strong>TX</strong> radar target</td>
+</tr>
+<tr>
+<td>0x300</td>
+<td>VEHICLE_STATE_1</td>
+<td>50 Hz</td>
+<td>Speed, accel, yaw</td>
+<td><strong>TX</strong> vehicle dynamics</td>
+</tr>
+</tbody>
+</table>
+<h3 id="closed-loop-control-flow">Closed-Loop Control Flow<a class="headerlink" href="#closed-loop-control-flow" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant Controller as Go Controller
+    participant CAN as vcan0
+    participant Sim as C++ Simulator
+    participant InfluxDB as InfluxDB Server
+
+    Note over Sim: Initialize plant, sensors, tyre model
+
+    loop Every 50ms (20 Hz)
+        Sim-&gt;&gt;CAN: TX sensor frames (0x200-0x240)
+        CAN-&gt;&gt;Controller: Receive sensor data
+        Controller-&gt;&gt;Controller: Compute control action
+        Controller-&gt;&gt;CAN: TX ACTUATOR_CMD_1 (0x100)
+        CAN-&gt;&gt;Sim: Receive actuator command
+        Sim-&gt;&gt;Sim: Step plant model (incl. Dugoff)
+    end
+
+    loop Every 250ms (4 Hz)
+        Sim-&gt;&gt;InfluxDB: Write telemetry (sensors + tire forces)
+        InfluxDB-&gt;&gt;InfluxDB: Store time-series data
+    end</code></pre>
+<hr />
+<h2 id="machine-learning-readiness">Machine Learning Readiness<a class="headerlink" href="#machine-learning-readiness" title="Permanent link">&para;</a></h2>
+<h3 id="dual-export-csv-influxdb">Dual Export: CSV + InfluxDB<a class="headerlink" href="#dual-export-csv-influxdb" title="Permanent link">&para;</a></h3>
+<p>The simulation provides <strong>two complementary data export formats</strong>:</p>
+<ol>
+<li><strong>CSV</strong> - Perfect for offline ML training, batch processing</li>
+<li><strong>InfluxDB</strong> - Ideal for real-time monitoring, online learning</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Example: Load tire data for traction control ML</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;sim_out.csv&#39;</span><span class="p">)</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="n">slip_ratio</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;sigma_x_rl&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="n">tire_force</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;Fx_rl&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="n">friction_util</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;lambda_rl&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+</code></pre></div>
+<h3 id="supported-ml-use-cases">Supported ML Use Cases<a class="headerlink" href="#supported-ml-use-cases" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Extended Kalman Filter (EKF)</strong> - IMU + GNSS fusion for state estimation</li>
+<li><strong>Traction Control</strong> - Learn optimal slip ratio targets from Dugoff data</li>
+<li><strong>Neural Network Sensor Fusion</strong> - Learn optimal sensor weights</li>
+<li><strong>Anomaly Detection</strong> - Identify sensor failures or tire grip loss</li>
+<li><strong>Reinforcement Learning</strong> - Train autonomous driving policies</li>
+</ol>
+<p><strong>Key Advantage:</strong> Perfect ground truth available for supervised learning - every measurement has a corresponding truth value.</p>
+<hr />
+<h2 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">&para;</a></h2>
+<p>Comprehensive documentation is available in the <code>docs/</code> directory:</p>
+<ul>
+<li><strong><a href="VEHICLE_DYNAMICS/">VEHICLE_DYNAMICS.md</a></strong> - Mathematical models, coordinate systems, kinematic equations</li>
+<li><strong><a href="pdfs/Vehicle%20Dynamics%2C%20Battery%2C%20and%20Sensor%20Models%20%28Dugoff%20Tire%20%2B%20Sensor%20Simulation%29.pdf">vehicle_dynamics_dugoff_model.pdf</a></strong> - Dugoff tire model theory (LaTeX)</li>
+<li><strong><a href="SENSOR_SYSTEM/">SENSOR_SYSTEM.md</a></strong> - Sensor noise models, CAN encoding, ML data preparation</li>
+<li><strong><a href="ARCHITECTURE/">ARCHITECTURE.md</a></strong> - Visitor pattern, subsystem design, extensibility guide</li>
+</ul>
+<hr />
+<h2 id="future-roadmap">Future Roadmap<a class="headerlink" href="#future-roadmap" title="Permanent link">&para;</a></h2>
+<h3 id="completed">Completed<a class="headerlink" href="#completed" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] CAN RX integration for closed-loop control</li>
+<li>[x] InfluxDB real-time telemetry</li>
+<li>[x] Dugoff tire model with friction saturation and first-order lag</li>
+<li>[x] Real-time scheduling (SCHED_FIFO)</li>
+<li>[x] Per-wheel rotational dynamics (Iw·ω̇ ODE)</li>
+<li>[x] 3-DOF vehicle dynamics — full vx, vy, yaw rigid-body integration</li>
+<li>[x] Hybrid kinematic/dynamic blend model (smooth transition at ~4 m/s)</li>
+<li>[x] Load transfer — longitudinal + lateral Fz redistribution</li>
+<li>[x] Gear selector via CAN (Forward / Neutral / Reverse)</li>
+<li>[x] Closed-loop C++ controller with speed + steering schedule</li>
+<li>[x] Cusp maneuver validation — forward/stop/reverse with full 5-figure analysis</li>
+<li>[x] Trajectory direction coloring (gear-position-based) + stop markers</li>
+</ul>
+<h3 id="near-term">Near-Term<a class="headerlink" href="#near-term" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] Grafana dashboard templates for live telemetry</li>
+<li>[ ] Multi-target radar tracking</li>
+<li>[ ] Lua scenario scripting for cusp/reverse maneuvers</li>
+</ul>
+<h3 id="medium-term">Medium-Term<a class="headerlink" href="#medium-term" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] Camera sensor simulation (lane detection)</li>
+<li>[ ] Thermal management subsystem</li>
+<li>[ ] MQTT bridge for IoT integration</li>
+</ul>
+<h3 id="long-term">Long-Term<a class="headerlink" href="#long-term" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] <strong>Hardware-in-the-Loop (HIL) — Zephyr RTOS on STM32H753ZI</strong> ← <em>completed, see below</em></li>
+<li>[ ] Full 6-DOF vehicle dynamics (roll, pitch, heave)</li>
+<li>[ ] ROS2 integration for sensor fusion nodes</li>
+<li>[ ] Multi-vehicle simulation (convoy operations)</li>
+</ul>
+<hr />
+<h2 id="hardware-in-the-loop-zephyr-rtos-port">Hardware-in-the-Loop — Zephyr RTOS Port<a class="headerlink" href="#hardware-in-the-loop-zephyr-rtos-port" title="Permanent link">&para;</a></h2>
+<p>The full plant model runs bare-metal on a <strong>ST Nucleo-H753ZI</strong> (STM32H753ZI, Cortex-M7 @ 480 MHz) under Zephyr RTOS v3.7.0. The same <code>src/plant/</code> C++ source compiles for both the Linux host simulator and the embedded target — only the platform layer differs.</p>
+<h3 id="board">Board<a class="headerlink" href="#board" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Board</td>
+<td>ST Nucleo-H753ZI</td>
+</tr>
+<tr>
+<td>MCU</td>
+<td>STM32H753ZI @ 480 MHz</td>
+</tr>
+<tr>
+<td>Flash</td>
+<td>2 MB</td>
+</tr>
+<tr>
+<td>RAM</td>
+<td>1 MB</td>
+</tr>
+<tr>
+<td>CAN</td>
+<td>FDCAN1 @ 500 kbps (PD0/PD1)</td>
+</tr>
+<tr>
+<td>Network</td>
+<td>10/100 Ethernet → <code>192.168.1.80</code></td>
+</tr>
+<tr>
+<td>Debug UART</td>
+<td>USART3 → ST-Link virtual COM</td>
+</tr>
+</tbody>
+</table>
+<h3 id="thread-architecture">Thread Architecture<a class="headerlink" href="#thread-architecture" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>graph TD
+    TIMER["k_timer 10 ms"]
+    SEM["k_sem"]
+    PLANT["plant_tid  prio=5  16KB\nplant/plant_thread.cpp"]
+    CANRX["can_rx_tid  prio=3  1KB\ncan/can_rx.cpp"]
+    HTTP["http_tid  prio=10  8KB\nhttp/http_server.cpp"]
+    LED["led_tid  prio=12  512B\nled/led_task.cpp"]
+    GCMD["g_cmd  k_mutex"]
+    GSTATE["g_state  k_mutex"]
+    BUS["CAN Bus\nFDCAN1 500 kbps"]
+    ETH["Browser\n192.168.1.80"]
+
+    TIMER --&gt;|k_sem_give| SEM
+    SEM --&gt;|k_sem_take| PLANT
+    CANRX --&gt;|write| GCMD
+    PLANT --&gt;|read| GCMD
+    PLANT --&gt;|write| GSTATE
+    HTTP --&gt;|read| GSTATE
+    PLANT --&gt;|TX frames| BUS
+    CANRX --&gt;|ACTUATOR_CMD_1| BUS
+    HTTP --&gt; ETH</code></pre>
+<h3 id="key-implementation-facts">Key implementation facts<a class="headerlink" href="#key-implementation-facts" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>10 ms deterministic plant step</strong> — <code>k_timer</code> → <code>k_sem</code> → <code>plant_thread</code>; no <code>sleep_for</code>, no <code>std::chrono</code></li>
+<li><strong>CAN watchdog</strong> — if no <code>ACTUATOR_CMD_1</code> for 500 ms the plant enters safe-mode (coast, zero torque/brake)</li>
+<li><strong>Braking</strong> — <code>brake_torque_max_nm = 2.5 MNm</code> → ~0.6 g at full 218 t load, limited by Dugoff tyre friction</li>
+<li><strong>Web dashboard</strong> — live plant state, Controls card (STOP / FWD / REV / steer ±5°), Kernel Threads stack-usage panel</li>
+<li><strong>CSS embedded at build time</strong> — <code>generate_inc_file_for_target(dashboard.css → dashboard.css.inc)</code>; edit <code>.css</code> without touching C++</li>
+<li><strong>Shell</strong> — <code>plant inject &lt;steer&gt; &lt;torque&gt; &lt;brake&gt;</code>, <code>plant mu &lt;val&gt;</code>, <code>can rx_frame</code>, <code>can tx_test</code></li>
+</ul>
+<h3 id="build-flash">Build &amp; Flash<a class="headerlink" href="#build-flash" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nb">cd</span><span class="w"> </span>~/zephyrproject
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>rm<span class="w"> </span>-rf<span class="w"> </span>build
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>west<span class="w"> </span>build<span class="w"> </span>-b<span class="w"> </span>nucleo_h753zi<span class="w"> </span>~/repos/vehicle-Dynamics-Sim-Can/zephyr
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>west<span class="w"> </span>flash
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>picocom<span class="w"> </span>-b<span class="w"> </span><span class="m">115200</span><span class="w"> </span>/dev/ttyACM0<span class="w">   </span><span class="c1"># UART shell</span>
+</code></pre></div>
+<p>Dashboard: <code>http://192.168.1.80</code></p>
+<h3 id="documentation_1">Documentation<a class="headerlink" href="#documentation_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="zephyr/ZEPHYR_PORT/"><code>zephyr/ZEPHYR_PORT.md</code></a> — full port guide (Phases 0–5)</li>
+<li><a href="pdfs/RTOS_Implementation.pdf"><code>pdfs/RTOS_Implementation.pdf</code></a> — in-depth architecture with flowcharts</li>
+</ul>
+<hr />
+<h2 id="performance-metrics">Performance Metrics<a class="headerlink" href="#performance-metrics" title="Permanent link">&para;</a></h2>
+<h3 id="simulation-performance">Simulation Performance<a class="headerlink" href="#simulation-performance" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Real-time capability:</strong> 1:1 wall-clock time with 1ms timestep</li>
+<li><strong>CAN throughput:</strong> ~1,500 frames/second (7 frames × 10-100 Hz)</li>
+<li><strong>InfluxDB write rate:</strong> 4Hz (250ms interval), 7 measurements per write</li>
+<li><strong>CPU usage:</strong> ~15-20% on Intel i7 (single-threaded)</li>
+<li><strong>Memory footprint:</strong> ~50 MB</li>
+</ul>
+<h3 id="data-output-rates">Data Output Rates<a class="headerlink" href="#data-output-rates" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>CSV logging:</strong> 60+ signals at simulation timestep (10ms)</li>
+<li><strong>InfluxDB telemetry:</strong> 280+ fields across 7 measurements (250ms)</li>
+<li><strong>CAN frames:</strong> 7 frame types at 10-100 Hz</li>
+</ul>
+<hr />
+<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<h3 id="academic">Academic<a class="headerlink" href="#academic" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Dugoff, H., Fancher, P. S., and Segel, L. (1970). <em>An Analysis of Tire Traction Properties and Their Influence on Vehicle Dynamic Performance</em>. SAE Technical Paper 700377.</li>
+<li>Rajamani, R. (2012). <em>Vehicle Dynamics and Control</em>. Springer.</li>
+<li>Gillespie, T. (1992). <em>Fundamentals of Vehicle Dynamics</em>. SAE International.</li>
+<li>Pacejka, H. (2012). <em>Tire and Vehicle Dynamics</em>. Butterworth-Heinemann.</li>
+</ul>
+<h3 id="industry-standards">Industry Standards<a class="headerlink" href="#industry-standards" title="Permanent link">&para;</a></h3>
+<ul>
+<li>ISO 11898-1:2015 - CAN protocol specification</li>
+<li>ISO 8855:2011 - Vehicle dynamics vocabulary</li>
+<li>DBC file format - Vector Informatik CAN database</li>
+<li>WGS84 - World Geodetic System (NIMA TR8350.2)</li>
+<li>InfluxDB Line Protocol - Time-series data format</li>
+</ul>
+<h3 id="tools">Tools<a class="headerlink" href="#tools" title="Permanent link">&para;</a></h3>
+<ul>
+<li>SocketCAN - Linux CAN bus implementation</li>
+<li>YAML-CPP - Configuration file parsing</li>
+<li>Lua 5.3 - Scenario scripting runtime</li>
+<li>libcurl - HTTP client for InfluxDB</li>
+<li>InfluxDB 2.x - Time-series database</li>
+</ul>
+<hr />
+<h2 id="license">License<a class="headerlink" href="#license" title="Permanent link">&para;</a></h2>
+<p>Personal R&amp;D project - MIT License</p>
+<hr />
+<p>This simulation framework demonstrates expertise in vehicle dynamics, tire modeling, sensor fusion, real-time systems, time-series data management, and autonomous vehicle development.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@11/dist/mermaid.min.js"></script>
+      
+        <script src="js/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>
