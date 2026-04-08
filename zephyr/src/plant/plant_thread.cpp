@@ -98,7 +98,12 @@ static plant::PlantModelParams vehicle_params()
     return p;
 }
 
-static plant::PlantModel s_plant{vehicle_params()};
+// ── PlantModel pointer — heap-allocated inside plant_thread() ────────────────
+// Construction (~95 ms) is deferred to thread start so watchdog_thread can arm
+// and feed the IWDG first. File-scope construction ran before any threads and
+// starved the IWDG. Function-local static requires __cxa_guard_acquire which
+// Zephyr's newlib doesn't provide.
+static plant::PlantModel* s_plant = nullptr;
 
 // ── 10 ms periodic timer ──────────────────────────────────────────────────────
 K_SEM_DEFINE(plant_sem, 0, 1);
@@ -111,10 +116,12 @@ static void plant_thread(void*, void*, void*)
 {
     LOG_INF("[plant] Heavy-Duty Electric Vehicle plant thread started (dt=10 ms, prio=5)");
 
+    s_plant = new plant::PlantModel{vehicle_params()};
+
     {
-        auto p = s_plant.params();
+        auto p = s_plant->params();
         p.dynamic_config.surface_mu = g_surface_mu;
-        s_plant.set_params(p);
+        s_plant->set_params(p);
     }
 
     k_timer_start(&plant_timer, K_MSEC(10), K_MSEC(10));
@@ -130,9 +137,9 @@ static void plant_thread(void*, void*, void*)
             static double last_mu = 0.0;
             if (g_surface_mu != last_mu) {
                 last_mu = g_surface_mu;
-                auto p = s_plant.params();
+                auto p = s_plant->params();
                 p.dynamic_config.surface_mu = g_surface_mu;
-                s_plant.set_params(p);
+                s_plant->set_params(p);
             }
         }
 
@@ -156,7 +163,7 @@ static void plant_thread(void*, void*, void*)
         local_state = g_state;
         k_mutex_unlock(&g_state_mutex);
 
-        s_plant.step(local_state, cmd, DT_S);
+        s_plant->step(local_state, cmd, DT_S);
 
         k_mutex_lock(&g_state_mutex, K_FOREVER);
         g_state = local_state;

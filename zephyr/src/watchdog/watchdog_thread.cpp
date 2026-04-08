@@ -30,6 +30,13 @@ static void watchdog_thread(void*, void*, void*)
         return;
     }
 
+    // Feed channel 0 NOW — the IWDG may already be running from a prior session
+    // (STM32H7 IWDG persists across warm resets). This buys us 1 s to complete
+    // setup before the old countdown expires. Channel 0 is the only STM32 IWDG
+    // channel, so this is safe to call before wdt_install_timeout.
+    wdt_feed(wdt, 0);
+    LOG_INF("WDT: pre-setup feed done");
+
     struct wdt_timeout_cfg cfg{};
     cfg.window.min = 0;
     cfg.window.max = 1000;   // 1 second hardware timeout
@@ -38,15 +45,19 @@ static void watchdog_thread(void*, void*, void*)
 
     int ch = wdt_install_timeout(wdt, &cfg);
     if (ch < 0) {
-        LOG_ERR("WDT: wdt_install_timeout failed: %d", ch);
-        return;
+        // IWDG may already be locked — fall back to channel 0 and keep feeding.
+        LOG_WRN("WDT: wdt_install_timeout failed (%d) — using ch 0", ch);
+        ch = 0;
     }
 
     int rc = wdt_setup(wdt, WDT_OPT_PAUSE_HALTED_BY_DBG);
     if (rc < 0) {
-        LOG_ERR("WDT: wdt_setup failed: %d", rc);
-        return;
+        // -EBUSY means IWDG is already running — that's expected after a warm
+        // reset. Log and continue; we still need to keep feeding it.
+        LOG_WRN("WDT: wdt_setup returned %d (IWDG already running — continuing)", rc);
     }
+
+    wdt_feed(wdt, ch);
 
     LOG_INF("WDT: armed (1s timeout). Feeding during 10s init grace period...");
 
@@ -75,4 +86,4 @@ static void watchdog_thread(void*, void*, void*)
     }
 }
 
-K_THREAD_DEFINE(watchdog_tid, 512, watchdog_thread, NULL, NULL, NULL, 2, 0, 0);
+K_THREAD_DEFINE(watchdog_tid, 2048, watchdog_thread, NULL, NULL, NULL, 2, 0, 0);

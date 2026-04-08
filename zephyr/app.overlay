@@ -54,7 +54,6 @@
     local-mac-address = [02 00 5E 00 53 01];
 };
 
-/* Hardware watchdog disabled — re-enable once boot is confirmed stable.
 &iwdg {
     status = "okay";
-}; */
+};
