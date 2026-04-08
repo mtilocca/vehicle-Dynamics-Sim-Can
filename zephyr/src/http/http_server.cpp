@@ -240,5 +240,5 @@ static void http_server_thread(void*, void*, void*)
     }
 }
 
-// Stack 12 KB — needed for TLS handshake overhead
-K_THREAD_DEFINE(http_tid, 12288, http_server_thread, NULL, NULL, NULL, 10, 0, 0);
+// Stack 24 KB — ECDHE-RSA TLS handshake needs ~10-15 KB on top of locals
+K_THREAD_DEFINE(http_tid, 24576, http_server_thread, NULL, NULL, NULL, 10, 0, 0);
