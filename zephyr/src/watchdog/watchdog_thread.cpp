@@ -1,12 +1,15 @@
 // zephyr/src/watchdog/watchdog_thread.cpp
 // Hardware watchdog heartbeat thread.
 //
-// The plant_thread gives g_wdt_sem every 10 ms step.
-// This thread waits on that semaphore with a 500 ms timeout and strokes
-// the hardware IWDG. If the plant thread hangs for > 500 ms the IWDG
-// fires and resets the MCU.
+// Strategy:
+//   1. Arm the IWDG immediately at thread start (handles IWDG already running
+//      from a prior firmware flash — STM32H7 IWDG cannot be stopped once started).
+//   2. Feed it every 500 ms for a 10-second grace period while plant_thread
+//      initializes all 8 subsystems.
+//   3. After the grace period, switch to semaphore-based feeding — plant_thread
+//      gives g_wdt_sem every 10 ms step; if it stalls for >500 ms, MCU resets.
 //
-// Priority 2 — below CAN RX (3), above ETH driver handled at IRQ level.
+// Priority 2 — below CAN RX (3), above ETH driver (handled at IRQ level).
 // Stack 512 B — minimal; only calls wdt_feed().
 
 #include <zephyr/kernel.h>
@@ -20,24 +23,16 @@ extern struct k_sem g_wdt_sem;
 
 static void watchdog_thread(void*, void*, void*)
 {
-    // Grace period: wait for plant_thread to finish subsystem initialization
-    // and enter its main loop before arming the IWDG.
-    // 8 subsystems × complex init can take 1-2 s on first boot.
-    k_msleep(50000);
-
     const struct device* wdt = DEVICE_DT_GET(DT_NODELABEL(iwdg));
     if (!device_is_ready(wdt)) {
         LOG_WRN("WDT: IWDG device not ready — watchdog disabled");
-        // Thread stays alive but does nothing; plant still runs safely.
-        while (true) {
-            k_sem_take(&g_wdt_sem, K_MSEC(500));
-        }
+        while (true) { k_sem_take(&g_wdt_sem, K_MSEC(500)); }
         return;
     }
 
     struct wdt_timeout_cfg cfg{};
     cfg.window.min = 0;
-    cfg.window.max = 1000;  // 1 second hardware timeout
+    cfg.window.max = 1000;   // 1 second hardware timeout
     cfg.callback   = nullptr;
     cfg.flags      = WDT_FLAG_RESET_SOC;
 
@@ -53,15 +48,28 @@ static void watchdog_thread(void*, void*, void*)
         return;
     }
 
-    LOG_INF("WDT: hardware watchdog armed (1 s timeout, stroked by plant_thread)");
+    LOG_INF("WDT: armed (1s timeout). Feeding during 10s init grace period...");
 
+    // Feed unconditionally for 10 seconds.
+    // This covers:
+    //   - plant_thread subsystem init (can take 1-2 s)
+    //   - IWDG already running from a prior firmware flash (would fire within 1 s
+    //     if not fed — the 50 s k_msleep approach did not feed it at all)
+    uint32_t grace_end_ms = k_uptime_get_32() + 10000u;
+    while ((int32_t)(k_uptime_get_32() - grace_end_ms) < 0) {
+        wdt_feed(wdt, ch);
+        k_msleep(500);
+    }
+
+    LOG_INF("WDT: grace period over — monitoring plant_thread via g_wdt_sem");
+
+    // Normal operation: plant_thread must give g_wdt_sem every ≤500 ms.
+    // If it stalls, we log the fault and the 1 s HW timeout fires.
     while (true) {
         int r = k_sem_take(&g_wdt_sem, K_MSEC(500));
         if (r == 0) {
             wdt_feed(wdt, ch);
         } else {
-            // Plant thread did not step within 500 ms — MCU will reset
-            // once the 1 s hardware timeout expires. Log the fault first.
             LOG_ERR("WDT: plant_thread stall detected — hardware reset imminent");
         }
     }

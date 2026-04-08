@@ -43,9 +43,8 @@ list(APPEND APP_SRCS
     src/can/can_tx.cpp
 )
 
-# Auxiliary threads: watchdog + stats
+# Auxiliary threads: stats only (watchdog disabled for boot diagnostics)
 list(APPEND APP_SRCS
-    src/watchdog/watchdog_thread.cpp
     src/stats/stats_thread.cpp
 )
 

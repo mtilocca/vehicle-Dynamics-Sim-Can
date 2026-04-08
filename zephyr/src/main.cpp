@@ -38,7 +38,9 @@ SysStats g_sys_stats{};
 K_MUTEX_DEFINE(g_stats_mutex);
 
 // ── Watchdog semaphore — given by plant_thread every 10 ms ───────────────────
+#ifdef CONFIG_WATCHDOG
 K_SEM_DEFINE(g_wdt_sem, 0, 1);
+#endif
 
 // ── Plant model pointer (set in Phase 4) ─────────────────────────────────────
 namespace plant { class PlantModel; }

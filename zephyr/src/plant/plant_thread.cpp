@@ -39,8 +39,10 @@ struct SysStats {
 extern SysStats      g_sys_stats;
 extern struct k_mutex g_stats_mutex;
 
-// ── Watchdog semaphore (defined in main.cpp) ──────────────────────────────────
+// ── Watchdog semaphore (defined in main.cpp, used when CONFIG_WATCHDOG=y) ─────
+#ifdef CONFIG_WATCHDOG
 extern struct k_sem g_wdt_sem;
+#endif
 
 // ── CAN TX trigger (defined in can_tx.cpp) ───────────────────────────────────
 extern void can_tx_send_all(const plant::PlantState& s, double t_s,
@@ -201,7 +203,9 @@ static void plant_thread(void*, void*, void*)
         can_tx_send_all(local_state, t_s, loop_us);
 
         // ── Stroke hardware watchdog via watchdog_thread semaphore ────────────
+#ifdef CONFIG_WATCHDOG
         k_sem_give(&g_wdt_sem);
+#endif
     }
 }
 
