@@ -53,3 +53,7 @@
     status = "okay";
     local-mac-address = [02 00 5E 00 53 01];
 };
+
+&iwdg {
+    status = "okay";
+};
