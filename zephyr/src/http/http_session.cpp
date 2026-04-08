@@ -52,8 +52,10 @@ static bool extract_sid(const char* cookie_hdr, char* out, int olen)
     if (!p) return false;
     p += 4;
     int i = 0;
-    while (i < 32 && p[i] && p[i] != ';' && p[i] != ' ' && i < olen - 1)
-        out[i] = p[i++];
+    while (i < 32 && i < olen - 1 && p[i] && p[i] != ';' && p[i] != ' ') {
+        out[i] = p[i];
+        i++;
+    }
     out[i] = '\0';
     return (i == 32);
 }

@@ -71,4 +71,9 @@ picocom -b 115200 /dev/ttyACM0
 python3 scripts/plotter_analysis.py
 ```
 
+```bash
+rm -rf build && .venv/bin/west build -b nucleo_h753zi /home/baloo/repos/vehicle-Dynamics-Sim-Can/zephyr && .venv/bin/west flash && python -m serial.tools.miniterm /dev/ttyACM0 115200 --raw
+
+```
+
 Individual plot scripts are in `tools/analytics/`.

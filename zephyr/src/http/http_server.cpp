@@ -167,12 +167,14 @@ static void http_server_thread(void*, void*, void*)
             if (eq) tok = eq + 6;
             char tok_clean[128] = {};
             int  ti = 0;
-            while (tok[ti] && tok[ti] != '&' && tok[ti] != '\r' && tok[ti] != '\n'
-                   && ti < (int)sizeof(tok_clean) - 1)
-                tok_clean[ti] = tok[ti++];
+            while (ti < (int)sizeof(tok_clean) - 1 &&
+                   tok[ti] && tok[ti] != '&' && tok[ti] != '\r' && tok[ti] != '\n') {
+                tok_clean[ti] = tok[ti];
+                ti++;
+            }
             tok_clean[ti] = '\0';
 
-            if (verify_bearer(tok_clean)) {
+if (verify_bearer(tok_clean)) {
                 char sid[33] = {};
                 session_create(sid, sizeof(sid));
                 LOG_INF("HTTP: login OK → /dash");
