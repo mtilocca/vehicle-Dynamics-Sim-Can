@@ -57,3 +57,33 @@
 &iwdg {
     status = "okay";
 };
+
+/* ── Flash partition layout — overrides board DTS defaults ───────────────────
+ * STM32H753ZI: 2 MB dual-bank flash.
+ * Default board DTS has 256 KB slots — too small for our ~280 KB binary.
+ * This layout gives 912 KB per slot for future growth.
+ *
+ * 0x08000000  MCUboot bootloader   48 KB
+ * 0x0800C000  Slot 0 (active app)  912 KB
+ * 0x080F0000  Slot 1 (OTA update)  912 KB
+ * 0x081D4000  Scratch              64 KB
+ * 0x081E4000  NVS/storage          112 KB
+ *
+ * We reference the existing partition labels (defined in board DTS) and
+ * override only their reg property — avoids duplicate label errors.
+ */
+&boot_partition {
+    reg = <0x00000000 DT_SIZE_K(48)>;
+};
+&slot0_partition {
+    reg = <0x0000C000 DT_SIZE_K(912)>;
+};
+&slot1_partition {
+    reg = <0x000F0000 DT_SIZE_K(912)>;
+};
+&scratch_partition {
+    reg = <0x001D4000 DT_SIZE_K(64)>;
+};
+&storage_partition {
+    reg = <0x001E4000 DT_SIZE_K(112)>;
+};

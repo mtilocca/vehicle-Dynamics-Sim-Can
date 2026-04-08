@@ -1,5 +1,13 @@
 cmake_minimum_required(VERSION 3.20.0)
 
+# ── MCUboot image signing key ─────────────────────────────────────────────────
+# Generated once with: imgtool keygen -k mcuboot_signing_key.pem -t ecdsa-p256
+# File is gitignored — never commit the private key.
+if(DEFINED CONFIG_BOOTLOADER_MCUBOOT)
+    set(mcuboot_SIGNING_KEY_FILE
+        ${CMAKE_CURRENT_SOURCE_DIR}/mcuboot_signing_key.pem)
+endif()
+
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(hdv_sim VERSION 1.0.0 LANGUAGES CXX C)
 

@@ -104,3 +104,8 @@ Testing/
 # -----------------------------
 zephyr/certs/
 zephyr/src/http/http_auth.hpp
+
+# -----------------------------
+# MCUboot signing key — NEVER commit private key
+# -----------------------------
+zephyr/mcuboot_signing_key.pem
