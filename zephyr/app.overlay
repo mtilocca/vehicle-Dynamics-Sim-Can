@@ -57,3 +57,39 @@
 &iwdg {
     status = "okay";
 };
+
+/* ── Flash partition layout — overrides board DTS defaults ───────────────────
+ * STM32H753ZI: 2 MB dual-bank flash, 128 KB sectors.
+ * ALL boundaries must be 128 KB aligned.
+ *
+ * Board default (nucleo_h753zi.dts):
+ *   0x08000000  MCUboot    128 KB  sector 0, bank 1
+ *   0x08020000  Storage    128 KB  sector 1, bank 1  ← left in place (board default)
+ *   0x08040000  Slot 0     256 KB  sectors 2-3, bank 1 (default — too small for us)
+ *   0x08080000  Slot 1     256 KB  sectors 4-5, bank 1 (default)
+ *   0x080C0000  Scratch    128 KB  sector 6, bank 1  (default)
+ *
+ * Our override (expand slots, respect storage_partition at 0x20000):
+ *   0x08000000  MCUboot    128 KB  (sector 0, bank 1)
+ *   0x08020000  Storage    128 KB  (sector 1, bank 1)  — board default, not touched
+ *   0x08040000  Slot 0     640 KB  (sectors 2-6, bank 1)  ← active app
+ *   0x080E0000  Unused     128 KB  (sector 7, bank 1)
+ *   0x08100000  Slot 1     640 KB  (sectors 0-4, bank 2)  ← OTA update
+ *   0x081A0000  Unused     256 KB  (sectors 5-6, bank 2)
+ *   0x081E0000  Scratch    128 KB  (sector 7, bank 2)
+ *
+ * slot0 node stays at partition@40000 — matches board DTS node name, no warnings.
+ * 640 KB >> 286 KB app; ample headroom.
+ */
+&boot_partition {
+    reg = <0x00000000 DT_SIZE_K(128)>;
+};
+&slot0_partition {
+    reg = <0x00040000 DT_SIZE_K(640)>;
+};
+&slot1_partition {
+    reg = <0x00100000 DT_SIZE_K(640)>;
+};
+&scratch_partition {
+    reg = <0x001E0000 DT_SIZE_K(128)>;
+};

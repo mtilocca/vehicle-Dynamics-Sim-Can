@@ -1,0 +1,41 @@
+/* sysbuild/mcuboot.overlay
+ * Applied to the MCUboot build by west sysbuild.
+ * Must match app.overlay exactly — MCUboot and the app must agree on where
+ * slot0 starts or MCUboot will not chainload.
+ *
+ * STM32H753ZI 2 MB flash, 128 KB sectors, dual-bank:
+ *   0x08000000  MCUboot      128 KB  (bank 1, sector 0)
+ *   0x08020000  Storage      128 KB  (bank 1, sector 1) — board default, left in place
+ *   0x08040000  Slot 0       640 KB  (bank 1, sectors 2-6)
+ *   0x080E0000  Unused       128 KB  (bank 1, sector 7)
+ *   0x08100000  Slot 1       640 KB  (bank 2, sectors 0-4)
+ *   0x081A0000  Unused       256 KB  (bank 2, sectors 5-6)
+ *   0x081E0000  Scratch      128 KB  (bank 2, sector 7)
+ *
+ * slot0 starts at 0x40000 (board default node address) — no DTS unit-address
+ * mismatch warnings, no overlap with storage_partition at 0x20000.
+ * 640 KB >> 286 KB app; plenty of headroom.
+ */
+
+/* Force MCUboot itself to link at boot_partition (0x08000000).
+ * The board chosen has zephyr,code-partition = &slot0_partition which would
+ * otherwise make MCUboot link to slot0 and overwrite itself when the app is
+ * flashed. This override fixes that. */
+/ {
+    chosen {
+        zephyr,code-partition = &boot_partition;
+    };
+};
+
+&boot_partition {
+    reg = <0x00000000 DT_SIZE_K(128)>;
+};
+&slot0_partition {
+    reg = <0x00040000 DT_SIZE_K(640)>;
+};
+&slot1_partition {
+    reg = <0x00100000 DT_SIZE_K(640)>;
+};
+&scratch_partition {
+    reg = <0x001E0000 DT_SIZE_K(128)>;
+};

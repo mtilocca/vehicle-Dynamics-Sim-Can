@@ -15,6 +15,9 @@
 //   GET  /dash        → dashboard (requires session cookie or Bearer token)
 //   GET  /dash?...    → apply command + dashboard (requires auth)
 //   GET  /logout      → invalidate session + redirect /
+//   GET  /ota         → OTA upload page (requires auth)
+//   POST /api/firmware → stream firmware binary to slot1 (requires auth)
+//   POST /api/reboot  → cold-reboot into MCUboot swap (requires auth)
 //   other             → redirect /
 
 #include <zephyr/kernel.h>
@@ -137,12 +140,15 @@ static void http_server_thread(void*, void*, void*)
             continue;
         }
 
-        bool is_get    = (method[0] == 'G');
-        bool is_post   = (method[0] == 'P');
-        bool is_root   = (path[0] == '\0' || strcmp(path, "/") == 0);
-        bool is_login  = (strcmp(path, "/login")  == 0);
-        bool is_dash   = (strcmp(path, "/dash")   == 0);
-        bool is_logout = (strcmp(path, "/logout") == 0);
+        bool is_get          = (method[0] == 'G');
+        bool is_post         = (method[0] == 'P');
+        bool is_root         = (path[0] == '\0' || strcmp(path, "/") == 0);
+        bool is_login        = (strcmp(path, "/login")        == 0);
+        bool is_dash         = (strcmp(path, "/dash")         == 0);
+        bool is_logout       = (strcmp(path, "/logout")       == 0);
+        bool is_ota          = (strcmp(path, "/ota")          == 0);
+        bool is_api_firmware = (strcmp(path, "/api/firmware") == 0);
+        bool is_api_reboot   = (strcmp(path, "/api/reboot")   == 0);
 
         bool has_bearer  = verify_bearer(auth);
         bool has_session = session_check(cookie);
@@ -199,6 +205,18 @@ if (verify_bearer(tok_clean)) {
             } else {
                 send_redirect(client, "/");
             }
+
+        } else if (is_get && is_ota) {
+            if (authed) { handle_ota_page(client); }
+            else        { send_redirect(client, "/"); }
+
+        } else if (is_post && is_api_firmware) {
+            if (authed) { handle_ota_upload(client, clen); }
+            else        { send_401(client); }
+
+        } else if (is_post && is_api_reboot) {
+            if (authed) { handle_api_reboot(client); /* never returns */ }
+            else        { send_401(client); }
 
         } else if (is_get && authed) {
             send_redirect(client, "/dash");

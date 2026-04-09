@@ -31,3 +31,8 @@ void send_login_page(int fd, bool bad_token);
 
 // ── Response helpers (http_server.cpp) ───────────────────────────────────────
 void send_401(int fd);
+
+// ── OTA firmware update (http_ota.cpp) ───────────────────────────────────────
+void handle_ota_page(int fd);
+void handle_ota_upload(int fd, int content_length);
+void handle_api_reboot(int fd);  // closes fd and reboots — never returns

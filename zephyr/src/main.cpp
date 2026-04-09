@@ -4,6 +4,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/atomic.h>
+#include <zephyr/dfu/mcuboot.h>
 
 #include "plant/plant_main/plant_state.hpp"
 #include "sim/actuator_cmd.hpp"
@@ -51,9 +52,21 @@ int main(void)
     LOG_INF("========================================");
     LOG_INF("Heavy-Duty Electric Vehicle Plant Simulator");
     LOG_INF("Board : nucleo_h753zi (STM32H753ZI)");
-    LOG_INF("Phase : 1 - Logging + UART Shell");
+    LOG_INF("Phase : 3b - OTA firmware update");
     LOG_INF("========================================");
     LOG_INF("Shell ready on USART3 — type 'help' for commands");
+
+    // Confirm image to MCUboot — without this, MCUboot rolls back on next reset.
+    if (boot_is_img_confirmed()) {
+        LOG_INF("BOOT: image already confirmed");
+    } else {
+        int rc = boot_write_img_confirmed();
+        if (rc == 0) {
+            LOG_INF("BOOT: image confirmed OK");
+        } else {
+            LOG_ERR("BOOT: image confirm failed (rc=%d) — will roll back on reset", rc);
+        }
+    }
 
     while (true) {
         k_msleep(60000);
