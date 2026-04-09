@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.20.0)
 
 # ── MCUboot image signing key ─────────────────────────────────────────────────
-# Uncomment once BOOT_SIGNATURE_TYPE_NONE is replaced with ECDSA_P256.
 # Must be set before find_package(Zephyr) so cmake/mcuboot.cmake picks it up.
-# set(MCUBOOT_SIGNING_KEY_FILE ${CMAKE_CURRENT_SOURCE_DIR}/mcuboot_signing_key.pem)
+set(MCUBOOT_SIGNING_KEY_FILE ${CMAKE_CURRENT_SOURCE_DIR}/mcuboot_signing_key.pem)
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(hdv_sim VERSION 1.0.0 LANGUAGES CXX C)
