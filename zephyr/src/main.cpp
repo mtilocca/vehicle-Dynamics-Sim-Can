@@ -52,7 +52,7 @@ int main(void)
     LOG_INF("========================================");
     LOG_INF("Heavy-Duty Electric Vehicle Plant Simulator");
     LOG_INF("Board : nucleo_h753zi (STM32H753ZI)");
-    LOG_INF("Phase : 3a - MCUboot secure bootloader");
+    LOG_INF("Phase : 3b - OTA firmware update");
     LOG_INF("========================================");
     LOG_INF("Shell ready on USART3 — type 'help' for commands");
 
