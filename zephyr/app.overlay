@@ -59,31 +59,37 @@
 };
 
 /* ── Flash partition layout — overrides board DTS defaults ───────────────────
- * STM32H753ZI: 2 MB dual-bank flash.
- * Default board DTS has 256 KB slots — too small for our ~280 KB binary.
- * This layout gives 912 KB per slot for future growth.
+ * STM32H753ZI: 2 MB dual-bank flash, 128 KB sectors.
+ * ALL boundaries must be 128 KB aligned.
  *
- * 0x08000000  MCUboot bootloader   48 KB
- * 0x0800C000  Slot 0 (active app)  912 KB
- * 0x080F0000  Slot 1 (OTA update)  912 KB
- * 0x081D4000  Scratch              64 KB
- * 0x081E4000  NVS/storage          112 KB
+ * Board default (nucleo_h753zi.dts):
+ *   0x08000000  MCUboot    128 KB  sector 0, bank 1
+ *   0x08020000  Storage    128 KB  sector 1, bank 1  ← left in place (board default)
+ *   0x08040000  Slot 0     256 KB  sectors 2-3, bank 1 (default — too small for us)
+ *   0x08080000  Slot 1     256 KB  sectors 4-5, bank 1 (default)
+ *   0x080C0000  Scratch    128 KB  sector 6, bank 1  (default)
  *
- * We reference the existing partition labels (defined in board DTS) and
- * override only their reg property — avoids duplicate label errors.
+ * Our override (expand slots, respect storage_partition at 0x20000):
+ *   0x08000000  MCUboot    128 KB  (sector 0, bank 1)
+ *   0x08020000  Storage    128 KB  (sector 1, bank 1)  — board default, not touched
+ *   0x08040000  Slot 0     640 KB  (sectors 2-6, bank 1)  ← active app
+ *   0x080E0000  Unused     128 KB  (sector 7, bank 1)
+ *   0x08100000  Slot 1     640 KB  (sectors 0-4, bank 2)  ← OTA update
+ *   0x081A0000  Unused     256 KB  (sectors 5-6, bank 2)
+ *   0x081E0000  Scratch    128 KB  (sector 7, bank 2)
+ *
+ * slot0 node stays at partition@40000 — matches board DTS node name, no warnings.
+ * 640 KB >> 286 KB app; ample headroom.
  */
 &boot_partition {
-    reg = <0x00000000 DT_SIZE_K(48)>;
+    reg = <0x00000000 DT_SIZE_K(128)>;
 };
 &slot0_partition {
-    reg = <0x0000C000 DT_SIZE_K(912)>;
+    reg = <0x00040000 DT_SIZE_K(640)>;
 };
 &slot1_partition {
-    reg = <0x000F0000 DT_SIZE_K(912)>;
+    reg = <0x00100000 DT_SIZE_K(640)>;
 };
 &scratch_partition {
-    reg = <0x001D4000 DT_SIZE_K(64)>;
-};
-&storage_partition {
-    reg = <0x001E4000 DT_SIZE_K(112)>;
+    reg = <0x001E0000 DT_SIZE_K(128)>;
 };
