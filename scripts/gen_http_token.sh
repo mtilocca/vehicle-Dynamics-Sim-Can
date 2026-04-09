@@ -42,20 +42,7 @@ echo "    curl -k -H 'Authorization: Bearer ${TOKEN}' https://192.168.1.80/"
 echo ""
 
 # ── TLS certificate + private key ──────────────────────────────────────────────
-CRT="$CERT_DIR/server.crt"
-KEY="$CERT_DIR/server.key"
+# Delegate to gen_tls_certs.sh so the IP SAN is always set correctly.
+bash "$(dirname "$0")/gen_tls_certs.sh"
 
-openssl req -x509 -newkey rsa:2048 -days 3650 -nodes \
-    -keyout "$KEY" \
-    -out    "$CRT" \
-    -subj   "/CN=hdv-sim/O=HDV/C=AU" \
-    2>/dev/null
-
-echo "[cert]   Written to: $CRT"
-echo "[key]    Written to: $KEY"
-echo ""
-echo "Cert fingerprint:"
-openssl x509 -in "$CRT" -noout -fingerprint -sha256 2>/dev/null
-echo ""
-echo "All done — run 'cd ~/zephyrproject && west build --build-dir build"
-echo " /home/\$USER/repos/vehicle-Dynamics-Sim-Can/zephyr' to build firmware."
+echo "All done — rebuild and reflash firmware to deploy new credentials."
