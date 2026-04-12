@@ -10,16 +10,11 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/atomic.h>
 
+#include "sys_stats.hpp"
+
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
 // Defined in main.cpp
-struct SysStats {
-    uint32_t plant_loop_us_max;
-    uint32_t can_rx_total;
-    uint32_t can_timeout_total;
-    size_t   heap_used;
-    size_t   heap_free;
-};
 extern SysStats       g_sys_stats;
 extern struct k_mutex g_stats_mutex;
 extern atomic_t       g_can_rx_count;

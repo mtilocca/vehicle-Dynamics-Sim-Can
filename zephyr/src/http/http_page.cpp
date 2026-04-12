@@ -13,6 +13,7 @@
 #include "plant/plant_main/plant_state.hpp"
 #include "sim/actuator_cmd.hpp"
 #include "http_html.hpp"
+#include "stats/sys_stats.hpp"
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
@@ -31,6 +32,8 @@ extern atomic_t             g_can_tx_count;
 extern atomic_t             g_can_rx_count;
 extern atomic_t             g_can_timeout_count;
 extern double               g_surface_mu;
+extern SysStats             g_sys_stats;
+extern struct k_mutex       g_stats_mutex;
 
 // ── Low-level send helper ─────────────────────────────────────────────────────
 
@@ -43,6 +46,42 @@ static void send_str(int fd, const char* s)
         if (r <= 0) return;
         sent += r;
     }
+}
+
+// ── System resources card ─────────────────────────────────────────────────────
+
+static void send_resources_card(int fd)
+{
+    SysStats st{};
+    k_mutex_lock(&g_stats_mutex, K_FOREVER);
+    st = g_sys_stats;
+    k_mutex_unlock(&g_stats_mutex);
+
+    const size_t heap_total = CONFIG_HEAP_MEM_POOL_SIZE;
+    int heap_pct = (heap_total > 0 && st.heap_used > 0)
+                   ? (int)(100u * st.heap_used / heap_total) : 0;
+    const char* heap_cls = (heap_pct >= 80) ? "val-warn"
+                         : (heap_pct >= 60) ? ""
+                         : "val-hi";
+
+    // plant_loop_us_max in tenths of ms for one-decimal display
+    int loop_tenths = (int)(st.plant_loop_us_max / 100);
+    const char* loop_cls = (st.plant_loop_us_max > 10000) ? "val-warn" : "val-hi";
+
+    char buf[512];
+    snprintf(buf, sizeof(buf),
+        "<div class='card'><h2>System Resources</h2><table>"
+        "<tr><td>Heap used</td>"
+        "<td class='%s'>%zu&nbsp;B / %zu&nbsp;B&nbsp;(%d%%)</td></tr>"
+        "<tr><td>Heap free</td><td>%zu&nbsp;B</td></tr>"
+        "<tr><td>Sim loop&nbsp;max</td>"
+        "<td class='%s'>%d.%d&nbsp;ms&nbsp;<span style='color:#8b949e'>"
+        "(budget&nbsp;10&nbsp;ms)</span></td></tr>"
+        "</table></div>",
+        heap_cls, st.heap_used, heap_total, heap_pct,
+        st.heap_free,
+        loop_cls, loop_tenths / 10, loop_tenths % 10);
+    send_str(fd, buf);
 }
 
 // ── Kernel threads card ───────────────────────────────────────────────────────
@@ -76,7 +115,7 @@ static void collect_thread_cb(const struct k_thread* t, void*)
 
 static void send_threads_card(int fd)
 {
-    char buf[256];
+    char buf[1024];
 
     s_thread_count = 0;
     k_thread_foreach(collect_thread_cb, nullptr);
@@ -97,9 +136,9 @@ static void send_threads_card(int fd)
         const char* cls = (pct >= 80) ? "val-warn" : (pct >= 60) ? "" : "val-hi";
 
         snprintf(buf, sizeof(buf),
-            "<tr><td>%s</td><td>%d</td>"
-            "<td><span class='%s'>%zu</span> / %zu B</td>"
-            "<td class='%s'>%d%%</td></tr>",
+            "<tr><td>%.23s</td><td>%d</td>"
+            "<td><span class='%.8s'>%zu</span> / %zu B</td>"
+            "<td class='%.8s'>%d%%</td></tr>",
             ti.name, ti.priority,
             cls, ti.stack_used, ti.stack_total,
             cls, pct);
@@ -353,6 +392,9 @@ void send_page(int fd)
         "<button class='btn btn-inject' type='submit'>Inject Command &#8594;</button>"
         "<span class='meta'>&nbsp;watchdog: resend within 500&nbsp;ms to hold</span>");
     send_str(fd, "</div></form></div>");
+
+    // System resources card (heap + worst-case sim loop)
+    send_resources_card(fd);
 
     // Kernel threads card
     send_threads_card(fd);
