@@ -23,15 +23,17 @@ LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 //
 // IMPORTANT: file2hex.py does NOT append a null terminator. mbedTLS PEM parser
 // checks buf[buflen-1] == '\0' to detect PEM format — missing '\0' causes it
-// to fall through to DER parsing, which fails on PEM data.  The ', '\0'' below
-// fixes this; sizeof() counts it, so tls_credential_add gets the correct length.
+// to fall through to DER parsing, which fails on PEM data.
+// file2hex.py ends its output with a trailing comma+newline (e.g. "0x0a,\n"),
+// so '\0' is placed WITHOUT a leading comma — the trailing comma from the .inc
+// file acts as the separator. sizeof() counts the '\0', giving the correct length.
 static const unsigned char server_cert[] = {
 #include "server_cert.inc"
-, '\0'  // required: mbedTLS PEM parser needs null-terminated string
+'\0'  // null terminator required for mbedTLS PEM parser
 };
 static const unsigned char server_key[] = {
 #include "server_key.inc"
-, '\0'  // required: mbedTLS PEM parser needs null-terminated string
+'\0'  // null terminator required for mbedTLS PEM parser
 };
 
 int tls_creds_init(void)
