@@ -226,8 +226,30 @@ if (verify_bearer(tok_clean)) {
             else        { send_redirect(client, "/"); }
 
         } else if (is_post && is_api_firmware) {
-            if (authed) { handle_ota_upload(client, clen); }
-            else        { send_401(client); }
+            if (authed) {
+                handle_ota_upload(client, clen);
+            } else {
+                // Drain the upload body before sending 401.
+                // The browser is already streaming the firmware binary. If we
+                // close the socket immediately after the 401, the H7 TCP stack
+                // sends a RST that races with the response — the browser sees
+                // xhr.onerror ("Network error") instead of HTTP 401 status,
+                // so the user gets no useful feedback.
+                // Draining lets the 401 reach the browser cleanly.
+                LOG_WRN("OTA: auth failed (session expired?) — draining %d B body before 401", clen);
+                if (clen > 0) {
+                    char drain[256];
+                    int drained = 0;
+                    while (drained < clen) {
+                        int want = (clen - drained < (int)sizeof(drain))
+                                   ? (clen - drained) : (int)sizeof(drain);
+                        int r = zsock_recv(client, drain, want, 0);
+                        if (r <= 0) break;
+                        drained += r;
+                    }
+                }
+                send_401(client);
+            }
 
         } else if (is_post && is_api_reboot) {
             if (authed) { handle_api_reboot(client); /* never returns */ }
