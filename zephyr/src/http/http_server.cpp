@@ -127,7 +127,11 @@ static void http_server_thread(void*, void*, void*)
         struct sockaddr_in client_addr{};
         socklen_t client_len = sizeof(client_addr);
         int client = zsock_accept(srv, (struct sockaddr*)&client_addr, &client_len);
-        if (client < 0) { k_msleep(10); continue; }
+        if (client < 0) {
+            LOG_ERR("HTTPS: accept() failed (errno=%d) — TLS handshake likely failed", errno);
+            k_msleep(10); continue;
+        }
+        LOG_INF("HTTPS: client connected (TLS handshake OK), fd=%d", client);
 
         // ── Parse request ─────────────────────────────────────────────────────
         char method[8]   = {};
