@@ -70,6 +70,35 @@ static void decode_actuator_cmd(const struct can_frame& zf, sim::ActuatorCmd& c)
     c.brake_cmd_pct       = clamp_d((double)d[5],          0.0,    100.0);
 }
 
+// ── CAN state change callback ─────────────────────────────────────────────────
+// Logs bus-off and error-passive transitions so we can diagnose wiring issues
+// without being flooded by Zephyr driver internals.
+static void can_state_cb(const struct device* dev, enum can_state state,
+                         struct can_bus_err_cnt err_cnt, void* /*user*/)
+{
+    (void)dev;
+    switch (state) {
+    case CAN_STATE_ERROR_ACTIVE:
+        LOG_INF("CAN: bus OK (error-active) tx_err=%u rx_err=%u",
+                err_cnt.tx_err_cnt, err_cnt.rx_err_cnt);
+        break;
+    case CAN_STATE_ERROR_WARNING:
+        LOG_WRN("CAN: error-warning tx_err=%u rx_err=%u — check wiring/termination",
+                err_cnt.tx_err_cnt, err_cnt.rx_err_cnt);
+        break;
+    case CAN_STATE_ERROR_PASSIVE:
+        LOG_WRN("CAN: error-passive tx_err=%u rx_err=%u — transceiver or termination fault",
+                err_cnt.tx_err_cnt, err_cnt.rx_err_cnt);
+        break;
+    case CAN_STATE_BUS_OFF:
+        LOG_ERR("CAN: BUS-OFF — no ACK received. Check: RS pin to GND, "
+                "CAN-H/L wiring, 120Ω termination at each end");
+        break;
+    default:
+        break;
+    }
+}
+
 // ── CAN RX thread ─────────────────────────────────────────────────────────────
 static void can_rx_thread(void*, void*, void*)
 {
@@ -104,6 +133,8 @@ static void can_rx_thread(void*, void*, void*)
         LOG_ERR("CAN: can_start failed: %d", ret);
         return;
     }
+
+    can_set_state_change_callback(dev, can_state_cb, nullptr);
 
     LOG_INF("CAN RX ready — FDCAN1 @ 500 kbps, filter_id=%d, "
             "watching 0x%08X (ACTUATOR_CMD_1)", fid, ACTUATOR_CMD_ID);

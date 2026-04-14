@@ -84,11 +84,11 @@ static void tx_send(const struct device* dev, uint32_t id29,
     zf.dlc   = dlc;
     for (int i = 0; i < dlc; ++i) zf.data[i] = data[i];
 
-    int r = can_send(dev, &zf, K_MSEC(5), nullptr, nullptr);
+    // K_NO_WAIT: telemetry frames are best-effort — never block the plant thread.
+    // Dropping a frame is preferable to stalling the 10ms loop (which trips the WDT).
+    int r = can_send(dev, &zf, K_NO_WAIT, nullptr, nullptr);
     if (r == 0) {
         g_can_tx_count++;
-    } else {
-        // Don't log every miss — FDCAN TX FIFO can fill up under load
     }
 }
 

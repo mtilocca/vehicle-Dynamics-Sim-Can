@@ -65,7 +65,7 @@ echo "====================================================="
 # ── Sanity check: board reachable ─────────────────────────────────────────────
 echo ""
 echo "[1/3] Checking board is reachable…"
-if ! curl -sk --max-time 5 \
+if ! curl -sk --max-time 15 \
         -H "Authorization: Bearer $TOKEN" \
         "$BASE_URL/" -o /dev/null -w "%{http_code}" | grep -qE "^(200|302)"; then
     echo "[error] Board not responding at $BASE_URL"
@@ -85,7 +85,7 @@ HTTP_RESPONSE=$(
         -X POST "$BASE_URL/api/firmware" \
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/octet-stream" \
-        -H "Content-Length: $BIN_SIZE" \
+        -H "Expect:" \
         --data-binary "@$BIN" \
         -w "\n%{http_code}"
 )
@@ -133,10 +133,10 @@ echo "====================================================="
 # ── Wait for board to come back ───────────────────────────────────────────────
 echo ""
 echo "  Waiting for board to come back online…"
-for i in $(seq 1 20); do
+for i in $(seq 1 30); do
     sleep 1
     printf "  [%2ds] " "$i"
-    if curl -sk --max-time 2 \
+    if curl -sk --max-time 10 \
             -H "Authorization: Bearer $TOKEN" \
             "$BASE_URL/" -o /dev/null 2>/dev/null; then
         echo "board is back up!"
@@ -149,6 +149,6 @@ for i in $(seq 1 20); do
 done
 
 echo ""
-echo "  Board did not respond within 20 s."
+echo "  Board did not respond within 30 s."
 echo "  Check UART: picocom -b 115200 /dev/ttyACM0"
 exit 1
