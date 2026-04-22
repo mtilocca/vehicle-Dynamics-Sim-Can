@@ -236,23 +236,26 @@ void send_page(int fd)
     uint32_t m       = (sec_up % 3600) / 60;
     uint32_t sc      = sec_up % 60;
 
-    // Header bar
-    snprintf(buf, sizeof(buf),
+    // Header bar — static parts via send_str, only uptime needs snprintf
+    send_str(fd,
         "<div class='header'>"
         "<h1>Heavy-Duty Electric Vehicle &mdash; Simulator Dashboard</h1>"
-        "<span class='badge'>&#9679; ONLINE</span>"
-        "<span class='meta'>Uptime&nbsp;%02u:%02u:%02u</span>"
+        "<span class='badge'>&#9679; ONLINE</span>");
+    snprintf(buf, sizeof(buf),
+        "<span class='meta'>Uptime&nbsp;%02u:%02u:%02u</span>", h, m, sc);
+    send_str(fd, buf);
+    send_str(fd,
         "<span class='meta'>IP&nbsp;192.168.1.80</span>"
         "<span class='meta'>MAC&nbsp;02:00:5E:00:53:01</span>"
-        "<a href='/ota' style='margin-left:auto;color:#8b949e;font-size:12px;"
+        "<div style='margin-left:auto;display:flex;gap:8px;align-items:center'>"
+        "<a href='/ota' style='color:#8b949e;font-size:12px;"
         "text-decoration:none;border:1px solid #30363d;padding:2px 8px;border-radius:4px;'>"
         "OTA</a>"
-        "<a href='/logout' style='margin-left:8px;color:#8b949e;font-size:12px;"
+        "<a href='/logout' style='color:#8b949e;font-size:12px;"
         "text-decoration:none;border:1px solid #30363d;padding:2px 8px;border-radius:4px;'>"
         "Logout</a>"
-        "</div>",
-        h, m, sc);
-    send_str(fd, buf);
+        "</div>"
+        "</div>");
 
     // Two-column grid
     send_str(fd, "<div class='grid'>");
