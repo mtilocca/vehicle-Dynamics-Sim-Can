@@ -244,7 +244,10 @@ void send_page(int fd)
         "<span class='meta'>Uptime&nbsp;%02u:%02u:%02u</span>"
         "<span class='meta'>IP&nbsp;192.168.1.80</span>"
         "<span class='meta'>MAC&nbsp;02:00:5E:00:53:01</span>"
-        "<a href='/logout' style='margin-left:auto;color:#8b949e;font-size:12px;"
+        "<a href='/ota' style='margin-left:auto;color:#8b949e;font-size:12px;"
+        "text-decoration:none;border:1px solid #30363d;padding:2px 8px;border-radius:4px;'>"
+        "OTA</a>"
+        "<a href='/logout' style='margin-left:8px;color:#8b949e;font-size:12px;"
         "text-decoration:none;border:1px solid #30363d;padding:2px 8px;border-radius:4px;'>"
         "Logout</a>"
         "</div>",
