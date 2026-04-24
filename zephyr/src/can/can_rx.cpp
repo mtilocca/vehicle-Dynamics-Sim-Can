@@ -16,6 +16,7 @@
 #include <zephyr/sys/atomic.h>
 
 #include "sim/actuator_cmd.hpp"
+#include "mqtt/mqtt_client.hpp"
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
@@ -24,6 +25,7 @@ extern sim::ActuatorCmd  g_cmd;
 extern struct k_mutex    g_cmd_mutex;
 extern atomic_t          g_can_rx_count;
 extern atomic_t          g_can_timeout_count;
+extern atomic_t          g_ctrl_source;
 
 // ── ACTUATOR_CMD_1 — bare 29-bit J1939 ID ────────────────────────────────────
 static const uint32_t ACTUATOR_CMD_ID = 0x18EFF021u;
@@ -161,9 +163,11 @@ static void can_rx_thread(void*, void*, void*)
             decode_actuator_cmd(zf, c);
             c.last_update_t_s = k_uptime_get_32() / 1000.0;
 
-            k_mutex_lock(&g_cmd_mutex, K_FOREVER);
-            g_cmd = c;
-            k_mutex_unlock(&g_cmd_mutex);
+            if (atomic_get(&g_ctrl_source) == CTRL_CAN) {
+                k_mutex_lock(&g_cmd_mutex, K_FOREVER);
+                g_cmd = c;
+                k_mutex_unlock(&g_cmd_mutex);
+            }
 
             atomic_inc(&g_can_rx_count);
         } else {

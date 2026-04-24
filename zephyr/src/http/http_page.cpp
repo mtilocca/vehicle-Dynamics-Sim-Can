@@ -14,6 +14,7 @@
 #include "sim/actuator_cmd.hpp"
 #include "http_html.hpp"
 #include "stats/sys_stats.hpp"
+#include "mqtt/mqtt_client.hpp"
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
@@ -34,6 +35,8 @@ extern atomic_t             g_can_timeout_count;
 extern double               g_surface_mu;
 extern SysStats             g_sys_stats;
 extern struct k_mutex       g_stats_mutex;
+extern atomic_t             g_ctrl_source;
+extern atomic_t             g_mqtt_rx_count;
 
 // ── Low-level send helper ─────────────────────────────────────────────────────
 
@@ -398,6 +401,54 @@ void send_page(int fd)
         "<button class='btn btn-inject' type='submit'>Inject Command &#8594;</button>"
         "<span class='meta'>&nbsp;watchdog: resend within 500&nbsp;ms to hold</span>");
     send_str(fd, "</div></form></div>");
+
+    // Control source card — toggle which input writes g_cmd
+    {
+        int src = (int)atomic_get(&g_ctrl_source);
+        const char* ac = "btn btn-active";
+        const char* in = "btn";
+        snprintf(buf, sizeof(buf),
+            "<div class='card'><h2>Control Source</h2>"
+            "<div class='ctrl-row'>"
+            "<a class='%s' href='/dash?ctrl=can' >CAN</a>"
+            "<a class='%s' href='/dash?ctrl=mqtt'>MQTT</a>"
+            "<a class='%s' href='/dash?ctrl=http'>HTTP</a>"
+            "</div>"
+            "<p style='margin:6px 0 0;font-size:12px;color:#8b949e'>"
+            "Active source writes g_cmd. Others decode but discard.</p>"
+            "</div>",
+            (src == CTRL_CAN)  ? ac : in,
+            (src == CTRL_MQTT) ? ac : in,
+            (src == CTRL_HTTP) ? ac : in);
+        send_str(fd, buf);
+    }
+
+    // MQTT broker card — runtime broker address + connection status
+    {
+        snprintf(buf, sizeof(buf),
+            "<div class='card'><h2>MQTT Broker</h2>"
+            "<form method='get' action='/dash'>"
+            "<div class='ctrl-row'>"
+            "<label>IP&nbsp;"
+            "<input type='text' name='broker_addr' value='%s'"
+            " style='width:140px'></label>"
+            "<label>Port&nbsp;"
+            "<input type='number' name='broker_port' value='%d' min='1' max='65535'"
+            " style='width:70px'></label>"
+            "<button class='btn' type='submit'>Apply</button>"
+            "</div>"
+            "</form>"
+            "<p style='margin:6px 0 0;font-size:12px'>"
+            "Status:&nbsp;<span class='%s'>%s</span>&nbsp;&nbsp;"
+            "MQTT&nbsp;RX:&nbsp;%u</p>"
+            "</div>",
+            g_mqtt_broker_addr,
+            g_mqtt_broker_port,
+            g_mqtt_connected ? "val-hi" : "val-warn",
+            g_mqtt_connected ? "connected" : "disconnected",
+            (uint32_t)atomic_get(&g_mqtt_rx_count));
+        send_str(fd, buf);
+    }
 
     // System resources card (heap + worst-case sim loop)
     send_resources_card(fd);

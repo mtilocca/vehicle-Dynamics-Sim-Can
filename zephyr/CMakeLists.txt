@@ -49,6 +49,9 @@ list(APPEND APP_SRCS
     src/watchdog/watchdog_thread.cpp
 )
 
+# MQTT client — subscribes to hdv/cmd/actuator, publishes hdv/state/vehicle
+list(APPEND APP_SRCS src/mqtt/mqtt_client.cpp)
+
 target_sources(app PRIVATE ${APP_SRCS})
 
 # ── Embed dashboard CSS ───────────────────────────────────────────────────────

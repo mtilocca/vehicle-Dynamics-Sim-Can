@@ -13,14 +13,15 @@ td:first-child{color:#8b949e;width:52%;padding-right:8px}
 td:last-child{color:#e6edf3;font-weight:500}
 .val-hi{color:#3fb950}
 .val-warn{color:#d29922}
-.btn{display:inline-block;padding:6px 14px;border-radius:6px;font-family:monospace;font-size:13px;font-weight:600;text-decoration:none;border:none;cursor:pointer;margin:3px 2px}
-.btn-stop{background:#da3633;color:#fff}
-.btn-fwd{background:#238636;color:#fff}
-.btn-rev{background:#1f6feb;color:#fff}
+.btn{display:inline-block;padding:6px 14px;border-radius:6px;font-family:monospace;font-size:13px;font-weight:600;text-decoration:none;border:1px solid #30363d;cursor:pointer;margin:3px 2px;background:#30363d;color:#8b949e}
+.btn-stop{background:#da3633;color:#fff;border-color:#da3633}
+.btn-fwd{background:#238636;color:#fff;border-color:#238636}
+.btn-rev{background:#1f6feb;color:#fff;border-color:#1f6feb}
 .btn-steer{background:#30363d;color:#e6edf3;border:1px solid #625858}
-.btn-inject{background:#1f6feb;color:#fff;padding:7px 20px}
+.btn-inject{background:#1f6feb;color:#fff;padding:7px 20px;border-color:#1f6feb}
+.btn-active{background:#1f6feb;color:#fff;border-color:#1f6feb}
 label{color:#8b949e;font-size:12px;margin-right:4px}
-input[type=number],select{background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:4px;padding:4px 6px;font-family:monospace;font-size:13px;width:100px;margin-right:12px}
+input[type=number],input[type=text],select{background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:4px;padding:4px 6px;font-family:monospace;font-size:13px;width:100px;margin-right:12px}
 select{width:auto}
 input[type=checkbox]{margin-right:4px;vertical-align:middle}
 .ctrl-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:8px}
