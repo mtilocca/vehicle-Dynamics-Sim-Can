@@ -8,6 +8,7 @@
 
 #include "plant/plant_main/plant_state.hpp"
 #include "sim/actuator_cmd.hpp"
+#include "stats/sys_stats.hpp"
 
 LOG_MODULE_REGISTER(hdv_sim, LOG_LEVEL_INF);
 
@@ -28,13 +29,6 @@ atomic_t g_can_timeout_count = ATOMIC_INIT(0);
 double g_surface_mu = 0.72;
 
 // ── System stats (written by stats thread, read by shell + HTTP) ──────────────
-struct SysStats {
-    uint32_t plant_loop_us_max = 0;  // worst-case plant step duration
-    uint32_t can_rx_total      = 0;
-    uint32_t can_timeout_total = 0;
-    size_t   heap_used         = 0;
-    size_t   heap_free         = 0;
-};
 SysStats g_sys_stats{};
 K_MUTEX_DEFINE(g_stats_mutex);
 
@@ -52,7 +46,7 @@ int main(void)
     LOG_INF("========================================");
     LOG_INF("Heavy-Duty Electric Vehicle Plant Simulator");
     LOG_INF("Board : nucleo_h753zi (STM32H753ZI)");
-    LOG_INF("Phase : 3c - HTTPS");
+    LOG_INF("Phase : 3 - HTTPS + OTA + CAN (loopback)");
     LOG_INF("========================================");
     LOG_INF("Shell ready on USART3 — type 'help' for commands");
 

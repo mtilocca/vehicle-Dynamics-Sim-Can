@@ -7,9 +7,9 @@
 #include <stdint.h>
 
 struct SysStats {
-    uint32_t plant_loop_us_max;   // worst-case simulator loop since boot (μs)
-    uint32_t can_rx_total;
-    uint32_t can_timeout_total;
-    size_t   heap_used;           // bytes currently allocated (0 if CONFIG_SYS_HEAP_RUNTIME_STATS=n)
-    size_t   heap_free;           // bytes currently free
+    uint32_t plant_loop_us_max   = 0;  // worst-case simulator loop since boot (μs)
+    uint32_t can_rx_total        = 0;
+    uint32_t can_timeout_total   = 0;
+    size_t   heap_used           = 0;  // bytes allocated (0 if CONFIG_SYS_HEAP_RUNTIME_STATS=n)
+    size_t   heap_free           = 0;
 };
