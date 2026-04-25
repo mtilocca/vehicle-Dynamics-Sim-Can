@@ -35,8 +35,8 @@ cd /home/baloo/zephyrproject
 | Board IP | 192.168.1.80 |
 | HTTPS port | 443 |
 | CAN bus | FDCAN1 — loopback mode (`CONFIG_HDV_CAN_LOOPBACK=y`) |
-| MCUboot slot0 | 0x08040000 (640 KB) |
-| MCUboot slot1 | 0x08100000 (640 KB) |
+| MCUboot slot0 | 0x08040000 (768 KB — 0x08040000→0x08100000) |
+| MCUboot slot1 | 0x08100000 (768 KB) |
 | Build dir | `/home/baloo/zephyrproject/build/zephyr/zephyr/` |
 | Token file | `zephyr/src/http/http_auth.hpp` (git-ignored, auto-generated) |
 | Cert/key | `zephyr/certs/server.crt` / `server.key` (git-ignored) |

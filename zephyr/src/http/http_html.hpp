@@ -77,6 +77,8 @@ static const char kHtmlFoot[] =
     "var mqcls=d.mqc?'val-hi':'val-warn';"
     "u('mqtt-st','<span class=\\''+mqcls+'\\'>'+( d.mqc?'connected':'disconnected')+'</span>');"
     "u('mqtt-rx',d.mqrx);"
+    "u('mm-hu',d.hu+' B used');"
+    "u('mm-hf',d.hf+' B free');"
     "})"
     ".catch(function(){});"
     "setTimeout(poll,5000+Math.random()*3000);"
