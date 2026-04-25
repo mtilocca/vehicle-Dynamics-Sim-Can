@@ -10,7 +10,7 @@ config HDV_CAN_LOOPBACK
 
 config HDV_MQTT_BROKER_ADDR
 	string "MQTT broker IP address"
-	default "192.168.1.1"
+	default "192.168.1.106"
 	help
 	  Default broker address. Can be overridden at runtime via the HTTPS
 	  dashboard "MQTT Broker" card or the 'mqtt reconnect' shell command.

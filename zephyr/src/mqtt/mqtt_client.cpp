@@ -17,6 +17,7 @@
 #define HDV_RAD_TO_DEG 57.295779513082320876
 
 #include "mqtt_client.hpp"
+#include "tls/tls_creds.hpp"
 #include "sim/actuator_cmd.hpp"
 #include "plant/plant_main/plant_state.hpp"
 
@@ -226,6 +227,10 @@ static void mqtt_evt_handler(struct mqtt_client* client,
     }
 }
 
+// ── TLS config ────────────────────────────────────────────────────────────────
+// HDV_TLS_CA_TAG (=2) holds the broker CA cert loaded by tls_creds_init().
+static const sec_tag_t kMqttTlsTags[] = { HDV_TLS_CA_TAG };
+
 // ── Connect helper ────────────────────────────────────────────────────────────
 
 static int mqtt_do_connect(struct mqtt_client* client, struct sockaddr_in* broker)
@@ -254,7 +259,11 @@ static int mqtt_do_connect(struct mqtt_client* client, struct sockaddr_in* broke
     client->rx_buf_size   = sizeof(s_rx_buf);
     client->tx_buf        = s_tx_buf;
     client->tx_buf_size   = sizeof(s_tx_buf);
-    client->transport.type = MQTT_TRANSPORT_NON_SECURE;
+    client->transport.type = MQTT_TRANSPORT_SECURE;
+    client->transport.tls.config.peer_verify   = TLS_PEER_VERIFY_REQUIRED;
+    client->transport.tls.config.sec_tag_list  = kMqttTlsTags;
+    client->transport.tls.config.sec_tag_count = ARRAY_SIZE(kMqttTlsTags);
+    client->transport.tls.config.hostname      = g_mqtt_broker_addr;
 
     rc = mqtt_connect(client);
     if (rc != 0) {
@@ -293,7 +302,7 @@ static void mqtt_thread_fn(void*, void*, void*)
 
         // Wait for CONNACK via first mqtt_input call
         struct zsock_pollfd fds{};
-        fds.fd     = s_client.transport.tcp.sock;
+        fds.fd     = s_client.transport.tls.sock;
         fds.events = ZSOCK_POLLIN;
 
         while (true) {
