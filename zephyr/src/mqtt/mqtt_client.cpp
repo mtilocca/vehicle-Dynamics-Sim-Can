@@ -269,6 +269,10 @@ static int mqtt_do_connect(struct mqtt_client* client, struct sockaddr_in* broke
     if (rc != 0) {
         LOG_ERR("MQTT: connect to %s:%d failed (%d)",
                 g_mqtt_broker_addr, g_mqtt_broker_port, rc);
+        // Release TLS socket that mqtt_connect may have opened before failing.
+        // Without this, each failed attempt leaks a TLS context until
+        // TLS_MAX_CONTEXTS is exhausted and HTTPS handshakes start failing.
+        mqtt_abort(client);
         return rc;
     }
     return 0;

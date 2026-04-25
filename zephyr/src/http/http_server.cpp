@@ -16,6 +16,7 @@
 //   GET  /dash?...    → apply command + dashboard (requires auth)
 //   GET  /logout      → invalidate session + redirect /
 //   GET  /ota         → OTA upload page (requires auth)
+//   GET  /api/state   → JSON telemetry snapshot for JS polling (requires auth)
 //   POST /api/firmware → stream firmware binary to slot1 (requires auth)
 //   POST /api/reboot  → cold-reboot into MCUboot swap (requires auth)
 //   other             → redirect /
@@ -128,8 +129,16 @@ static void http_server_thread(void*, void*, void*)
         socklen_t client_len = sizeof(client_addr);
         int client = zsock_accept(srv, (struct sockaddr*)&client_addr, &client_len);
         if (client < 0) {
-            LOG_ERR("HTTPS: accept() failed (errno=%d) — TLS handshake likely failed", errno);
-            k_msleep(10); continue;
+            int err = errno;
+            if (err == ENOMEM) {
+                // Heap exhausted — wait for current handshake to free memory.
+                LOG_WRN("HTTPS: accept() ENOMEM — backing off 300 ms", err);
+                k_msleep(300);
+            } else {
+                // Client aborted handshake (browser cancelled speculative conn).
+                LOG_DBG("HTTPS: accept() abandoned by client (errno=%d)", err);
+            }
+            continue;
         }
         LOG_INF("HTTPS: client connected (TLS handshake OK), fd=%d", client);
 
@@ -162,6 +171,7 @@ static void http_server_thread(void*, void*, void*)
         bool is_dash         = (strcmp(path, "/dash")         == 0);
         bool is_logout       = (strcmp(path, "/logout")       == 0);
         bool is_ota          = (strcmp(path, "/ota")          == 0);
+        bool is_api_state    = (strcmp(path, "/api/state")    == 0);
         bool is_api_firmware = (strcmp(path, "/api/firmware") == 0);
         bool is_api_reboot   = (strcmp(path, "/api/reboot")   == 0);
 
@@ -224,6 +234,10 @@ if (verify_bearer(tok_clean)) {
         } else if (is_get && is_ota) {
             if (authed) { handle_ota_page(client); }
             else        { send_redirect(client, "/"); }
+
+        } else if (is_get && is_api_state) {
+            if (authed) { send_api_state(client); }
+            else        { send_401(client); }
 
         } else if (is_post && is_api_firmware) {
             if (authed) {

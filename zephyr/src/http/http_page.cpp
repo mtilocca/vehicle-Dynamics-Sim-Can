@@ -75,11 +75,11 @@ static void send_resources_card(int fd)
     snprintf(buf, sizeof(buf),
         "<div class='card'><h2>System Resources</h2><table>"
         "<tr><td>Heap used</td>"
-        "<td class='%s'>%zu&nbsp;B / %zu&nbsp;B&nbsp;(%d%%)</td></tr>"
-        "<tr><td>Heap free</td><td>%zu&nbsp;B</td></tr>"
+        "<td id='res-hu'><span class='%s'>%zu&nbsp;B / %zu&nbsp;B&nbsp;(%d%%)</span></td></tr>"
+        "<tr><td>Heap free</td><td id='res-hf'>%zu&nbsp;B</td></tr>"
         "<tr><td>Sim loop&nbsp;max</td>"
-        "<td class='%s'>%d.%d&nbsp;ms&nbsp;<span style='color:#8b949e'>"
-        "(budget&nbsp;10&nbsp;ms)</span></td></tr>"
+        "<td id='res-loop'><span class='%s'>%d.%d&nbsp;ms</span>"
+        "&nbsp;<span style='color:#8b949e'>(budget&nbsp;10&nbsp;ms)</span></td></tr>"
         "</table></div>",
         heap_cls, st.heap_used, heap_total, heap_pct,
         st.heap_free,
@@ -149,6 +149,72 @@ static void send_threads_card(int fd)
     }
 
     send_str(fd, "</table></div>");
+}
+
+// ── /api/state — JSON telemetry snapshot ─────────────────────────────────────
+
+void send_api_state(int fd)
+{
+    plant::PlantState s{};
+    sim::ActuatorCmd  c{};
+    SysStats st{};
+
+    k_mutex_lock(&g_state_mutex, K_FOREVER);  s = g_state;        k_mutex_unlock(&g_state_mutex);
+    k_mutex_lock(&g_cmd_mutex,   K_FOREVER);  c = g_cmd;          k_mutex_unlock(&g_cmd_mutex);
+    k_mutex_lock(&g_stats_mutex, K_FOREVER);  st = g_sys_stats;   k_mutex_unlock(&g_stats_mutex);
+
+    uint32_t uptime_s = k_uptime_get_32() / 1000;
+    int src = (int)atomic_get(&g_ctrl_source);
+    const char* gear_str =
+        (c.gear_position == sim::GearPosition::FORWARD) ? "F" :
+        (c.gear_position == sim::GearPosition::REVERSE) ? "R" : "N";
+
+    static char body[640];
+    int n = snprintf(body, sizeof(body),
+        "{\"uptime\":%u,"
+        "\"vx\":%.3f,\"vy\":%.3f,"
+        "\"yaw\":%.2f,\"yawr\":%.2f,"
+        "\"x\":%.2f,\"y\":%.2f,"
+        "\"steer\":%.2f,\"soc\":%.1f,"
+        "\"ofl\":%.2f,\"ofr\":%.2f,\"orl\":%.2f,\"orr\":%.2f,"
+        "\"mu\":%.2f,"
+        "\"en\":%d,\"gear\":\"%s\","
+        "\"torq\":%.1f,\"brk\":%.2f,\"csteer\":%.2f,"
+        "\"cantx\":%u,\"canrx\":%u,\"canto\":%u,\"lrx\":%.3f,"
+        "\"hu\":%zu,\"hf\":%zu,\"htot\":%u,\"loop\":%u,"
+        "\"mqc\":%d,\"mqrx\":%u,\"src\":%d}",
+        uptime_s,
+        s.v_mps, s.vy_mps,
+        s.yaw_rad * 57.2958, s.yaw_rate_radps * 57.2958,
+        s.x_m, s.y_m,
+        s.steer_virtual_rad * 57.2958, s.batt_soc_pct,
+        s.omega_fl_radps, s.omega_fr_radps, s.omega_rl_radps, s.omega_rr_radps,
+        s.surface_mu,
+        c.system_enable ? 1 : 0, gear_str,
+        c.drive_torque_cmd_nm, c.brake_cmd_pct, c.steer_cmd_deg,
+        (uint32_t)atomic_get(&g_can_tx_count),
+        (uint32_t)atomic_get(&g_can_rx_count),
+        (uint32_t)atomic_get(&g_can_timeout_count),
+        c.last_update_t_s,
+        st.heap_used, st.heap_free,
+        (uint32_t)CONFIG_HEAP_MEM_POOL_SIZE,
+        st.plant_loop_us_max,
+        g_mqtt_connected ? 1 : 0,
+        (uint32_t)atomic_get(&g_mqtt_rx_count),
+        src);
+
+    if (n <= 0 || n >= (int)sizeof(body)) return;
+
+    char hdr[128];
+    int hn = snprintf(hdr, sizeof(hdr),
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: application/json\r\n"
+        "Content-Length: %d\r\n"
+        "Cache-Control: no-cache\r\n"
+        "Connection: close\r\n"
+        "\r\n", n);
+    zsock_send(fd, hdr, hn, 0);
+    zsock_send(fd, body, n, 0);
 }
 
 // ── Login page ────────────────────────────────────────────────────────────────
@@ -245,7 +311,7 @@ void send_page(int fd)
         "<h1>Heavy-Duty Electric Vehicle &mdash; Simulator Dashboard</h1>"
         "<span class='badge'>&#9679; ONLINE</span>");
     snprintf(buf, sizeof(buf),
-        "<span class='meta'>Uptime&nbsp;%02u:%02u:%02u</span>", h, m, sc);
+        "<span class='meta'>Uptime&nbsp;<span id='up'>%02u:%02u:%02u</span></span>", h, m, sc);
     send_str(fd, buf);
     send_str(fd,
         "<span class='meta'>IP&nbsp;192.168.1.80</span>"
@@ -266,24 +332,24 @@ void send_page(int fd)
     // Left card — Plant State
     send_str(fd, "<div class='card'><h2>Plant State</h2><table>");
     snprintf(buf, sizeof(buf),
-        "<tr><td>vx</td><td>%.3f m/s</td></tr>"
-        "<tr><td>vy</td><td>%.3f m/s</td></tr>"
-        "<tr><td>yaw</td><td>%.2f &deg;</td></tr>"
-        "<tr><td>yaw rate</td><td>%.2f &deg;/s</td></tr>"
-        "<tr><td>x</td><td>%.2f m</td></tr>"
-        "<tr><td>y</td><td>%.2f m</td></tr>",
+        "<tr><td>vx</td><td id='s-vx'>%.3f m/s</td></tr>"
+        "<tr><td>vy</td><td id='s-vy'>%.3f m/s</td></tr>"
+        "<tr><td>yaw</td><td id='s-yaw'>%.2f &deg;</td></tr>"
+        "<tr><td>yaw rate</td><td id='s-yawr'>%.2f &deg;/s</td></tr>"
+        "<tr><td>x</td><td id='s-x'>%.2f m</td></tr>"
+        "<tr><td>y</td><td id='s-y'>%.2f m</td></tr>",
         s.v_mps, s.vy_mps,
         s.yaw_rad * 57.2958, s.yaw_rate_radps * 57.2958,
         s.x_m, s.y_m);
     send_str(fd, buf);
     snprintf(buf, sizeof(buf),
-        "<tr><td>steer</td><td>%.2f &deg;</td></tr>"
-        "<tr><td>SOC</td><td class='val-hi'>%.1f %%</td></tr>"
-        "<tr><td>&omega; FL</td><td>%.2f rad/s</td></tr>"
-        "<tr><td>&omega; FR</td><td>%.2f rad/s</td></tr>"
-        "<tr><td>&omega; RL</td><td>%.2f rad/s</td></tr>"
-        "<tr><td>&omega; RR</td><td>%.2f rad/s</td></tr>"
-        "<tr><td>surface &mu;</td><td>%.2f</td></tr>",
+        "<tr><td>steer</td><td id='s-steer'>%.2f &deg;</td></tr>"
+        "<tr><td>SOC</td><td id='s-soc'><span class='val-hi'>%.1f %%</span></td></tr>"
+        "<tr><td>&omega; FL</td><td id='s-ofl'>%.2f rad/s</td></tr>"
+        "<tr><td>&omega; FR</td><td id='s-ofr'>%.2f rad/s</td></tr>"
+        "<tr><td>&omega; RL</td><td id='s-orl'>%.2f rad/s</td></tr>"
+        "<tr><td>&omega; RR</td><td id='s-orr'>%.2f rad/s</td></tr>"
+        "<tr><td>surface &mu;</td><td id='s-mu'>%.2f</td></tr>",
         s.steer_virtual_rad * 57.2958,
         s.batt_soc_pct,
         s.omega_fl_radps, s.omega_fr_radps,
@@ -298,11 +364,12 @@ void send_page(int fd)
     // Actuator command card
     send_str(fd, "<div class='card'><h2>Actuator Command</h2><table>");
     snprintf(buf, sizeof(buf),
-        "<tr><td>Enable</td><td class='%s'>%s</td></tr>"
-        "<tr><td>Gear</td><td>%s</td></tr>"
-        "<tr><td>Torque</td><td>%.1f Nm</td></tr>"
-        "<tr><td>Brake</td><td>%.2f %%</td></tr>"
-        "<tr><td>Steer</td><td>%.2f &deg;</td></tr>",
+        "<tr><td>Enable</td>"
+        "<td id='c-en'><span class='%s'>%s</span></td></tr>"
+        "<tr><td>Gear</td><td id='c-gear'>%s</td></tr>"
+        "<tr><td>Torque</td><td id='c-torq'>%.1f Nm</td></tr>"
+        "<tr><td>Brake</td><td id='c-brk'>%.2f %%</td></tr>"
+        "<tr><td>Steer</td><td id='c-steer'>%.2f &deg;</td></tr>",
         c.system_enable ? "val-hi" : "val-warn",
         c.system_enable ? "ON" : "OFF",
         c.gear_position == sim::GearPosition::FORWARD ? "FORWARD" :
@@ -314,10 +381,11 @@ void send_page(int fd)
     // CAN stats card
     send_str(fd, "<div class='card'><h2>CAN Stats</h2><table>");
     snprintf(buf, sizeof(buf),
-        "<tr><td>TX frames</td><td>%u</td></tr>"
-        "<tr><td>RX frames</td><td>%u</td></tr>"
-        "<tr><td>Timeouts</td><td class='%s'>%u</td></tr>"
-        "<tr><td>Last RX</td><td>%.3f s</td></tr>",
+        "<tr><td>TX frames</td><td id='can-tx'>%u</td></tr>"
+        "<tr><td>RX frames</td><td id='can-rx'>%u</td></tr>"
+        "<tr><td>Timeouts</td>"
+        "<td id='can-to'><span class='%s'>%u</span></td></tr>"
+        "<tr><td>Last RX</td><td id='can-lrx'>%.3f s</td></tr>",
         (uint32_t)atomic_get(&g_can_tx_count),
         (uint32_t)atomic_get(&g_can_rx_count),
         atomic_get(&g_can_timeout_count) ? "val-warn" : "",
@@ -424,6 +492,8 @@ void send_page(int fd)
     }
 
     // MQTT broker card — runtime broker address + connection status
+    // Split into two snprintf calls: form part (~350 B) + status part (~180 B)
+    // to stay within buf[512].
     {
         snprintf(buf, sizeof(buf),
             "<div class='card'><h2>MQTT Broker</h2>"
@@ -436,14 +506,15 @@ void send_page(int fd)
             "<input type='number' name='broker_port' value='%d' min='1' max='65535'"
             " style='width:70px'></label>"
             "<button class='btn' type='submit'>Apply</button>"
-            "</div>"
-            "</form>"
+            "</div></form>",
+            g_mqtt_broker_addr, g_mqtt_broker_port);
+        send_str(fd, buf);
+
+        snprintf(buf, sizeof(buf),
             "<p style='margin:6px 0 0;font-size:12px'>"
-            "Status:&nbsp;<span class='%s'>%s</span>&nbsp;&nbsp;"
-            "MQTT&nbsp;RX:&nbsp;%u</p>"
+            "Status:&nbsp;<span id='mqtt-st'><span class='%s'>%s</span></span>"
+            "&nbsp;&nbsp;MQTT&nbsp;RX:&nbsp;<span id='mqtt-rx'>%u</span></p>"
             "</div>",
-            g_mqtt_broker_addr,
-            g_mqtt_broker_port,
             g_mqtt_connected ? "val-hi" : "val-warn",
             g_mqtt_connected ? "connected" : "disconnected",
             (uint32_t)atomic_get(&g_mqtt_rx_count));
