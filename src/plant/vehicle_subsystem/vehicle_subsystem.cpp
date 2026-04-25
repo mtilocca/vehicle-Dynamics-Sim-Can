@@ -64,15 +64,19 @@ void VehicleSubsystem::update_direction_latch(const PlantState& s, const sim::Ac
         return;
     }
 
-    // Near standstill: decide intent from requested driver torque (deadbanded)
-    const double tq_req = cmd.drive_torque_cmd_nm;
-    if (std::abs(tq_req) >= p_.torque_dir_deadband_nm) {
-        int req_dir = sgn(tq_req);
-
-        // If reverse not allowed, force forward intent
-        if (!p_.allow_reverse && req_dir < 0) req_dir = +1;
-
-        dir_latch_ = req_dir;
+    // Near standstill: decide intent from gear position.
+    // drive_torque_cmd_nm from the HTTP UI is always positive (slider 0..max),
+    // so it cannot encode reverse intent via sign. Gear position is the
+    // authoritative direction selector.
+    const bool has_torque = (std::abs(cmd.drive_torque_cmd_nm) >= p_.torque_dir_deadband_nm);
+    if (has_torque) {
+        switch (cmd.gear_position) {
+            case sim::GearPosition::FORWARD: dir_latch_ = +1; break;
+            case sim::GearPosition::REVERSE:
+                dir_latch_ = p_.allow_reverse ? -1 : +1;
+                break;
+            default: dir_latch_ = 0; break;
+        }
         return;
     }
 
@@ -120,10 +124,15 @@ void VehicleSubsystem::step(PlantState& s, const sim::ActuatorCmd& cmd, double d
         ((s.v_mps > 0.0 && v_next < 0.0) || (s.v_mps < 0.0 && v_next > 0.0));
 
     if (crossing) {
-        // Allow crossing ONLY if user is clearly requesting the opposite direction
-        const int req_dir = (std::abs(cmd.drive_torque_cmd_nm) >= p_.torque_dir_deadband_nm)
-                                ? sgn(cmd.drive_torque_cmd_nm)
-                                : 0;
+        // Allow crossing ONLY if driver has clearly selected the opposite direction.
+        // Torque sign cannot encode intent here (UI sends positive values only),
+        // so use gear_position as the direction selector.
+        const bool has_torque = (std::abs(cmd.drive_torque_cmd_nm) >= p_.torque_dir_deadband_nm);
+        int req_dir = 0;
+        if (has_torque) {
+            if      (cmd.gear_position == sim::GearPosition::FORWARD) req_dir = +1;
+            else if (cmd.gear_position == sim::GearPosition::REVERSE)  req_dir = -1;
+        }
 
         const bool allow_cross =
             p_.allow_reverse &&

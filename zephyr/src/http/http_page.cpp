@@ -13,6 +13,8 @@
 #include "plant/plant_main/plant_state.hpp"
 #include "sim/actuator_cmd.hpp"
 #include "http_html.hpp"
+#include "stats/sys_stats.hpp"
+#include "mqtt/mqtt_client.hpp"
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
@@ -31,6 +33,10 @@ extern atomic_t             g_can_tx_count;
 extern atomic_t             g_can_rx_count;
 extern atomic_t             g_can_timeout_count;
 extern double               g_surface_mu;
+extern SysStats             g_sys_stats;
+extern struct k_mutex       g_stats_mutex;
+extern atomic_t             g_ctrl_source;
+extern atomic_t             g_mqtt_rx_count;
 
 // ── Low-level send helper ─────────────────────────────────────────────────────
 
@@ -43,6 +49,42 @@ static void send_str(int fd, const char* s)
         if (r <= 0) return;
         sent += r;
     }
+}
+
+// ── System resources card ─────────────────────────────────────────────────────
+
+static void send_resources_card(int fd)
+{
+    SysStats st{};
+    k_mutex_lock(&g_stats_mutex, K_FOREVER);
+    st = g_sys_stats;
+    k_mutex_unlock(&g_stats_mutex);
+
+    const size_t heap_total = CONFIG_HEAP_MEM_POOL_SIZE;
+    int heap_pct = (heap_total > 0 && st.heap_used > 0)
+                   ? (int)(100u * st.heap_used / heap_total) : 0;
+    const char* heap_cls = (heap_pct >= 80) ? "val-warn"
+                         : (heap_pct >= 60) ? ""
+                         : "val-hi";
+
+    // plant_loop_us_max in tenths of ms for one-decimal display
+    int loop_tenths = (int)(st.plant_loop_us_max / 100);
+    const char* loop_cls = (st.plant_loop_us_max > 10000) ? "val-warn" : "val-hi";
+
+    char buf[512];
+    snprintf(buf, sizeof(buf),
+        "<div class='card'><h2>System Resources</h2><table>"
+        "<tr><td>Heap used</td>"
+        "<td id='res-hu'><span class='%s'>%zu&nbsp;B / %zu&nbsp;B&nbsp;(%d%%)</span></td></tr>"
+        "<tr><td>Heap free</td><td id='res-hf'>%zu&nbsp;B</td></tr>"
+        "<tr><td>Sim loop&nbsp;max</td>"
+        "<td id='res-loop'><span class='%s'>%d.%d&nbsp;ms</span>"
+        "&nbsp;<span style='color:#8b949e'>(budget&nbsp;10&nbsp;ms)</span></td></tr>"
+        "</table></div>",
+        heap_cls, st.heap_used, heap_total, heap_pct,
+        st.heap_free,
+        loop_cls, loop_tenths / 10, loop_tenths % 10);
+    send_str(fd, buf);
 }
 
 // ── Kernel threads card ───────────────────────────────────────────────────────
@@ -76,7 +118,7 @@ static void collect_thread_cb(const struct k_thread* t, void*)
 
 static void send_threads_card(int fd)
 {
-    char buf[256];
+    char buf[1024];
 
     s_thread_count = 0;
     k_thread_foreach(collect_thread_cb, nullptr);
@@ -97,9 +139,9 @@ static void send_threads_card(int fd)
         const char* cls = (pct >= 80) ? "val-warn" : (pct >= 60) ? "" : "val-hi";
 
         snprintf(buf, sizeof(buf),
-            "<tr><td>%s</td><td>%d</td>"
-            "<td><span class='%s'>%zu</span> / %zu B</td>"
-            "<td class='%s'>%d%%</td></tr>",
+            "<tr><td>%.23s</td><td>%d</td>"
+            "<td><span class='%.8s'>%zu</span> / %zu B</td>"
+            "<td class='%.8s'>%d%%</td></tr>",
             ti.name, ti.priority,
             cls, ti.stack_used, ti.stack_total,
             cls, pct);
@@ -107,6 +149,166 @@ static void send_threads_card(int fd)
     }
 
     send_str(fd, "</table></div>");
+}
+
+// ── Memory map card ──────────────────────────────────────────────────────────
+// Pulls flash + RAM footprint from Zephyr linker symbols.
+// Must be called AFTER send_threads_card() so s_threads[] is populated.
+static void send_memory_card(int fd)
+{
+    // __rom_region_start points to MCUboot slot0 base (0x08040000).
+    // The MCUboot image header lives there; read actual image size from it:
+    //   offset 0x00: ih_magic        uint32
+    //   offset 0x08: ih_hdr_size     uint16  (typically 512 B)
+    //   offset 0x0A: ih_protect_tlv_size uint16
+    //   offset 0x0C: ih_img_size     uint32  (payload bytes)
+    // flash_used = header + payload + TLV trailer = exact .signed.bin size.
+    extern char __rom_region_start[];
+    extern char _image_ram_start[];
+    extern char _image_ram_end[];
+
+    const uint8_t* hdr = (const uint8_t*)__rom_region_start;
+    uint16_t ih_hdr_size, ih_tlv_size;
+    uint32_t ih_img_size;
+    memcpy(&ih_hdr_size,  hdr + 8,  sizeof(ih_hdr_size));
+    memcpy(&ih_tlv_size,  hdr + 10, sizeof(ih_tlv_size));
+    memcpy(&ih_img_size,  hdr + 12, sizeof(ih_img_size));
+    size_t flash_used = (size_t)ih_hdr_size + ih_img_size + ih_tlv_size;
+
+    size_t ram_image  = (size_t)(_image_ram_end - _image_ram_start);
+
+    // Configured pool sizes (compile-time constants from prj.conf)
+    static const size_t kHeapGen = CONFIG_HEAP_MEM_POOL_SIZE;
+    static const size_t kHeapTLS = CONFIG_MBEDTLS_HEAP_SIZE;
+
+    // Sum all thread stacks from the data collected by send_threads_card()
+    size_t stacks_sz = 0;
+    for (int i = 0; i < s_thread_count; ++i) stacks_sz += s_threads[i].stack_total;
+
+    // Remainder = kernel structures, static buffers, globals
+    // (ram_image already includes all of the above including heaps+stacks)
+    size_t other = (ram_image > kHeapGen + kHeapTLS + stacks_sz)
+                   ? ram_image - kHeapGen - kHeapTLS - stacks_sz : 0;
+
+    // MCUboot slot0 = 768 KB (0x08040000→0x08100000), AXI SRAM = 512 KB (STM32H753ZI)
+    int flash_pct = (int)(100u * flash_used / (768u * 1024u));
+    int ram_pct   = (int)(100u * ram_image  / (512u * 1024u));
+
+    char buf[400];
+
+    // Flash row
+    snprintf(buf, sizeof(buf),
+        "<div class='card'><h2>Memory Map</h2><table>"
+        "<tr style='color:#8b949e;font-size:11px'>"
+        "<td colspan='3'>FLASH &mdash; MCUboot slot0 (768&nbsp;KB)</td></tr>"
+        "<tr><td>Image&nbsp;(text+rodata+.data)</td>"
+        "<td class='%s'>%zu&nbsp;KB&nbsp;/&nbsp;768&nbsp;KB&nbsp;(%d%%)</td>"
+        "<td></td></tr>",
+        flash_pct >= 80 ? "val-warn" : "val-hi",
+        flash_used / 1024, flash_pct);
+    send_str(fd, buf);
+
+    // RAM header + total
+    snprintf(buf, sizeof(buf),
+        "<tr style='color:#8b949e;font-size:11px'>"
+        "<td colspan='3' style='padding-top:8px'>"
+        "RAM &mdash; AXI SRAM (512&nbsp;KB) &mdash; static image footprint</td></tr>"
+        "<tr><td>Total image RAM</td>"
+        "<td class='%s'>%zu&nbsp;KB&nbsp;/&nbsp;512&nbsp;KB&nbsp;(%d%%)</td>"
+        "<td style='color:#8b949e;font-size:11px'>includes all rows below</td></tr>",
+        ram_pct >= 80 ? "val-warn" : ram_pct >= 60 ? "" : "val-hi",
+        ram_image / 1024, ram_pct);
+    send_str(fd, buf);
+
+    // Heap rows (~260 B)
+    snprintf(buf, sizeof(buf),
+        "<tr><td>&nbsp;&nbsp;General heap pool</td>"
+        "<td>%zu&nbsp;KB</td>"
+        "<td style='color:#8b949e;font-size:11px'>"
+        "runtime:&nbsp;<span id='mm-hu'>?</span>&nbsp;used&nbsp;/&nbsp;"
+        "<span id='mm-hf'>?</span>&nbsp;free</td></tr>"
+        "<tr><td>&nbsp;&nbsp;mbedTLS heap pool</td>"
+        "<td>%zu&nbsp;KB</td>"
+        "<td style='color:#8b949e;font-size:11px'>peak ~60&nbsp;KB during TLS handshake</td></tr>",
+        kHeapGen / 1024, kHeapTLS / 1024);
+    send_str(fd, buf);
+
+    // Stack + kernel rows + close (~200 B)
+    snprintf(buf, sizeof(buf),
+        "<tr><td>&nbsp;&nbsp;Thread stacks (%d)</td>"
+        "<td>%zu&nbsp;KB</td><td></td></tr>"
+        "<tr><td>&nbsp;&nbsp;Kernel&nbsp;+&nbsp;globals&nbsp;+&nbsp;buffers</td>"
+        "<td>%zu&nbsp;KB</td><td></td></tr>"
+        "</table></div>",
+        s_thread_count, stacks_sz / 1024,
+        other / 1024);
+    send_str(fd, buf);
+}
+
+// ── /api/state — JSON telemetry snapshot ─────────────────────────────────────
+
+void send_api_state(int fd)
+{
+    plant::PlantState s{};
+    sim::ActuatorCmd  c{};
+    SysStats st{};
+
+    k_mutex_lock(&g_state_mutex, K_FOREVER);  s = g_state;        k_mutex_unlock(&g_state_mutex);
+    k_mutex_lock(&g_cmd_mutex,   K_FOREVER);  c = g_cmd;          k_mutex_unlock(&g_cmd_mutex);
+    k_mutex_lock(&g_stats_mutex, K_FOREVER);  st = g_sys_stats;   k_mutex_unlock(&g_stats_mutex);
+
+    uint32_t uptime_s = k_uptime_get_32() / 1000;
+    int src = (int)atomic_get(&g_ctrl_source);
+    const char* gear_str =
+        (c.gear_position == sim::GearPosition::FORWARD) ? "F" :
+        (c.gear_position == sim::GearPosition::REVERSE) ? "R" : "N";
+
+    static char body[640];
+    int n = snprintf(body, sizeof(body),
+        "{\"uptime\":%u,"
+        "\"vx\":%.3f,\"vy\":%.3f,"
+        "\"yaw\":%.2f,\"yawr\":%.2f,"
+        "\"x\":%.2f,\"y\":%.2f,"
+        "\"steer\":%.2f,\"soc\":%.1f,"
+        "\"ofl\":%.2f,\"ofr\":%.2f,\"orl\":%.2f,\"orr\":%.2f,"
+        "\"mu\":%.2f,"
+        "\"en\":%d,\"gear\":\"%s\","
+        "\"torq\":%.1f,\"brk\":%.2f,\"csteer\":%.2f,"
+        "\"cantx\":%u,\"canrx\":%u,\"canto\":%u,\"lrx\":%.3f,"
+        "\"hu\":%zu,\"hf\":%zu,\"htot\":%u,\"loop\":%u,"
+        "\"mqc\":%d,\"mqrx\":%u,\"src\":%d}",
+        uptime_s,
+        s.v_mps, s.vy_mps,
+        s.yaw_rad * 57.2958, s.yaw_rate_radps * 57.2958,
+        s.x_m, s.y_m,
+        s.steer_virtual_rad * 57.2958, s.batt_soc_pct,
+        s.omega_fl_radps, s.omega_fr_radps, s.omega_rl_radps, s.omega_rr_radps,
+        s.surface_mu,
+        c.system_enable ? 1 : 0, gear_str,
+        c.drive_torque_cmd_nm, c.brake_cmd_pct, c.steer_cmd_deg,
+        (uint32_t)atomic_get(&g_can_tx_count),
+        (uint32_t)atomic_get(&g_can_rx_count),
+        (uint32_t)atomic_get(&g_can_timeout_count),
+        c.last_update_t_s,
+        st.heap_used, st.heap_free,
+        (uint32_t)CONFIG_HEAP_MEM_POOL_SIZE,
+        st.plant_loop_us_max,
+        g_mqtt_connected ? 1 : 0,
+        (uint32_t)atomic_get(&g_mqtt_rx_count),
+        src);
+
+    if (n <= 0 || n >= (int)sizeof(body)) return;
+
+    char hdr[128];
+    int hn = snprintf(hdr, sizeof(hdr),
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: application/json\r\n"
+        "Content-Length: %d\r\n"
+        "Cache-Control: no-cache\r\n"
+        "Connection: close\r\n"
+        "\r\n", n);
+    zsock_send(fd, hdr, hn, 0);
+    zsock_send(fd, body, n, 0);
 }
 
 // ── Login page ────────────────────────────────────────────────────────────────
@@ -197,20 +399,26 @@ void send_page(int fd)
     uint32_t m       = (sec_up % 3600) / 60;
     uint32_t sc      = sec_up % 60;
 
-    // Header bar
-    snprintf(buf, sizeof(buf),
+    // Header bar — static parts via send_str, only uptime needs snprintf
+    send_str(fd,
         "<div class='header'>"
         "<h1>Heavy-Duty Electric Vehicle &mdash; Simulator Dashboard</h1>"
-        "<span class='badge'>&#9679; ONLINE</span>"
-        "<span class='meta'>Uptime&nbsp;%02u:%02u:%02u</span>"
+        "<span class='badge'>&#9679; ONLINE</span>");
+    snprintf(buf, sizeof(buf),
+        "<span class='meta'>Uptime&nbsp;<span id='up'>%02u:%02u:%02u</span></span>", h, m, sc);
+    send_str(fd, buf);
+    send_str(fd,
         "<span class='meta'>IP&nbsp;192.168.1.80</span>"
         "<span class='meta'>MAC&nbsp;02:00:5E:00:53:01</span>"
-        "<a href='/logout' style='margin-left:auto;color:#8b949e;font-size:12px;"
+        "<div style='margin-left:auto;display:flex;gap:8px;align-items:center'>"
+        "<a href='/ota' style='color:#8b949e;font-size:12px;"
+        "text-decoration:none;border:1px solid #30363d;padding:2px 8px;border-radius:4px;'>"
+        "OTA</a>"
+        "<a href='/logout' style='color:#8b949e;font-size:12px;"
         "text-decoration:none;border:1px solid #30363d;padding:2px 8px;border-radius:4px;'>"
         "Logout</a>"
-        "</div>",
-        h, m, sc);
-    send_str(fd, buf);
+        "</div>"
+        "</div>");
 
     // Two-column grid
     send_str(fd, "<div class='grid'>");
@@ -218,24 +426,24 @@ void send_page(int fd)
     // Left card — Plant State
     send_str(fd, "<div class='card'><h2>Plant State</h2><table>");
     snprintf(buf, sizeof(buf),
-        "<tr><td>vx</td><td>%.3f m/s</td></tr>"
-        "<tr><td>vy</td><td>%.3f m/s</td></tr>"
-        "<tr><td>yaw</td><td>%.2f &deg;</td></tr>"
-        "<tr><td>yaw rate</td><td>%.2f &deg;/s</td></tr>"
-        "<tr><td>x</td><td>%.2f m</td></tr>"
-        "<tr><td>y</td><td>%.2f m</td></tr>",
+        "<tr><td>vx</td><td id='s-vx'>%.3f m/s</td></tr>"
+        "<tr><td>vy</td><td id='s-vy'>%.3f m/s</td></tr>"
+        "<tr><td>yaw</td><td id='s-yaw'>%.2f &deg;</td></tr>"
+        "<tr><td>yaw rate</td><td id='s-yawr'>%.2f &deg;/s</td></tr>"
+        "<tr><td>x</td><td id='s-x'>%.2f m</td></tr>"
+        "<tr><td>y</td><td id='s-y'>%.2f m</td></tr>",
         s.v_mps, s.vy_mps,
         s.yaw_rad * 57.2958, s.yaw_rate_radps * 57.2958,
         s.x_m, s.y_m);
     send_str(fd, buf);
     snprintf(buf, sizeof(buf),
-        "<tr><td>steer</td><td>%.2f &deg;</td></tr>"
-        "<tr><td>SOC</td><td class='val-hi'>%.1f %%</td></tr>"
-        "<tr><td>&omega; FL</td><td>%.2f rad/s</td></tr>"
-        "<tr><td>&omega; FR</td><td>%.2f rad/s</td></tr>"
-        "<tr><td>&omega; RL</td><td>%.2f rad/s</td></tr>"
-        "<tr><td>&omega; RR</td><td>%.2f rad/s</td></tr>"
-        "<tr><td>surface &mu;</td><td>%.2f</td></tr>",
+        "<tr><td>steer</td><td id='s-steer'>%.2f &deg;</td></tr>"
+        "<tr><td>SOC</td><td id='s-soc'><span class='val-hi'>%.1f %%</span></td></tr>"
+        "<tr><td>&omega; FL</td><td id='s-ofl'>%.2f rad/s</td></tr>"
+        "<tr><td>&omega; FR</td><td id='s-ofr'>%.2f rad/s</td></tr>"
+        "<tr><td>&omega; RL</td><td id='s-orl'>%.2f rad/s</td></tr>"
+        "<tr><td>&omega; RR</td><td id='s-orr'>%.2f rad/s</td></tr>"
+        "<tr><td>surface &mu;</td><td id='s-mu'>%.2f</td></tr>",
         s.steer_virtual_rad * 57.2958,
         s.batt_soc_pct,
         s.omega_fl_radps, s.omega_fr_radps,
@@ -250,11 +458,12 @@ void send_page(int fd)
     // Actuator command card
     send_str(fd, "<div class='card'><h2>Actuator Command</h2><table>");
     snprintf(buf, sizeof(buf),
-        "<tr><td>Enable</td><td class='%s'>%s</td></tr>"
-        "<tr><td>Gear</td><td>%s</td></tr>"
-        "<tr><td>Torque</td><td>%.1f Nm</td></tr>"
-        "<tr><td>Brake</td><td>%.2f %%</td></tr>"
-        "<tr><td>Steer</td><td>%.2f &deg;</td></tr>",
+        "<tr><td>Enable</td>"
+        "<td id='c-en'><span class='%s'>%s</span></td></tr>"
+        "<tr><td>Gear</td><td id='c-gear'>%s</td></tr>"
+        "<tr><td>Torque</td><td id='c-torq'>%.1f Nm</td></tr>"
+        "<tr><td>Brake</td><td id='c-brk'>%.2f %%</td></tr>"
+        "<tr><td>Steer</td><td id='c-steer'>%.2f &deg;</td></tr>",
         c.system_enable ? "val-hi" : "val-warn",
         c.system_enable ? "ON" : "OFF",
         c.gear_position == sim::GearPosition::FORWARD ? "FORWARD" :
@@ -266,10 +475,11 @@ void send_page(int fd)
     // CAN stats card
     send_str(fd, "<div class='card'><h2>CAN Stats</h2><table>");
     snprintf(buf, sizeof(buf),
-        "<tr><td>TX frames</td><td>%u</td></tr>"
-        "<tr><td>RX frames</td><td>%u</td></tr>"
-        "<tr><td>Timeouts</td><td class='%s'>%u</td></tr>"
-        "<tr><td>Last RX</td><td>%.3f s</td></tr>",
+        "<tr><td>TX frames</td><td id='can-tx'>%u</td></tr>"
+        "<tr><td>RX frames</td><td id='can-rx'>%u</td></tr>"
+        "<tr><td>Timeouts</td>"
+        "<td id='can-to'><span class='%s'>%u</span></td></tr>"
+        "<tr><td>Last RX</td><td id='can-lrx'>%.3f s</td></tr>",
         (uint32_t)atomic_get(&g_can_tx_count),
         (uint32_t)atomic_get(&g_can_rx_count),
         atomic_get(&g_can_timeout_count) ? "val-warn" : "",
@@ -354,8 +564,65 @@ void send_page(int fd)
         "<span class='meta'>&nbsp;watchdog: resend within 500&nbsp;ms to hold</span>");
     send_str(fd, "</div></form></div>");
 
+    // Control source card — toggle which input writes g_cmd
+    {
+        int src = (int)atomic_get(&g_ctrl_source);
+        const char* ac = "btn btn-active";
+        const char* in = "btn";
+        snprintf(buf, sizeof(buf),
+            "<div class='card'><h2>Control Source</h2>"
+            "<div class='ctrl-row'>"
+            "<a class='%s' href='/dash?ctrl=can' >CAN</a>"
+            "<a class='%s' href='/dash?ctrl=mqtt'>MQTT</a>"
+            "<a class='%s' href='/dash?ctrl=http'>HTTP</a>"
+            "</div>"
+            "<p style='margin:6px 0 0;font-size:12px;color:#8b949e'>"
+            "Active source writes g_cmd. Others decode but discard.</p>"
+            "</div>",
+            (src == CTRL_CAN)  ? ac : in,
+            (src == CTRL_MQTT) ? ac : in,
+            (src == CTRL_HTTP) ? ac : in);
+        send_str(fd, buf);
+    }
+
+    // MQTT broker card — runtime broker address + connection status
+    // Split into two snprintf calls: form part (~350 B) + status part (~180 B)
+    // to stay within buf[512].
+    {
+        snprintf(buf, sizeof(buf),
+            "<div class='card'><h2>MQTT Broker</h2>"
+            "<form method='get' action='/dash'>"
+            "<div class='ctrl-row'>"
+            "<label>IP&nbsp;"
+            "<input type='text' name='broker_addr' value='%s'"
+            " style='width:140px'></label>"
+            "<label>Port&nbsp;"
+            "<input type='number' name='broker_port' value='%d' min='1' max='65535'"
+            " style='width:70px'></label>"
+            "<button class='btn' type='submit'>Apply</button>"
+            "</div></form>",
+            g_mqtt_broker_addr, g_mqtt_broker_port);
+        send_str(fd, buf);
+
+        snprintf(buf, sizeof(buf),
+            "<p style='margin:6px 0 0;font-size:12px'>"
+            "Status:&nbsp;<span id='mqtt-st'><span class='%s'>%s</span></span>"
+            "&nbsp;&nbsp;MQTT&nbsp;RX:&nbsp;<span id='mqtt-rx'>%u</span></p>"
+            "</div>",
+            g_mqtt_connected ? "val-hi" : "val-warn",
+            g_mqtt_connected ? "connected" : "disconnected",
+            (uint32_t)atomic_get(&g_mqtt_rx_count));
+        send_str(fd, buf);
+    }
+
+    // System resources card (heap + worst-case sim loop)
+    send_resources_card(fd);
+
     // Kernel threads card
     send_threads_card(fd);
+
+    // Memory map card — must follow send_threads_card (uses s_threads[])
+    send_memory_card(fd);
 
     // Vehicle info card (static — defined in http_html.hpp)
     send_str(fd, kVehicleCard);

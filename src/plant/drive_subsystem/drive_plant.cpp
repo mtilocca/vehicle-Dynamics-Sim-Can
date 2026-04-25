@@ -119,11 +119,18 @@ void DrivePlant::step(PlantState& s, const sim::ActuatorCmd& cmd, double dt_s)
     // ========================================================================
     // STEP 4: Drive Torque Distribution (RWD, 50/50 open diff)
     // ========================================================================
-    
+
+    // Gear position sets direction: REVERSE flips the drive torques so that
+    // positive throttle input propels the vehicle rearward.
+    // NEUTRAL prevents any drive torque regardless of throttle.
+    int gear_dir = 1;
+    if (s.gear_position == sim::GearPosition::REVERSE) gear_dir = -1;
+    else if (s.gear_position == sim::GearPosition::NEUTRAL) gear_dir = 0;
+
     s.tau_drive_fl_nm = 0.0;  // Front-left: non-driven
     s.tau_drive_fr_nm = 0.0;  // Front-right: non-driven
-    s.tau_drive_rl_nm = wheel_tq_total * 0.5;  // Rear-left: 50%
-    s.tau_drive_rr_nm = wheel_tq_total * 0.5;  // Rear-right: 50%
+    s.tau_drive_rl_nm = wheel_tq_total * 0.5 * gear_dir;  // Rear-left: 50%
+    s.tau_drive_rr_nm = wheel_tq_total * 0.5 * gear_dir;  // Rear-right: 50%
 
     // ========================================================================
     // STEP 5: Battery Energy Flow (with MOTOR REGEN DRAG)

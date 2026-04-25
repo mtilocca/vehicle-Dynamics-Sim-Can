@@ -1,12 +1,12 @@
 // zephyr/src/http/http_server.cpp
-// HTTP server thread (plain TCP, port 80) — request routing + auth.
+// HTTPS server thread (TLS 1.2, port 443) — request routing + auth.
 //
 // Security model:
+//   - TLS 1.2 with ECDHE-RSA-AES128-GCM-SHA256 (self-signed cert, IP SAN)
 //   - Bearer token or browser session cookie required for all control endpoints
 //   - Token generated once per deployment by scripts/gen_http_token.sh (gitignored)
+//   - Session cookie carries Secure flag — never sent over plain HTTP
 //   - Input values clamped to physical limits before writing to g_cmd
-//   - Suitable for isolated lab/LAN environments; add a TLS reverse proxy
-//     (e.g. nginx) in front if exposure beyond the local network is needed
 //
 // Routes:
 //   GET  /            → login page
@@ -16,6 +16,7 @@
 //   GET  /dash?...    → apply command + dashboard (requires auth)
 //   GET  /logout      → invalidate session + redirect /
 //   GET  /ota         → OTA upload page (requires auth)
+//   GET  /api/state   → JSON telemetry snapshot for JS polling (requires auth)
 //   POST /api/firmware → stream firmware binary to slot1 (requires auth)
 //   POST /api/reboot  → cold-reboot into MCUboot swap (requires auth)
 //   other             → redirect /
@@ -23,11 +24,13 @@
 #include <zephyr/kernel.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/net/net_ip.h>
+#include <zephyr/net/tls_credentials.h>
 #include <zephyr/logging/log.h>
 #include <string.h>
 #include <stdio.h>
 
 #include "http_internal.hpp"
+#include "tls/tls_creds.hpp"
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
@@ -65,7 +68,7 @@ static void send_login_success(int fd, const char* sid)
     int n = snprintf(buf, sizeof(buf),
         "HTTP/1.1 302 Found\r\n"
         "Location: /dash\r\n"
-        "Set-Cookie: sid=%s; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600\r\n"
+        "Set-Cookie: sid=%s; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=3600\r\n"
         "Connection: close\r\n"
         "Content-Length: 0\r\n"
         "\r\n",
@@ -91,32 +94,53 @@ static void http_server_thread(void*, void*, void*)
 {
     k_msleep(2000);  // let Ethernet settle
 
-    int srv = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (srv < 0) { LOG_ERR("HTTP: socket() failed: %d", srv); return; }
+    if (tls_creds_init() != 0) {
+        LOG_ERR("HTTPS: TLS credential load failed — aborting"); return;
+    }
+
+    int srv = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TLS_1_2);
+    if (srv < 0) { LOG_ERR("HTTPS: socket() failed: %d", srv); return; }
+
+    // Bind server certificate credentials to the socket.
+    // TLS role (server vs client) is implicit for TLS 1.2: accept() = server.
+    sec_tag_t sec_tag = HDV_TLS_SERVER_TAG;
+    zsock_setsockopt(srv, SOL_TLS, TLS_SEC_TAG_LIST, &sec_tag, sizeof(sec_tag));
 
     int opt = 1;
     zsock_setsockopt(srv, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
     struct sockaddr_in addr{};
     addr.sin_family      = AF_INET;
-    addr.sin_port        = htons(80);
+    addr.sin_port        = htons(443);
     addr.sin_addr.s_addr = INADDR_ANY;
 
     if (zsock_bind(srv, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        LOG_ERR("HTTP: bind() failed"); zsock_close(srv); return;
+        LOG_ERR("HTTPS: bind() failed"); zsock_close(srv); return;
     }
     if (zsock_listen(srv, 3) < 0) {
-        LOG_ERR("HTTP: listen() failed"); zsock_close(srv); return;
+        LOG_ERR("HTTPS: listen() failed"); zsock_close(srv); return;
     }
 
-    LOG_INF("HTTP server listening on 192.168.1.80:80");
-    LOG_INF("Open http://192.168.1.80/ in your browser");
+    LOG_INF("HTTPS server listening on 192.168.1.80:443");
+    LOG_INF("Open https://192.168.1.80/ in your browser");
 
     while (true) {
         struct sockaddr_in client_addr{};
         socklen_t client_len = sizeof(client_addr);
         int client = zsock_accept(srv, (struct sockaddr*)&client_addr, &client_len);
-        if (client < 0) { k_msleep(10); continue; }
+        if (client < 0) {
+            int err = errno;
+            if (err == ENOMEM) {
+                // Heap exhausted — wait for current handshake to free memory.
+                LOG_WRN("HTTPS: accept() ENOMEM — backing off 300 ms", err);
+                k_msleep(300);
+            } else {
+                // Client aborted handshake (browser cancelled speculative conn).
+                LOG_DBG("HTTPS: accept() abandoned by client (errno=%d)", err);
+            }
+            continue;
+        }
+        LOG_INF("HTTPS: client connected (TLS handshake OK), fd=%d", client);
 
         // ── Parse request ─────────────────────────────────────────────────────
         char method[8]   = {};
@@ -147,6 +171,7 @@ static void http_server_thread(void*, void*, void*)
         bool is_dash         = (strcmp(path, "/dash")         == 0);
         bool is_logout       = (strcmp(path, "/logout")       == 0);
         bool is_ota          = (strcmp(path, "/ota")          == 0);
+        bool is_api_state    = (strcmp(path, "/api/state")    == 0);
         bool is_api_firmware = (strcmp(path, "/api/firmware") == 0);
         bool is_api_reboot   = (strcmp(path, "/api/reboot")   == 0);
 
@@ -210,9 +235,35 @@ if (verify_bearer(tok_clean)) {
             if (authed) { handle_ota_page(client); }
             else        { send_redirect(client, "/"); }
 
-        } else if (is_post && is_api_firmware) {
-            if (authed) { handle_ota_upload(client, clen); }
+        } else if (is_get && is_api_state) {
+            if (authed) { send_api_state(client); }
             else        { send_401(client); }
+
+        } else if (is_post && is_api_firmware) {
+            if (authed) {
+                handle_ota_upload(client, clen);
+            } else {
+                // Drain the upload body before sending 401.
+                // The browser is already streaming the firmware binary. If we
+                // close the socket immediately after the 401, the H7 TCP stack
+                // sends a RST that races with the response — the browser sees
+                // xhr.onerror ("Network error") instead of HTTP 401 status,
+                // so the user gets no useful feedback.
+                // Draining lets the 401 reach the browser cleanly.
+                LOG_WRN("OTA: auth failed (session expired?) — draining %d B body before 401", clen);
+                if (clen > 0) {
+                    char drain[256];
+                    int drained = 0;
+                    while (drained < clen) {
+                        int want = (clen - drained < (int)sizeof(drain))
+                                   ? (clen - drained) : (int)sizeof(drain);
+                        int r = zsock_recv(client, drain, want, 0);
+                        if (r <= 0) break;
+                        drained += r;
+                    }
+                }
+                send_401(client);
+            }
 
         } else if (is_post && is_api_reboot) {
             if (authed) { handle_api_reboot(client); /* never returns */ }
@@ -229,5 +280,5 @@ if (verify_bearer(tok_clean)) {
     }
 }
 
-// Stack 8 KB — plain TCP, no TLS handshake overhead
-K_THREAD_DEFINE(http_tid, 8192, http_server_thread, NULL, NULL, NULL, 10, 0, 0);
+// Stack 16 KB — TLS handshake needs ~12 KB headroom above plain HTTP overhead
+K_THREAD_DEFINE(http_tid, 16384, http_server_thread, NULL, NULL, NULL, 10, 0, 0);

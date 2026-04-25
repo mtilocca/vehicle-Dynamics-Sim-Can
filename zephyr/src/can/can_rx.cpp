@@ -16,6 +16,7 @@
 #include <zephyr/sys/atomic.h>
 
 #include "sim/actuator_cmd.hpp"
+#include "mqtt/mqtt_client.hpp"
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
@@ -24,6 +25,7 @@ extern sim::ActuatorCmd  g_cmd;
 extern struct k_mutex    g_cmd_mutex;
 extern atomic_t          g_can_rx_count;
 extern atomic_t          g_can_timeout_count;
+extern atomic_t          g_ctrl_source;
 
 // ── ACTUATOR_CMD_1 — bare 29-bit J1939 ID ────────────────────────────────────
 static const uint32_t ACTUATOR_CMD_ID = 0x18EFF021u;
@@ -70,6 +72,35 @@ static void decode_actuator_cmd(const struct can_frame& zf, sim::ActuatorCmd& c)
     c.brake_cmd_pct       = clamp_d((double)d[5],          0.0,    100.0);
 }
 
+// ── CAN state change callback ─────────────────────────────────────────────────
+// Logs bus-off and error-passive transitions so we can diagnose wiring issues
+// without being flooded by Zephyr driver internals.
+static void can_state_cb(const struct device* dev, enum can_state state,
+                         struct can_bus_err_cnt err_cnt, void* /*user*/)
+{
+    (void)dev;
+    switch (state) {
+    case CAN_STATE_ERROR_ACTIVE:
+        LOG_INF("CAN: bus OK (error-active) tx_err=%u rx_err=%u",
+                err_cnt.tx_err_cnt, err_cnt.rx_err_cnt);
+        break;
+    case CAN_STATE_ERROR_WARNING:
+        LOG_WRN("CAN: error-warning tx_err=%u rx_err=%u — check wiring/termination",
+                err_cnt.tx_err_cnt, err_cnt.rx_err_cnt);
+        break;
+    case CAN_STATE_ERROR_PASSIVE:
+        LOG_WRN("CAN: error-passive tx_err=%u rx_err=%u — transceiver or termination fault",
+                err_cnt.tx_err_cnt, err_cnt.rx_err_cnt);
+        break;
+    case CAN_STATE_BUS_OFF:
+        LOG_ERR("CAN: BUS-OFF — no ACK received. Check: RS pin to GND, "
+                "CAN-H/L wiring, 120Ω termination at each end");
+        break;
+    default:
+        break;
+    }
+}
+
 // ── CAN RX thread ─────────────────────────────────────────────────────────────
 static void can_rx_thread(void*, void*, void*)
 {
@@ -105,6 +136,8 @@ static void can_rx_thread(void*, void*, void*)
         return;
     }
 
+    can_set_state_change_callback(dev, can_state_cb, nullptr);
+
     LOG_INF("CAN RX ready — FDCAN1 @ 500 kbps, filter_id=%d, "
             "watching 0x%08X (ACTUATOR_CMD_1)", fid, ACTUATOR_CMD_ID);
 
@@ -130,9 +163,11 @@ static void can_rx_thread(void*, void*, void*)
             decode_actuator_cmd(zf, c);
             c.last_update_t_s = k_uptime_get_32() / 1000.0;
 
-            k_mutex_lock(&g_cmd_mutex, K_FOREVER);
-            g_cmd = c;
-            k_mutex_unlock(&g_cmd_mutex);
+            if (atomic_get(&g_ctrl_source) == CTRL_CAN) {
+                k_mutex_lock(&g_cmd_mutex, K_FOREVER);
+                g_cmd = c;
+                k_mutex_unlock(&g_cmd_mutex);
+            }
 
             atomic_inc(&g_can_rx_count);
         } else {

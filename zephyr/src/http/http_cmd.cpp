@@ -16,11 +16,13 @@
 
 #include "sim/actuator_cmd.hpp"
 #include "http_auth.hpp"   // HDV_API_TOKEN (generated, gitignored)
+#include "mqtt/mqtt_client.hpp"
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
 extern sim::ActuatorCmd g_cmd;
 extern struct k_mutex   g_cmd_mutex;
+extern atomic_t         g_ctrl_source;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -164,6 +166,47 @@ void apply_web_cmd(const char* qs)
                                             sim::GearPosition::NEUTRAL;
     }
     if ((v = find_param(qs, "enable"))) cmd.system_enable = (v[0] == '1');
+
+    // Control source switch — changes which thread is allowed to write g_cmd.
+    if ((v = find_param(qs, "ctrl"))) {
+        if      (strncmp(v, "mqtt", 4) == 0) atomic_set(&g_ctrl_source, CTRL_MQTT);
+        else if (strncmp(v, "http", 4) == 0) atomic_set(&g_ctrl_source, CTRL_HTTP);
+        else                                  atomic_set(&g_ctrl_source, CTRL_CAN);
+    }
+
+    // MQTT broker address / port — triggers a reconnect if changed.
+    if ((v = find_param(qs, "broker_addr"))) {
+        // Decode %2E → '.' (browsers may percent-encode dots in form values)
+        char decoded[32]{};
+        int di = 0;
+        for (int si = 0; v[si] && v[si] != '&' && di < (int)sizeof(decoded) - 1; ++si) {
+            if (v[si] == '%' && v[si+1] && v[si+2]) {
+                char hex[3] = { v[si+1], v[si+2], '\0' };
+                decoded[di++] = (char)strtol(hex, nullptr, 16);
+                si += 2;
+            } else {
+                decoded[di++] = v[si];
+            }
+        }
+        decoded[di] = '\0';
+        if (di > 0) {
+            strncpy(g_mqtt_broker_addr, decoded, sizeof(g_mqtt_broker_addr) - 1);
+            g_mqtt_broker_addr[sizeof(g_mqtt_broker_addr) - 1] = '\0';
+            g_mqtt_reconnect_req = true;
+        }
+    }
+    if ((v = find_param(qs, "broker_port"))) {
+        int p = atoi(v);
+        if (p > 0 && p < 65536) {
+            g_mqtt_broker_port = p;
+            g_mqtt_reconnect_req = true;
+        }
+    }
+
+    // Only write g_cmd when HTTP is the active control source.
+    if (atomic_get(&g_ctrl_source) != CTRL_HTTP) {
+        return;
+    }
 
     cmd.last_update_t_s = (double)k_uptime_get_32() / 1000.0;
 

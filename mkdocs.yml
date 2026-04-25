@@ -49,5 +49,6 @@ nav:
       - Overview: models_overview.md
       - Sensor Suite: sensor_public.md
   - Zephyr HIL Port:
-      - Overview: zephyr_overview.md
+      - Overview: zephyr/ZEPHYR_PORT.md
+      - MQTT(S) Control: zephyr/MQTT.md
   - Reference PDFs: pdfs/index.md

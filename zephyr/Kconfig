@@ -8,4 +8,18 @@ config HDV_CAN_LOOPBACK
 	  before can_start(). Frames sent via 'can tx_test' are echoed back to
 	  the RX filter without any external hardware. Disable for production.
 
+config HDV_MQTT_BROKER_ADDR
+	string "MQTT broker IP address"
+	default "192.168.1.106"
+	help
+	  Default broker address. Can be overridden at runtime via the HTTPS
+	  dashboard "MQTT Broker" card or the 'mqtt reconnect' shell command.
+
+config HDV_MQTT_BROKER_PORT
+	int "MQTT broker TCP port"
+	default 1883
+	range 1 65535
+	help
+	  Default broker port (1883 = plaintext MQTT).
+
 source "Kconfig.zephyr"

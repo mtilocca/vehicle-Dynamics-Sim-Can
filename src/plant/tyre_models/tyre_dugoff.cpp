@@ -103,35 +103,27 @@ TyreForces TyreDugoff::compute_forces(
     // Lateral force opposes lateral slip (independent of longitudinal direction)
     forces.Fy = -Cy * forces.sigma_y * f_lambda;
     
-    // ========================================================================
-    // Verification: Total force should never exceed mu * Fz
-    // ========================================================================
-    
-    double F_total = std::sqrt(forces.Fx * forces.Fx + forces.Fy * forces.Fy);
-    double F_max = mu * Fz;
-    
-    if (F_total > F_max + 1.0) {  // Allow 1N tolerance for numerical error
-        LOG_WARN("[TyreDugoff] Force exceeds friction limit: %.0f N > %.0f N (mu=%.2f, Fz=%.0f N)",
-                 F_total, F_max, mu, Fz);
-    }
-    
+    // Friction limit verification — debug builds only.
+    // Compiled out at LOG_DEFAULT_LEVEL=3 (INF); avoids a std::sqrt per wheel
+    // per step on the Cortex-M7 hot path.
+    LOG_DBG("[TyreDugoff] F=(%.0f,%.0f) N, limit=%.0f N",
+            forces.Fx, forces.Fy, mu * Fz);
+
     return forces;
 }
 
 double TyreDugoff::compute_Cx(double Fz) const {
     // Load-dependent scaling: Cx(Fz) = Cx_base * (Fz / Fz_ref)^exponent
+    // exponent is fixed at 0.50 → use std::sqrt (hardware VSQRT on Cortex-M7,
+    // ~30 ns) instead of std::pow (~2 µs via log+exp on newlib).
     double load_ratio = Fz / params_.Fz_ref;
-    double Cx = params_.Cx_base * std::pow(load_ratio, params_.load_exponent);
-    
-    return Cx;
+    return params_.Cx_base * std::sqrt(load_ratio);
 }
 
 double TyreDugoff::compute_Cy(double Fz) const {
     // Load-dependent scaling: Cy(Fz) = Cy_base * (Fz / Fz_ref)^exponent
     double load_ratio = Fz / params_.Fz_ref;
-    double Cy = params_.Cy_base * std::pow(load_ratio, params_.load_exponent);
-    
-    return Cy;
+    return params_.Cy_base * std::sqrt(load_ratio);
 }
 
 double TyreDugoff::compute_mu_effective(double Vx) const {

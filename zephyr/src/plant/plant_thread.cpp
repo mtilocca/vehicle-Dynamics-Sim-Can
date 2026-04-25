@@ -169,28 +169,6 @@ static void plant_thread(void*, void*, void*)
         g_state = local_state;
         k_mutex_unlock(&g_state_mutex);
 
-        // ── Brake diagnostics ────────────────────────────────────────────────
-        if (cmd.brake_cmd_pct > 1.0) {
-            static int brake_log_ctr = 0;
-            if ((++brake_log_ctr % 10) == 0) {
-                const double Fx_total = local_state.Fx_fl + local_state.Fx_fr
-                                      + local_state.Fx_rl + local_state.Fx_rr;
-                const double tau_applied = local_state.tau_brake_fl_nm
-                                         + local_state.tau_brake_fr_nm
-                                         + local_state.tau_brake_rl_nm
-                                         + local_state.tau_brake_rr_nm;
-                const double omega_ref = local_state.v_mps / 1.93;
-                LOG_INF("[brk] t=%.2f vx=%.3f a=%.3f Fx=%.0fN tau=%.0fNm mode=%s",
-                        t_s, local_state.v_mps, local_state.a_long_mps2,
-                        Fx_total, tau_applied,
-                        local_state.dynamic_model_enabled ? "dyn" : "kin");
-                LOG_INF("[brk] omega FL=%.2f FR=%.2f RL=%.2f RR=%.2f ref=%.2f rad/s",
-                        local_state.omega_fl_radps, local_state.omega_fr_radps,
-                        local_state.omega_rl_radps, local_state.omega_rr_radps,
-                        omega_ref);
-            }
-        }
-
         // ── Loop timing + overrun detection ───────────────────────────────────
         const uint32_t dt_cycles = k_cycle_get_32() - t0_cycles;
         const uint32_t loop_us   = k_cyc_to_us_ceil32(dt_cycles);

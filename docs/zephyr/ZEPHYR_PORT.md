@@ -893,3 +893,37 @@ graph TD
 | USB-CAN adapter *(optional)* | PCAN-USB, Kvaser, or CANable for bus monitoring |
 | `picocom` | Serial terminal (`picocom -b 115200 /dev/ttyACM0`) |
 | Python 3 | Run `tools/gen_can_map.py` at build time |
+
+---
+
+## Thread Architecture
+
+```mermaid
+graph TD
+    TIMER["k_timer\n10 ms"] -->|k_sem_give| PLANT["plant_tid\nPhysics step\nprio 5 · 16 KB"]
+    PLANT -->|mutex write| STATE[("g_state\ng_cmd")]
+    CAN["can_rx_tid\nCAN RX\nprio 6 · 1 KB"] -->|mutex write| STATE
+    STATE -->|mutex read| HTTP["http_tid\nHTTPS dashboard\nprio 10 · 16 KB"]
+    STATE -->|can_send| BUS["FDCAN\nCAN Bus"]
+    LED["led_tid\nStatus LEDs\nprio 12 · 576 B"] -->|GPIO| LEDS["LD1 LD2 LD3"]
+    WDT["watchdog_tid\nprio 2 · 512 B"] -->|IWDG feed| HW["IWDG"]
+    PLANT -->|k_sem_give| WDT
+```
+
+---
+
+## Shell Interface
+
+An interactive UART shell (115200 baud, `picocom -b 115200 /dev/ttyACM0`):
+
+| Command | What it does |
+|---|---|
+| `vehicle info` | Print Heavy-Duty Electric Vehicle parameters |
+| `plant state` | Full physics state vector |
+| `plant mu <val>` | Set road surface friction coefficient |
+| `plant reset` | Reset simulator to standstill |
+| `can stats` | RX/TX frame counters |
+| `can tx_test steer=<deg> torque=<Nm> brake=<pct> enable=<0/1>` | Inject actuator command via CAN |
+| `kernel threads` | Stack usage per thread |
+| `kernel heap` | Heap pool free/used |
+| `system uptime` | MCU uptime in ms |

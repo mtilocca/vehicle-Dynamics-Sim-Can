@@ -28,6 +28,7 @@ void session_invalidate(const char* cookie_hdr); // removes session on logout
 // ── Page builders (http_page.cpp) ────────────────────────────────────────────
 void send_page(int fd);
 void send_login_page(int fd, bool bad_token);
+void send_api_state(int fd);  // GET /api/state — JSON telemetry for JS polling
 
 // ── Response helpers (http_server.cpp) ───────────────────────────────────────
 void send_401(int fd);
