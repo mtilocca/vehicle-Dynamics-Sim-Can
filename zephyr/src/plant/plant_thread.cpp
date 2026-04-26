@@ -44,9 +44,11 @@ extern void can_tx_send_all(const plant::PlantState& s, double t_s,
                             uint32_t loop_us);
 
 // ── Timing constants ──────────────────────────────────────────────────────────
-static constexpr double   DT_S              = 0.01;   // 10 ms step
-static constexpr double   CAN_RX_TIMEOUT_S = 0.5;    // 500 ms watchdog
+static constexpr double   DT_S             = 0.01;   // 10 ms step
 static constexpr uint32_t OVERRUN_WARN_US  = 9500;   // warn above 9.5 ms
+
+// Runtime-adjustable watchdog: set via 'can timeout <ms>' shell command.
+namespace shell_cmds { extern double g_can_rx_timeout_s; }
 
 
 // ── PlantModel storage — placement-new into a static buffer ──────────────────
@@ -103,7 +105,7 @@ static void plant_thread(void*, void*, void*)
         // last_update_t_s is written under g_sim_cmd_mtx; we read it via the
         // local copy so the check is race-free.
         if (cmd.last_update_t_s > 0.0 &&
-            (t_s - cmd.last_update_t_s) > CAN_RX_TIMEOUT_S) {
+            (t_s - cmd.last_update_t_s) > shell_cmds::g_can_rx_timeout_s) {
             cmd.reset();
         }
 

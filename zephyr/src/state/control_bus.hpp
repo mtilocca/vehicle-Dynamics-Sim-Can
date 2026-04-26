@@ -21,6 +21,11 @@ enum class CtrlSource : int {
     HTTP = 2,
 };
 
+// Integer shims for use with atomic_set/atomic_get (which return long).
+static constexpr int CTRL_CAN  = static_cast<int>(CtrlSource::CAN);
+static constexpr int CTRL_MQTT = static_cast<int>(CtrlSource::MQTT);
+static constexpr int CTRL_HTTP = static_cast<int>(CtrlSource::HTTP);
+
 struct ControlBus {
     atomic_t ctrl_source       = ATOMIC_INIT(static_cast<int>(CtrlSource::CAN));
     atomic_t mqtt_rx_count     = ATOMIC_INIT(0);

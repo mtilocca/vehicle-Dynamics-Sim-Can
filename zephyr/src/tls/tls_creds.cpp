@@ -44,6 +44,19 @@ static const unsigned char broker_ca_cert[] = {
 '\0'  // null terminator required for mbedTLS PEM parser
 };
 
+// ── ZephyrTlsCredStore::init ──────────────────────────────────────────────────
+
+namespace tls {
+
+int ZephyrTlsCredStore::init()
+{
+    return tls_creds_init();
+}
+
+} // namespace tls
+
+// ── C shim ────────────────────────────────────────────────────────────────────
+
 int tls_creds_init(void)
 {
     int rc;

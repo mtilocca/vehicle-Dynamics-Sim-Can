@@ -4,14 +4,12 @@
 #pragma once
 
 #include <stddef.h>
+#include "state/control_bus.hpp"
 
-// Control source arbitration — which source is allowed to write g_cmd.
-// Stored in g_ctrl_source (atomic_t, defined in main.cpp).
-enum CtrlSource : int {
-    CTRL_CAN  = 0,
-    CTRL_MQTT = 1,
-    CTRL_HTTP = 2,
-};
+// Re-export for files that include only mqtt_client.hpp (not control_bus.hpp directly).
+using hdv::CTRL_CAN;
+using hdv::CTRL_MQTT;
+using hdv::CTRL_HTTP;
 
 // Broker address and port — defined in mqtt_client.cpp, written only by the
 // HTTP thread (apply_web_cmd) or mqtt_request_reconnect().
@@ -22,6 +20,3 @@ extern bool g_mqtt_reconnect_req;   // set true to trigger a reconnect from outs
 
 // Whether the MQTT thread is currently connected (read-only for dashboard/shell).
 extern bool g_mqtt_connected;
-
-// Total MQTT actuator commands received (mirrors g_can_rx_count for stats).
-// Defined in main.cpp as atomic_t g_mqtt_rx_count.

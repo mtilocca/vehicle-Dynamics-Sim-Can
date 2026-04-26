@@ -17,6 +17,7 @@
 #define HDV_RAD_TO_DEG 57.295779513082320876
 
 #include "mqtt_client.hpp"
+#include "mqtt/i_mqtt_client.hpp"
 #include "tls/tls_creds.hpp"
 #include "utils/mutex_guard.hpp"
 #include "sim/actuator_cmd.hpp"
@@ -47,13 +48,10 @@ static const char kTopicState[] = "hdv/state/vehicle";
 #define TX_BUF_SIZE  256
 #define PAYLOAD_SIZE 256
 
-static uint8_t s_rx_buf[RX_BUF_SIZE];
-static uint8_t s_tx_buf[TX_BUF_SIZE];
-
 // ── Incoming command JSON descriptor ─────────────────────────────────────────
 struct MqttCmd {
     int         enable;
-    const char* gear;   // JSON_TOK_STRING stores a pointer into the parse buffer
+    const char* gear;
     int         torque;
     int         steer;
     int         brake;
@@ -67,13 +65,173 @@ static const struct json_obj_descr kMqttCmdDescr[] = {
     JSON_OBJ_DESCR_PRIM(struct MqttCmd, brake,  JSON_TOK_NUMBER),
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── ZephyrMqttClient ──────────────────────────────────────────────────────────
+// Concrete Zephyr implementation of IMqttClient.
+// Only mqtt_thread_fn instantiates this — no header needed.
 
-static inline double clamp_d(double v, double lo, double hi) {
-    return v < lo ? lo : (v > hi ? hi : v);
+class ZephyrMqttClient : public mqtt::IMqttClient {
+public:
+    int  connect()    override;
+    void disconnect() override;
+    bool is_connected() const override { return connected_; }
+    int  publish(const char* topic, const void* payload, size_t len) override;
+
+    // poll(): zsock_poll(1000 ms) → mqtt_input → mqtt_live.
+    // Returns 0 on success, negative errno on network error.
+    int  poll() override;
+
+    // Firmware-specific: snapshot g_sim_bus.plant and publish to kTopicState.
+    void publish_vehicle_state();
+
+private:
+    static void s_evt_handler(struct mqtt_client* c, const struct mqtt_evt* evt);
+    void handle_evt(const struct mqtt_evt* evt);
+    void apply_cmd(const char* payload, int len);
+
+    static inline double clamp_d(double v, double lo, double hi) {
+        return v < lo ? lo : (v > hi ? hi : v);
+    }
+
+    struct mqtt_client client_{};
+    struct sockaddr_in broker_addr_{};
+    bool connected_ = false;
+
+    uint8_t rx_buf_[RX_BUF_SIZE]{};
+    uint8_t tx_buf_[TX_BUF_SIZE]{};
+
+    // Trampoline needs to reach the instance; only one exists at a time.
+    static ZephyrMqttClient* s_instance_;
+};
+
+ZephyrMqttClient* ZephyrMqttClient::s_instance_ = nullptr;
+
+// ── connect ───────────────────────────────────────────────────────────────────
+
+int ZephyrMqttClient::connect()
+{
+    memset(&broker_addr_, 0, sizeof(broker_addr_));
+    broker_addr_.sin_family = AF_INET;
+    broker_addr_.sin_port   = htons((uint16_t)g_mqtt_broker_port);
+
+    int rc = net_addr_pton(AF_INET, g_mqtt_broker_addr, &broker_addr_.sin_addr);
+    if (rc != 0) {
+        LOG_ERR("MQTT: invalid broker address '%s'", g_mqtt_broker_addr);
+        return -EINVAL;
+    }
+
+    static const sec_tag_t kTlsTags[] = { HDV_TLS_CA_TAG };
+
+    mqtt_client_init(&client_);
+    s_instance_ = this;
+
+    client_.broker             = &broker_addr_;
+    client_.evt_cb             = s_evt_handler;
+    client_.client_id.utf8     = (const uint8_t*)"hdv-sim";
+    client_.client_id.size     = 7;
+    client_.password           = nullptr;
+    client_.user_name          = nullptr;
+    client_.protocol_version   = MQTT_VERSION_3_1_1;
+    client_.rx_buf             = rx_buf_;
+    client_.rx_buf_size        = sizeof(rx_buf_);
+    client_.tx_buf             = tx_buf_;
+    client_.tx_buf_size        = sizeof(tx_buf_);
+    client_.transport.type     = MQTT_TRANSPORT_SECURE;
+    client_.transport.tls.config.peer_verify   = TLS_PEER_VERIFY_REQUIRED;
+    client_.transport.tls.config.sec_tag_list  = kTlsTags;
+    client_.transport.tls.config.sec_tag_count = ARRAY_SIZE(kTlsTags);
+    client_.transport.tls.config.hostname      = g_mqtt_broker_addr;
+
+    rc = mqtt_connect(&client_);
+    if (rc != 0) {
+        LOG_ERR("MQTT: connect to %s:%d failed (%d)",
+                g_mqtt_broker_addr, g_mqtt_broker_port, rc);
+        // Release TLS socket to avoid leaking contexts on repeated failures.
+        mqtt_abort(&client_);
+        return rc;
+    }
+    return 0;
 }
 
-static void apply_mqtt_cmd(const char* payload, int len)
+// ── disconnect ────────────────────────────────────────────────────────────────
+
+void ZephyrMqttClient::disconnect()
+{
+    mqtt_disconnect(&client_);
+    connected_ = false;
+}
+
+// ── publish ───────────────────────────────────────────────────────────────────
+
+int ZephyrMqttClient::publish(const char* topic, const void* payload, size_t len)
+{
+    struct mqtt_publish_param pub{};
+    pub.message.topic.qos        = MQTT_QOS_0_AT_MOST_ONCE;
+    pub.message.topic.topic.utf8 = (const uint8_t*)topic;
+    pub.message.topic.topic.size = strlen(topic);
+    pub.message.payload.data     = (uint8_t*)payload;
+    pub.message.payload.len      = (uint32_t)len;
+    pub.message_id               = 0;
+    pub.dup_flag                 = 0;
+    pub.retain_flag              = 0;
+    return mqtt_publish(&client_, &pub);
+}
+
+// ── poll ──────────────────────────────────────────────────────────────────────
+
+int ZephyrMqttClient::poll()
+{
+    struct zsock_pollfd fds{};
+    fds.fd     = client_.transport.tls.sock;
+    fds.events = ZSOCK_POLLIN;
+
+    int rc = zsock_poll(&fds, 1, 1000);
+    if (rc < 0) return rc;
+
+    if (rc > 0 && (fds.revents & ZSOCK_POLLIN)) {
+        rc = mqtt_input(&client_);
+        if (rc != 0) {
+            connected_ = false;
+            return rc;
+        }
+    }
+
+    rc = mqtt_live(&client_);
+    if (rc != 0 && rc != -EAGAIN) {
+        connected_ = false;
+        return rc;
+    }
+    return 0;
+}
+
+// ── publish_vehicle_state ─────────────────────────────────────────────────────
+
+void ZephyrMqttClient::publish_vehicle_state()
+{
+    plant::PlantState s{};
+    { hdv::MutexGuard g(g_sim_plant_mtx); s = g_sim_bus.plant; }
+
+    char buf[PAYLOAD_SIZE];
+    int len = snprintf(buf, sizeof(buf),
+        "{\"speed_mps\":%.2f,\"yaw_deg\":%.1f,\"x_m\":%.1f,\"y_m\":%.1f,"
+        "\"soc_pct\":%.1f,\"batt_v\":%.1f,\"motor_kw\":%.1f}",
+        s.v_mps,
+        s.yaw_rad * HDV_RAD_TO_DEG,
+        s.x_m, s.y_m,
+        s.batt_soc_pct,
+        s.batt_v,
+        s.motor_power_kW);
+
+    if (len <= 0 || len >= (int)sizeof(buf)) return;
+
+    int rc = publish(kTopicState, buf, (size_t)len);
+    if (rc != 0) {
+        LOG_WRN("MQTT: publish failed (%d)", rc);
+    }
+}
+
+// ── apply_cmd (private) ───────────────────────────────────────────────────────
+
+void ZephyrMqttClient::apply_cmd(const char* payload, int len)
 {
     struct MqttCmd mc{};
 
@@ -109,66 +267,36 @@ static void apply_mqtt_cmd(const char* payload, int len)
             mc.enable, gear_ch, mc.torque, mc.steer, mc.brake);
 }
 
-// ── Publish vehicle state ─────────────────────────────────────────────────────
+// ── event handler + trampoline ────────────────────────────────────────────────
 
-static void publish_vehicle_state(struct mqtt_client* client)
+void ZephyrMqttClient::s_evt_handler(struct mqtt_client* client,
+                                     const struct mqtt_evt* evt)
 {
-    plant::PlantState s{};
-    { hdv::MutexGuard g(g_sim_plant_mtx); s = g_sim_bus.plant; }
-
-    char buf[PAYLOAD_SIZE];
-    int len = snprintf(buf, sizeof(buf),
-        "{\"speed_mps\":%.2f,\"yaw_deg\":%.1f,\"x_m\":%.1f,\"y_m\":%.1f,"
-        "\"soc_pct\":%.1f,\"batt_v\":%.1f,\"motor_kw\":%.1f}",
-        s.v_mps,
-        s.yaw_rad * HDV_RAD_TO_DEG,
-        s.x_m, s.y_m,
-        s.batt_soc_pct,
-        s.batt_v,
-        s.motor_power_kW);
-
-    if (len <= 0 || len >= (int)sizeof(buf)) return;
-
-    struct mqtt_publish_param pub{};
-    pub.message.topic.qos        = MQTT_QOS_0_AT_MOST_ONCE;
-    pub.message.topic.topic.utf8 = (const uint8_t*)kTopicState;
-    pub.message.topic.topic.size = strlen(kTopicState);
-    pub.message.payload.data     = (uint8_t*)buf;
-    pub.message.payload.len      = (uint32_t)len;
-    pub.message_id               = 0;
-    pub.dup_flag                 = 0;
-    pub.retain_flag              = 0;
-
-    int rc = mqtt_publish(client, &pub);
-    if (rc != 0) {
-        LOG_WRN("MQTT: publish failed (%d)", rc);
-    }
+    if (s_instance_) s_instance_->handle_evt(evt);
+    (void)client;
 }
 
-// ── MQTT event handler ────────────────────────────────────────────────────────
-
-static void mqtt_evt_handler(struct mqtt_client* client,
-                             const struct mqtt_evt* evt)
+void ZephyrMqttClient::handle_evt(const struct mqtt_evt* evt)
 {
     switch (evt->type) {
 
     case MQTT_EVT_CONNACK:
         if (evt->result == 0) {
+            connected_ = true;
             g_mqtt_connected = true;
             LOG_INF("MQTT: connected to %s:%d", g_mqtt_broker_addr, g_mqtt_broker_port);
 
-            // Subscribe to actuator commands
             struct mqtt_topic topic{};
             topic.qos        = MQTT_QOS_0_AT_MOST_ONCE;
             topic.topic.utf8 = (const uint8_t*)kTopicCmd;
             topic.topic.size = strlen(kTopicCmd);
 
             struct mqtt_subscription_list sub_list{};
-            sub_list.list      = &topic;
+            sub_list.list       = &topic;
             sub_list.list_count = 1;
             sub_list.message_id = 1;
 
-            int rc = mqtt_subscribe(client, &sub_list);
+            int rc = mqtt_subscribe(&client_, &sub_list);
             if (rc != 0) {
                 LOG_ERR("MQTT: subscribe failed (%d)", rc);
             } else {
@@ -186,7 +314,7 @@ static void mqtt_evt_handler(struct mqtt_client* client,
         char payload[PAYLOAD_SIZE];
         uint32_t read_len = (plen < sizeof(payload) - 1) ? plen : (sizeof(payload) - 1);
 
-        int rc = mqtt_read_publish_payload_blocking(client,
+        int rc = mqtt_read_publish_payload_blocking(&client_,
                                                     (uint8_t*)payload, read_len);
         if (rc < 0) {
             LOG_WRN("MQTT: payload read error (%d)", rc);
@@ -200,17 +328,18 @@ static void mqtt_evt_handler(struct mqtt_client* client,
             uint32_t remaining = plen - (uint32_t)rc;
             while (remaining > 0) {
                 uint32_t n = (remaining < sizeof(drain)) ? remaining : sizeof(drain);
-                int dr = mqtt_read_publish_payload_blocking(client, drain, n);
+                int dr = mqtt_read_publish_payload_blocking(&client_, drain, n);
                 if (dr <= 0) break;
                 remaining -= (uint32_t)dr;
             }
         }
 
-        apply_mqtt_cmd(payload, rc);
+        apply_cmd(payload, rc);
         break;
     }
 
     case MQTT_EVT_DISCONNECT:
+        connected_ = false;
         g_mqtt_connected = false;
         LOG_INF("MQTT: disconnected");
         break;
@@ -224,124 +353,47 @@ static void mqtt_evt_handler(struct mqtt_client* client,
     }
 }
 
-// ── TLS config ────────────────────────────────────────────────────────────────
-// HDV_TLS_CA_TAG (=2) holds the broker CA cert loaded by tls_creds_init().
-static const sec_tag_t kMqttTlsTags[] = { HDV_TLS_CA_TAG };
-
-// ── Connect helper ────────────────────────────────────────────────────────────
-
-static int mqtt_do_connect(struct mqtt_client* client, struct sockaddr_in* broker)
-{
-    // Resolve broker address
-    memset(broker, 0, sizeof(*broker));
-    broker->sin_family = AF_INET;
-    broker->sin_port   = htons((uint16_t)g_mqtt_broker_port);
-
-    int rc = net_addr_pton(AF_INET, g_mqtt_broker_addr, &broker->sin_addr);
-    if (rc != 0) {
-        LOG_ERR("MQTT: invalid broker address '%s'", g_mqtt_broker_addr);
-        return -EINVAL;
-    }
-
-    mqtt_client_init(client);
-
-    client->broker        = broker;
-    client->evt_cb        = mqtt_evt_handler;
-    client->client_id.utf8 = (const uint8_t*)"hdv-sim";
-    client->client_id.size = 7;
-    client->password      = nullptr;
-    client->user_name     = nullptr;
-    client->protocol_version = MQTT_VERSION_3_1_1;
-    client->rx_buf        = s_rx_buf;
-    client->rx_buf_size   = sizeof(s_rx_buf);
-    client->tx_buf        = s_tx_buf;
-    client->tx_buf_size   = sizeof(s_tx_buf);
-    client->transport.type = MQTT_TRANSPORT_SECURE;
-    client->transport.tls.config.peer_verify   = TLS_PEER_VERIFY_REQUIRED;
-    client->transport.tls.config.sec_tag_list  = kMqttTlsTags;
-    client->transport.tls.config.sec_tag_count = ARRAY_SIZE(kMqttTlsTags);
-    client->transport.tls.config.hostname      = g_mqtt_broker_addr;
-
-    rc = mqtt_connect(client);
-    if (rc != 0) {
-        LOG_ERR("MQTT: connect to %s:%d failed (%d)",
-                g_mqtt_broker_addr, g_mqtt_broker_port, rc);
-        // Release TLS socket that mqtt_connect may have opened before failing.
-        // Without this, each failed attempt leaks a TLS context until
-        // TLS_MAX_CONTEXTS is exhausted and HTTPS handshakes start failing.
-        mqtt_abort(client);
-        return rc;
-    }
-    return 0;
-}
-
 // ── MQTT thread ───────────────────────────────────────────────────────────────
 
 static void mqtt_thread_fn(void*, void*, void*)
 {
-    k_msleep(2000);  // let Ethernet settle (same as HTTP thread)
+    k_msleep(2000);  // let Ethernet settle
 
-    static struct mqtt_client  s_client;
-    static struct sockaddr_in  s_broker;
-
+    ZephyrMqttClient client;
     int backoff_ms = 5000;
 
     while (true) {
         g_mqtt_connected    = false;
         g_mqtt_reconnect_req = false;
 
-        int rc = mqtt_do_connect(&s_client, &s_broker);
+        int rc = client.connect();
         if (rc != 0) {
             LOG_WRN("MQTT: retry in %d ms", backoff_ms);
             k_msleep(backoff_ms);
             backoff_ms = (backoff_ms < 60000) ? backoff_ms * 2 : 60000;
             continue;
         }
-        backoff_ms = 5000;  // reset on successful connect
+        backoff_ms = 5000;
 
         int64_t last_pub_ms = k_uptime_get();
 
-        // Wait for CONNACK via first mqtt_input call
-        struct zsock_pollfd fds{};
-        fds.fd     = s_client.transport.tls.sock;
-        fds.events = ZSOCK_POLLIN;
-
         while (true) {
-            // Check for external reconnect request (e.g. broker addr changed)
             if (g_mqtt_reconnect_req) {
                 LOG_INF("MQTT: reconnecting to %s:%d",
                         g_mqtt_broker_addr, g_mqtt_broker_port);
-                mqtt_disconnect(&s_client);
+                client.disconnect();
                 break;
             }
 
-            int poll_rc = zsock_poll(&fds, 1, 1000);
-            if (poll_rc < 0) {
-                LOG_WRN("MQTT: poll error (%d), reconnecting", poll_rc);
-                mqtt_disconnect(&s_client);
+            rc = client.poll();
+            if (rc < 0) {
+                LOG_WRN("MQTT: poll error (%d), reconnecting", rc);
                 break;
             }
 
-            if (poll_rc > 0 && (fds.revents & ZSOCK_POLLIN)) {
-                rc = mqtt_input(&s_client);
-                if (rc != 0) {
-                    LOG_WRN("MQTT: input error (%d), reconnecting", rc);
-                    g_mqtt_connected = false;
-                    break;
-                }
-            }
-
-            rc = mqtt_live(&s_client);
-            if (rc != 0 && rc != -EAGAIN) {
-                LOG_WRN("MQTT: keepalive error (%d), reconnecting", rc);
-                g_mqtt_connected = false;
-                break;
-            }
-
-            // 1 Hz telemetry publish
             int64_t now = k_uptime_get();
-            if (g_mqtt_connected && (now - last_pub_ms) >= 1000) {
-                publish_vehicle_state(&s_client);
+            if (client.is_connected() && (now - last_pub_ms) >= 1000) {
+                client.publish_vehicle_state();
                 last_pub_ms = now;
             }
         }

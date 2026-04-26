@@ -16,7 +16,16 @@ set(APP_SRCS
 )
 
 # Phase 1: shell, LED, HTTP server (now HTTPS)
-list(APPEND APP_SRCS src/shell/debug_cmds.cpp)
+list(APPEND APP_SRCS
+    src/shell/shell_auth.cpp
+    src/shell/shell_plant.cpp
+    src/shell/shell_can.cpp
+    src/shell/shell_stats.cpp
+    src/shell/shell_vehicle.cpp
+    src/shell/shell_network.cpp
+    src/shell/shell_system.cpp
+    src/shell/shell_mqtt.cpp
+)
 list(APPEND APP_SRCS src/led/led_task.cpp)
 list(APPEND APP_SRCS
     src/http/http_server.cpp

@@ -132,7 +132,7 @@ static void http_server_thread(void*, void*, void*)
             int err = errno;
             if (err == ENOMEM) {
                 // Heap exhausted — wait for current handshake to free memory.
-                LOG_WRN("HTTPS: accept() ENOMEM — backing off 300 ms", err);
+                LOG_WRN("HTTPS: accept() ENOMEM — backing off 300 ms");
                 k_msleep(300);
             } else {
                 // Client aborted handshake (browser cancelled speculative conn).

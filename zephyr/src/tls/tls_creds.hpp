@@ -3,23 +3,27 @@
 // Common TLS credential store for HDV-Sim firmware.
 //
 // Usage:
-//   Call tls_creds_init() once before creating any TLS socket.
-//   Use HDV_TLS_SERVER_TAG as the sec_tag when setting TLS_SEC_TAG_LIST on
-//   HTTPS server sockets, or as the peer verify tag for MQTTS client sockets
-//   connecting to a broker that presents the same certificate.
-//   Use HDV_TLS_CA_TAG (reserved) when the MQTTS broker has its own CA cert.
+//   Instantiate ZephyrTlsCredStore and call init() once before any TLS socket.
+//   Use server_tag() for HTTPS server sockets; ca_tag() for MQTTS broker verify.
+
+#include "tls/i_tls_cred_store.hpp"
 
 // Sec-tag for the server certificate + private key pair.
-// Registered by tls_creds_init() — reused by both the HTTPS server and
-// any future MQTTS client that needs to identify or verify this device.
 #define HDV_TLS_SERVER_TAG  1
 
-// Reserved sec-tag for an external MQTT broker's CA certificate.
-// Not registered until the MQTTS module is implemented.
+// Sec-tag for the external MQTT broker CA certificate.
 #define HDV_TLS_CA_TAG      2
 
-// Load server.crt and server.key (embedded at build time as .inc files) into
-// the Zephyr TLS credential store under HDV_TLS_SERVER_TAG.
-// Safe to call multiple times — returns -EEXIST on repeated calls.
-// Returns 0 on success, negative errno on failure.
+namespace tls {
+
+class ZephyrTlsCredStore : public ITlsCredStore {
+public:
+    int init() override;
+    int server_tag() const override { return HDV_TLS_SERVER_TAG; }
+    int ca_tag()     const override { return HDV_TLS_CA_TAG; }
+};
+
+} // namespace tls
+
+// C shim — kept for callers that haven't migrated to ZephyrTlsCredStore yet.
 int tls_creds_init(void);
