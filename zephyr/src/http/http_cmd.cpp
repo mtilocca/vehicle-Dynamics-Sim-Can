@@ -27,6 +27,8 @@ extern hdv::SimStateBus  g_sim_bus;
 extern hdv::ControlBus   g_ctrl_bus;
 extern struct k_mutex    g_sim_cmd_mtx;
 
+namespace http {
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 static inline double clamp_d(double v, double lo, double hi) {
@@ -191,16 +193,17 @@ void apply_web_cmd(const char* qs)
         }
         decoded[di] = '\0';
         if (di > 0) {
-            strncpy(g_mqtt_broker_addr, decoded, sizeof(g_mqtt_broker_addr) - 1);
-            g_mqtt_broker_addr[sizeof(g_mqtt_broker_addr) - 1] = '\0';
-            g_mqtt_reconnect_req = true;
+            auto& bcfg = mqtt::broker_config();
+            strncpy(bcfg.addr, decoded, sizeof(bcfg.addr) - 1);
+            bcfg.addr[sizeof(bcfg.addr) - 1] = '\0';
+            bcfg.reconnect_req = true;
         }
     }
     if ((v = find_param(qs, "broker_port"))) {
         int p = atoi(v);
         if (p > 0 && p < 65536) {
-            g_mqtt_broker_port = p;
-            g_mqtt_reconnect_req = true;
+            mqtt::broker_config().port         = p;
+            mqtt::broker_config().reconnect_req = true;
         }
     }
 
@@ -213,3 +216,5 @@ void apply_web_cmd(const char* qs)
 
     { hdv::MutexGuard g(g_sim_cmd_mtx); g_sim_bus.cmd = cmd; }
 }
+
+} // namespace http

@@ -10,6 +10,7 @@ void send_mqtt_card(int fd)
 {
     char buf[512];
 
+    const auto& bcfg = mqtt::broker_config();
     snprintf(buf, sizeof(buf),
         "<div class='card'><h2>MQTT Broker</h2>"
         "<form method='get' action='/dash'>"
@@ -22,7 +23,7 @@ void send_mqtt_card(int fd)
         " style='width:70px'></label>"
         "<button class='btn' type='submit'>Apply</button>"
         "</div></form>",
-        g_mqtt_broker_addr, g_mqtt_broker_port);
+        bcfg.addr, bcfg.port);
     send_str(fd, buf);
 
     snprintf(buf, sizeof(buf),

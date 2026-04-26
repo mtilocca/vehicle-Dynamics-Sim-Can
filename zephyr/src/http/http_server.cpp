@@ -34,8 +34,11 @@
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
+using namespace http;
+
 // ── Response helpers ──────────────────────────────────────────────────────────
 
+namespace http {
 void send_401(int fd)
 {
     static const char resp[] =
@@ -47,6 +50,7 @@ void send_401(int fd)
         "Unauthorized\n";
     zsock_send(fd, resp, sizeof(resp) - 1, 0);
 }
+} // namespace http
 
 static void send_redirect(int fd, const char* location)
 {

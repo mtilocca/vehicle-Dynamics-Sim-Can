@@ -16,6 +16,7 @@
 #include <zephyr/sys/atomic.h>
 
 #include "sim/actuator_cmd.hpp"
+#include "can/actuator_cmd_codec.hpp"
 #include "mqtt/mqtt_client.hpp"
 #include "state/sim_state.hpp"
 #include "state/control_bus.hpp"
@@ -34,44 +35,7 @@ static const uint32_t ACTUATOR_CMD_ID = 0x18EFF021u;
 // ── Zephyr msgq for received frames ──────────────────────────────────────────
 K_MSGQ_DEFINE(g_can_rx_msgq, sizeof(struct can_frame), 8, 4);
 
-// ── Signal clamp helper ───────────────────────────────────────────────────────
-static inline double clamp_d(double v, double lo, double hi) {
-    return v < lo ? lo : (v > hi ? hi : v);
-}
-
-// ── Inline decoder ────────────────────────────────────────────────────────────
-// ACTUATOR_CMD_1 bit layout (Intel/LSB-first):
-//   Byte 0  [0:0]   system_enable       unsigned, factor 1.0
-//   Byte 0  [1:2]   gear_position       unsigned, factor 1.0
-//   Byte 0  [3:4]   mode                unsigned, factor 1.0  (ignored)
-//   Byte 1-2[8:23]  steer_cmd_deg       signed,   factor 0.1
-//   Byte 3-4[24:39] drive_torque_cmd_nm signed,   factor 10.0
-//   Byte 5  [40:47] brake_cmd_pct       unsigned, factor 1.0
-//   Byte 6-7[48:63] seq_num             unsigned, anti-replay counter
-
-static void decode_actuator_cmd(const struct can_frame& zf, sim::ActuatorCmd& c)
-{
-    const uint8_t* d = zf.data;
-
-    c.system_enable = (d[0] >> 0) & 0x01u;
-    c.mode          = (d[0] >> 3) & 0x03u;
-
-    // Validate gear position — reject undefined values
-    uint8_t gear_raw = (d[0] >> 1) & 0x03u;
-    if (gear_raw <= static_cast<uint8_t>(sim::GearPosition::RESERVED)) {
-        c.gear_position = static_cast<sim::GearPosition>(gear_raw);
-    } else {
-        c.gear_position = sim::GearPosition::NEUTRAL;
-    }
-
-    int16_t steer_raw  = static_cast<int16_t>((uint16_t)d[1] | ((uint16_t)d[2] << 8));
-    int16_t torque_raw = static_cast<int16_t>((uint16_t)d[3] | ((uint16_t)d[4] << 8));
-
-    // Clamp to physical limits after scaling
-    c.steer_cmd_deg       = clamp_d(steer_raw  * 0.1,    -45.0,     45.0);
-    c.drive_torque_cmd_nm = clamp_d(torque_raw * 10.0,     0.0, 145000.0);
-    c.brake_cmd_pct       = clamp_d((double)d[5],          0.0,    100.0);
-}
+using can_codec::decode_actuator_cmd;
 
 // ── CAN state change callback ─────────────────────────────────────────────────
 // Logs bus-off and error-passive transitions so we can diagnose wiring issues
@@ -161,7 +125,7 @@ static void can_rx_thread(void*, void*, void*)
             seq_init = true;
 
             sim::ActuatorCmd c{};
-            decode_actuator_cmd(zf, c);
+            decode_actuator_cmd(zf.data, c);
             c.last_update_t_s = k_uptime_get_32() / 1000.0;
 
             if (atomic_get(&g_ctrl_bus.ctrl_source) == CTRL_CAN) {

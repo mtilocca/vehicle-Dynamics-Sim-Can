@@ -15,7 +15,7 @@
 namespace hdv {
 
 struct SystemHealthBus {
-    SysStats stats{};
+    hdv::SysStats stats{};
 };
 
 } // namespace hdv

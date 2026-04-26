@@ -16,7 +16,7 @@ static int cmd_stats(const struct shell* sh, size_t argc, char** argv)
         return 0;
     }
 
-    SysStats s;
+    hdv::SysStats s;
     { hdv::MutexGuard g(g_health_mtx); s = g_health_bus.stats; }
 
     shell_print(sh, "--- System Stats ---");
@@ -37,7 +37,7 @@ SHELL_CMD_REGISTER(stats, &stats_sub, "System health stats [reset]", cmd_stats);
 static int cmd_mem(const struct shell* sh, size_t argc, char** argv)
 {
     (void)argc; (void)argv;
-    SysStats s;
+    hdv::SysStats s;
     { hdv::MutexGuard g(g_health_mtx); s = g_health_bus.stats; }
 
     shell_print(sh, "--- Heap Memory ---");

@@ -6,11 +6,13 @@
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
+namespace http {
+
 void send_api_state(int fd)
 {
     plant::PlantState s{};
     sim::ActuatorCmd  c{};
-    SysStats          st{};
+    hdv::SysStats          st{};
 
     { hdv::MutexGuard g(g_sim_plant_mtx); s  = g_sim_bus.plant; }
     { hdv::MutexGuard g(g_sim_cmd_mtx);  c  = g_sim_bus.cmd;  }
@@ -69,3 +71,5 @@ void send_api_state(int fd)
     zsock_send(fd, hdr, hn, 0);
     zsock_send(fd, body, n, 0);
 }
+
+} // namespace http

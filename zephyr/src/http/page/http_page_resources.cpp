@@ -8,7 +8,7 @@ LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
 void send_resources_card(int fd)
 {
-    SysStats st{};
+    hdv::SysStats st{};
     { hdv::MutexGuard g(g_health_mtx); st = g_health_bus.stats; }
 
     const size_t heap_total = CONFIG_HEAP_MEM_POOL_SIZE;

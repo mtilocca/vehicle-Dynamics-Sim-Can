@@ -130,6 +130,11 @@ target_compile_definitions(test_smoke PRIVATE
     SIM_MAIN_PATH="${CMAKE_BINARY_DIR}/src/sim/sim_main"
 )
 
+# ============================================================================
+# Zephyr Portability Tests — host-buildable codec + type tests
+# ============================================================================
+add_subdirectory(zephyr_portability)
+
 # ---------------------------------------------------------------------------
 message(STATUS "Test suite configured (GoogleTest):")
 message(STATUS "  1  plant_state_packer  2  subsystem_manager  3  vehicle_config")
@@ -137,4 +142,5 @@ message(STATUS "  4  can_codec           5  sensor_packer       6  influx_client
 message(STATUS "  7  wheel_dynamics      8  steer_Ackermann     9  steer_dynamics")
 message(STATUS "  10 plant_longitudinal  11 plant_lateral       12 plant_reverse")
 message(STATUS "  13 smoke (PlantBoot + CanRoundTrip + SimMain)")
+message(STATUS "  14 zephyr_portability (result, can_tx_encoding, actuator_cmd_decode)")
 message(STATUS "Run: ctest --test-dir ${CMAKE_BINARY_DIR} --output-on-failure")

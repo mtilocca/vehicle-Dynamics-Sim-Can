@@ -14,7 +14,8 @@ static int cmd_mqtt_status(const struct shell* sh, size_t argc, char** argv)
     const char* src_str =
         (atomic_get(&g_ctrl_bus.ctrl_source) == CTRL_MQTT) ? "MQTT" :
         (atomic_get(&g_ctrl_bus.ctrl_source) == CTRL_HTTP) ? "HTTP" : "CAN";
-    shell_print(sh, "Broker     : %s:%d", g_mqtt_broker_addr, g_mqtt_broker_port);
+    const auto& bcfg = mqtt::broker_config();
+    shell_print(sh, "Broker     : %s:%d", bcfg.addr, bcfg.port);
     shell_print(sh, "Connected  : %s", g_mqtt_connected ? "yes" : "no");
     shell_print(sh, "MQTT RX    : %u", (uint32_t)atomic_get(&g_ctrl_bus.mqtt_rx_count));
     shell_print(sh, "Ctrl source: %s", src_str);
@@ -24,9 +25,9 @@ static int cmd_mqtt_status(const struct shell* sh, size_t argc, char** argv)
 static int cmd_mqtt_reconnect(const struct shell* sh, size_t argc, char** argv)
 {
     (void)argc; (void)argv;
-    g_mqtt_reconnect_req = true;
-    shell_print(sh, "MQTT: reconnect requested → %s:%d",
-                g_mqtt_broker_addr, g_mqtt_broker_port);
+    auto& bcfg = mqtt::broker_config();
+    bcfg.reconnect_req = true;
+    shell_print(sh, "MQTT: reconnect requested → %s:%d", bcfg.addr, bcfg.port);
     return 0;
 }
 

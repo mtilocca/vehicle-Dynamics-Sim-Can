@@ -28,6 +28,8 @@ void send_str(int fd, const char* s)
 
 // ── Dashboard page ────────────────────────────────────────────────────────────
 
+namespace http {
+
 void send_page(int fd)
 {
     char buf[512];
@@ -89,3 +91,5 @@ void send_page(int fd)
     send_str(fd, kVehicleCard);
     send_str(fd, kHtmlFoot);
 }
+
+} // namespace http

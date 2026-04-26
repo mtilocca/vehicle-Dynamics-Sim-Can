@@ -33,11 +33,20 @@ extern hdv::ControlBus   g_ctrl_bus;
 extern struct k_mutex    g_sim_plant_mtx;
 extern struct k_mutex    g_sim_cmd_mtx;
 
-// ── Module-level state (extern'd in mqtt_client.hpp) ─────────────────────────
-char g_mqtt_broker_addr[32] = CONFIG_HDV_MQTT_BROKER_ADDR;
-int  g_mqtt_broker_port     = CONFIG_HDV_MQTT_BROKER_PORT;
-bool g_mqtt_reconnect_req   = false;
-bool g_mqtt_connected       = false;
+// ── Broker configuration ──────────────────────────────────────────────────────
+static config::BrokerConfig s_broker_cfg_init() {
+    config::BrokerConfig cfg{};
+    strncpy(cfg.addr, CONFIG_HDV_MQTT_BROKER_ADDR, sizeof(cfg.addr) - 1);
+    cfg.port = CONFIG_HDV_MQTT_BROKER_PORT;
+    return cfg;
+}
+static config::BrokerConfig s_broker_cfg = s_broker_cfg_init();
+
+namespace mqtt {
+config::BrokerConfig& broker_config() { return s_broker_cfg; }
+} // namespace mqtt
+
+bool g_mqtt_connected = false;
 
 // ── Topics ────────────────────────────────────────────────────────────────────
 static const char kTopicCmd[]   = "hdv/cmd/actuator";
@@ -111,11 +120,11 @@ int ZephyrMqttClient::connect()
 {
     memset(&broker_addr_, 0, sizeof(broker_addr_));
     broker_addr_.sin_family = AF_INET;
-    broker_addr_.sin_port   = htons((uint16_t)g_mqtt_broker_port);
+    broker_addr_.sin_port   = htons((uint16_t)s_broker_cfg.port);
 
-    int rc = net_addr_pton(AF_INET, g_mqtt_broker_addr, &broker_addr_.sin_addr);
+    int rc = net_addr_pton(AF_INET, s_broker_cfg.addr, &broker_addr_.sin_addr);
     if (rc != 0) {
-        LOG_ERR("MQTT: invalid broker address '%s'", g_mqtt_broker_addr);
+        LOG_ERR("MQTT: invalid broker address '%s'", s_broker_cfg.addr);
         return -EINVAL;
     }
 
@@ -139,12 +148,12 @@ int ZephyrMqttClient::connect()
     client_.transport.tls.config.peer_verify   = TLS_PEER_VERIFY_REQUIRED;
     client_.transport.tls.config.sec_tag_list  = kTlsTags;
     client_.transport.tls.config.sec_tag_count = ARRAY_SIZE(kTlsTags);
-    client_.transport.tls.config.hostname      = g_mqtt_broker_addr;
+    client_.transport.tls.config.hostname      = s_broker_cfg.addr;
 
     rc = mqtt_connect(&client_);
     if (rc != 0) {
         LOG_ERR("MQTT: connect to %s:%d failed (%d)",
-                g_mqtt_broker_addr, g_mqtt_broker_port, rc);
+                s_broker_cfg.addr, s_broker_cfg.port, rc);
         // Release TLS socket to avoid leaking contexts on repeated failures.
         mqtt_abort(&client_);
         return rc;
@@ -284,7 +293,7 @@ void ZephyrMqttClient::handle_evt(const struct mqtt_evt* evt)
         if (evt->result == 0) {
             connected_ = true;
             g_mqtt_connected = true;
-            LOG_INF("MQTT: connected to %s:%d", g_mqtt_broker_addr, g_mqtt_broker_port);
+            LOG_INF("MQTT: connected to %s:%d", s_broker_cfg.addr, s_broker_cfg.port);
 
             struct mqtt_topic topic{};
             topic.qos        = MQTT_QOS_0_AT_MOST_ONCE;
@@ -364,7 +373,7 @@ static void mqtt_thread_fn(void*, void*, void*)
 
     while (true) {
         g_mqtt_connected    = false;
-        g_mqtt_reconnect_req = false;
+        s_broker_cfg.reconnect_req = false;
 
         int rc = client.connect();
         if (rc != 0) {
@@ -378,9 +387,9 @@ static void mqtt_thread_fn(void*, void*, void*)
         int64_t last_pub_ms = k_uptime_get();
 
         while (true) {
-            if (g_mqtt_reconnect_req) {
+            if (s_broker_cfg.reconnect_req) {
                 LOG_INF("MQTT: reconnecting to %s:%d",
-                        g_mqtt_broker_addr, g_mqtt_broker_port);
+                        s_broker_cfg.addr, s_broker_cfg.port);
                 client.disconnect();
                 break;
             }

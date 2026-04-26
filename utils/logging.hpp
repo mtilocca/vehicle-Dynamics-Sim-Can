@@ -195,11 +195,16 @@ namespace utils
 
 } // namespace utils
 
-// Convenience macros
+// Convenience macros (also Zephyr-style aliases for cross-compiled sources)
 #define LOG_TRACE(...) ::utils::logf(::utils::LogLevel::Trace, __VA_ARGS__)
 #define LOG_DEBUG(...) ::utils::logf(::utils::LogLevel::Debug, __VA_ARGS__)
 #define LOG_INFO(...)  ::utils::logf(::utils::LogLevel::Info,  __VA_ARGS__)
 #define LOG_WARN(...)  ::utils::logf(::utils::LogLevel::Warn,  __VA_ARGS__)
 #define LOG_ERROR(...) ::utils::logf(::utils::LogLevel::Error, __VA_ARGS__)
+// Zephyr-style aliases
+#define LOG_DBG  LOG_DEBUG
+#define LOG_INF  LOG_INFO
+#define LOG_WRN  LOG_WARN
+#define LOG_ERR  LOG_ERROR
 
 #endif // __ZEPHYR__

@@ -17,6 +17,3 @@ struct SysStats {
 };
 
 } // namespace hdv
-
-// Temporary shim — remove when all consumers use hdv::SysStats directly (Phase L).
-using SysStats = hdv::SysStats;

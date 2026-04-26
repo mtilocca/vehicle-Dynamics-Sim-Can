@@ -15,6 +15,7 @@
 #include "plant/plant_main/plant_state.hpp"
 #include "config/vehicle_config_zephyr.hpp"
 #include "state/control_bus.hpp"
+#include "can/can_tx_codec.hpp"
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
@@ -23,60 +24,7 @@ static const plant::PlantModelParams s_hdv = config::hdv_default_params();
 
 extern hdv::ControlBus g_ctrl_bus;
 
-// ── Encoding helpers ──────────────────────────────────────────────────────────
-
-static inline double clamp(double v, double lo, double hi)
-{
-    return v < lo ? lo : (v > hi ? hi : v);
-}
-
-// Pack a signed integer into a little-endian CAN payload.
-static inline void pack_i16(uint8_t* data, int byte, int16_t v)
-{
-    data[byte]   = (uint8_t)(v & 0xFF);
-    data[byte+1] = (uint8_t)((v >> 8) & 0xFF);
-}
-static inline void pack_u16(uint8_t* data, int byte, uint16_t v)
-{
-    data[byte]   = (uint8_t)(v & 0xFF);
-    data[byte+1] = (uint8_t)((v >> 8) & 0xFF);
-}
-static inline void pack_i32(uint8_t* data, int byte, int32_t v)
-{
-    data[byte]   = (uint8_t)(v & 0xFF);
-    data[byte+1] = (uint8_t)((v >> 8) & 0xFF);
-    data[byte+2] = (uint8_t)((v >> 16) & 0xFF);
-    data[byte+3] = (uint8_t)((v >> 24) & 0xFF);
-}
-static inline void pack_u32(uint8_t* data, int byte, uint32_t v)
-{
-    data[byte]   = (uint8_t)(v & 0xFF);
-    data[byte+1] = (uint8_t)((v >> 8) & 0xFF);
-    data[byte+2] = (uint8_t)((v >> 16) & 0xFF);
-    data[byte+3] = (uint8_t)((v >> 24) & 0xFF);
-}
-
-// Encode a physical value to raw integer: raw = round(phys / factor)
-static inline int16_t  enc_i16(double phys, double factor)
-{
-    double r = phys / factor;
-    return (int16_t)(int64_t)clamp(r, -32768.0, 32767.0);
-}
-static inline uint16_t enc_u16(double phys, double factor)
-{
-    double r = phys / factor;
-    return (uint16_t)(int64_t)clamp(r, 0.0, 65535.0);
-}
-static inline int32_t  enc_i32(double phys, double factor)
-{
-    double r = phys / factor;
-    return (int32_t)(int64_t)clamp(r, -2147483648.0, 2147483647.0);
-}
-static inline uint32_t enc_u32(double phys, double factor)
-{
-    double r = phys / factor;
-    return (uint32_t)(int64_t)clamp(r, 0.0, 4294967295.0);
-}
+using namespace can_codec;
 
 // ── Send one Zephyr CAN frame ─────────────────────────────────────────────────
 

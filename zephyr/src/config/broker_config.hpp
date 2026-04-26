@@ -11,8 +11,8 @@
 namespace config {
 
 struct BrokerConfig {
-    char addr[32]      = "192.168.1.100";
-    int  port          = 1883;
+    char addr[32]      = "192.168.1.106";
+    int  port          = 8883;
     bool reconnect_req = false;
 };
 

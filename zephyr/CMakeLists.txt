@@ -30,9 +30,20 @@ list(APPEND APP_SRCS src/led/led_task.cpp)
 list(APPEND APP_SRCS
     src/http/http_server.cpp
     src/http/http_cmd.cpp
-    src/http/http_page.cpp
     src/http/http_session.cpp
     src/http/http_ota.cpp
+    src/http/page/http_page_root.cpp
+    src/http/page/http_page_plant.cpp
+    src/http/page/http_page_actuator.cpp
+    src/http/page/http_page_can.cpp
+    src/http/page/http_page_controls.cpp
+    src/http/page/http_page_ctrl_source.cpp
+    src/http/page/http_page_mqtt.cpp
+    src/http/page/http_page_resources.cpp
+    src/http/page/http_page_threads.cpp
+    src/http/page/http_page_memory.cpp
+    src/http/page/http_page_api.cpp
+    src/http/page/http_page_login.cpp
 )
 
 # Phase 3c: common TLS credentials library (HTTPS + future MQTTS)
@@ -97,6 +108,7 @@ target_include_directories(app PRIVATE
     ${REPO_ROOT}/utils
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/http
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/http/page
     ${CMAKE_CURRENT_SOURCE_DIR}/cpp_compat
     ${CMAKE_CURRENT_BINARY_DIR}    # dashboard.css.inc, server_cert.inc, server_key.inc
 )

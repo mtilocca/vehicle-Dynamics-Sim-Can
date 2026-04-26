@@ -16,6 +16,8 @@
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
+namespace http {
+
 // ── Session table ─────────────────────────────────────────────────────────────
 
 #define MAX_SESSIONS    4
@@ -133,3 +135,5 @@ void session_invalidate(const char* cookie_hdr)
         }
     }
 }
+
+} // namespace http

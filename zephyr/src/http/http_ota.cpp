@@ -25,6 +25,8 @@
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
+namespace http {
+
 // slot1_partition: bank 2 sectors 0-4, 640 KB (0x08100000–0x081A0000)
 #define SLOT1_MAX_BYTES (640u * 1024u)
 #define RX_CHUNK_SIZE   4096
@@ -278,3 +280,5 @@ void handle_ota_page(int fd)
     zsock_send(fd, hdr,  sizeof(hdr)  - 1, 0);
     zsock_send(fd, body, sizeof(body) - 1, 0);
 }
+
+} // namespace http
