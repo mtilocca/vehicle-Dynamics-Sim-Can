@@ -33,29 +33,26 @@
 #include "plant/plant_main/plant_state.hpp"
 #include "sim/actuator_cmd.hpp"
 #include "can/can_map_static.hpp"
+#include "stats/sys_stats.hpp"
+#include "utils/mutex_guard.hpp"
+#include "config/vehicle_config_zephyr.hpp"
+#include "state/sim_state.hpp"
+#include "state/control_bus.hpp"
+#include "state/system_health.hpp"
 #include "http_auth.hpp"   // HDV_API_TOKEN
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
-// ── Shared state — defined in main.cpp ───────────────────────────────────────
-extern plant::PlantState  g_state;
-extern sim::ActuatorCmd   g_cmd;
-extern struct k_mutex     g_state_mutex;
-extern struct k_mutex     g_cmd_mutex;
-extern atomic_t           g_can_tx_count;
-extern atomic_t           g_can_rx_count;
-extern atomic_t           g_can_timeout_count;
-extern double             g_surface_mu;
+// File-scope params — avoids function-local static guard (__cxa_guard_acquire unavailable).
+static const plant::PlantModelParams s_hdv = config::hdv_default_params();
 
-struct SysStats {
-    uint32_t plant_loop_us_max;
-    uint32_t can_rx_total;
-    uint32_t can_timeout_total;
-    size_t   heap_used;
-    size_t   heap_free;
-};
-extern SysStats       g_sys_stats;
-extern struct k_mutex g_stats_mutex;
+// ── Shared state buses — defined in main.cpp ─────────────────────────────────
+extern hdv::SimStateBus      g_sim_bus;
+extern hdv::ControlBus       g_ctrl_bus;
+extern hdv::SystemHealthBus  g_health_bus;
+extern struct k_mutex        g_sim_plant_mtx;
+extern struct k_mutex        g_sim_cmd_mtx;
+extern struct k_mutex        g_health_mtx;
 
 // ── Shell auth state ──────────────────────────────────────────────────────────
 static bool g_shell_unlocked = false;
@@ -92,9 +89,8 @@ SHELL_CMD_REGISTER(login, NULL, "Unlock destructive commands", cmd_login);
 static int cmd_plant_state(const struct shell* sh, size_t argc, char** argv)
 {
     (void)argc; (void)argv;
-    k_mutex_lock(&g_state_mutex, K_FOREVER);
-    plant::PlantState s = g_state;
-    k_mutex_unlock(&g_state_mutex);
+    plant::PlantState s;
+    { hdv::MutexGuard g(g_sim_plant_mtx); s = g_sim_bus.plant; }
 
     shell_print(sh, "--- Plant State ---");
     shell_print(sh, "  t_s      = %.3f s",    s.t_s);
@@ -129,7 +125,7 @@ static int cmd_plant_mu(const struct shell* sh, size_t argc, char** argv)
         shell_error(sh, "mu must be between 0.1 and 1.0");
         return -EINVAL;
     }
-    g_surface_mu = static_cast<double>(mu);
+    g_ctrl_bus.surface_mu = static_cast<double>(mu);
     shell_print(sh, "Surface mu set to %.2f", (double)mu);
     return 0;
 }
@@ -139,12 +135,8 @@ static int cmd_plant_reset(const struct shell* sh, size_t argc, char** argv)
     (void)argc; (void)argv;
     if (!require_login(sh)) return -EACCES;
 
-    k_mutex_lock(&g_state_mutex, K_FOREVER);
-    g_state = plant::PlantState{};
-    k_mutex_unlock(&g_state_mutex);
-    k_mutex_lock(&g_cmd_mutex, K_FOREVER);
-    g_cmd = sim::ActuatorCmd{};
-    k_mutex_unlock(&g_cmd_mutex);
+    { hdv::MutexGuard g(g_sim_plant_mtx); g_sim_bus.plant = plant::PlantState{}; }
+    { hdv::MutexGuard g(g_sim_cmd_mtx);  g_sim_bus.cmd   = sim::ActuatorCmd{};  }
     shell_print(sh, "Plant state and command reset to zero");
     return 0;
 }
@@ -179,9 +171,7 @@ static int cmd_plant_inject(const struct shell* sh, size_t argc, char** argv)
                                               : sim::GearPosition::REVERSE;
     cmd.last_update_t_s     = (double)k_uptime_get_32() / 1000.0;
 
-    k_mutex_lock(&g_cmd_mutex, K_FOREVER);
-    g_cmd = cmd;
-    k_mutex_unlock(&g_cmd_mutex);
+    { hdv::MutexGuard g(g_sim_cmd_mtx); g_sim_bus.cmd = cmd; }
 
     shell_print(sh, "Injected: steer=%.1f deg  torque=%.0f Nm  brake=%.2f  enable=%d",
                 steer, torque, brake, (int)enable);
@@ -207,14 +197,13 @@ static int cmd_can_stats(const struct shell* sh, size_t argc, char** argv)
 {
     (void)argc; (void)argv;
 
-    k_mutex_lock(&g_cmd_mutex, K_FOREVER);
-    double last_rx = g_cmd.last_update_t_s;
-    k_mutex_unlock(&g_cmd_mutex);
+    double last_rx;
+    { hdv::MutexGuard g(g_sim_cmd_mtx); last_rx = g_sim_bus.cmd.last_update_t_s; }
 
     shell_print(sh, "--- CAN Stats ---");
-    shell_print(sh, "  TX frames  : %u", (uint32_t)atomic_get(&g_can_tx_count));
-    shell_print(sh, "  RX frames  : %u", (uint32_t)atomic_get(&g_can_rx_count));
-    shell_print(sh, "  RX timeouts: %u", (uint32_t)atomic_get(&g_can_timeout_count));
+    shell_print(sh, "  TX frames  : %u", (uint32_t)atomic_get(&g_ctrl_bus.can_tx_count));
+    shell_print(sh, "  RX frames  : %u", (uint32_t)atomic_get(&g_ctrl_bus.can_rx_count));
+    shell_print(sh, "  RX timeouts: %u", (uint32_t)atomic_get(&g_ctrl_bus.can_timeout_count));
     shell_print(sh, "  Last RX    : %.3f s", last_rx);
     shell_print(sh, "  RX timeout : %.3f s", g_can_rx_timeout_s);
     return 0;
@@ -223,9 +212,8 @@ static int cmd_can_stats(const struct shell* sh, size_t argc, char** argv)
 static int cmd_can_rx_frame(const struct shell* sh, size_t argc, char** argv)
 {
     (void)argc; (void)argv;
-    k_mutex_lock(&g_cmd_mutex, K_FOREVER);
-    sim::ActuatorCmd c = g_cmd;
-    k_mutex_unlock(&g_cmd_mutex);
+    sim::ActuatorCmd c;
+    { hdv::MutexGuard g(g_sim_cmd_mtx); c = g_sim_bus.cmd; }
 
     shell_print(sh, "--- Last ACTUATOR_CMD_1 ---");
     shell_print(sh, "  system_enable   = %d",   (int)c.system_enable);
@@ -308,17 +296,13 @@ SHELL_CMD_REGISTER(can, &can_cmds, "CAN bus commands", NULL);
 static int cmd_stats(const struct shell* sh, size_t argc, char** argv)
 {
     if (argc > 1 && strncmp(argv[1], "reset", 5) == 0) {
-        k_mutex_lock(&g_stats_mutex, K_FOREVER);
-        g_sys_stats.plant_loop_us_max = 0;
-        k_mutex_unlock(&g_stats_mutex);
+        { hdv::MutexGuard g(g_health_mtx); g_health_bus.stats.plant_loop_us_max = 0; }
         shell_print(sh, "Stats counters reset");
         return 0;
     }
 
     SysStats s;
-    k_mutex_lock(&g_stats_mutex, K_FOREVER);
-    s = g_sys_stats;
-    k_mutex_unlock(&g_stats_mutex);
+    { hdv::MutexGuard g(g_health_mtx); s = g_health_bus.stats; }
 
     shell_print(sh, "--- System Stats ---");
     shell_print(sh, "  Plant loop max : %u us", s.plant_loop_us_max);
@@ -341,9 +325,7 @@ static int cmd_mem(const struct shell* sh, size_t argc, char** argv)
 {
     (void)argc; (void)argv;
     SysStats s;
-    k_mutex_lock(&g_stats_mutex, K_FOREVER);
-    s = g_sys_stats;
-    k_mutex_unlock(&g_stats_mutex);
+    { hdv::MutexGuard g(g_health_mtx); s = g_health_bus.stats; }
 
     shell_print(sh, "--- Heap Memory ---");
     shell_print(sh, "  Used : %zu B", s.heap_used);
@@ -389,16 +371,18 @@ static int cmd_vehicle_info(const struct shell* sh, size_t argc, char** argv)
 {
     (void)argc; (void)argv;
     shell_print(sh, "--- Vehicle: Heavy-Duty Electric Vehicle ---");
-    shell_print(sh, "  Mass          : 218000 kg (218 t)");
-    shell_print(sh, "  Wheelbase     : 6.30 m");
-    shell_print(sh, "  Track width   : 7.20 m");
-    shell_print(sh, "  Wheel radius  : 1.930 m");
-    shell_print(sh, "  Motor torque  : 145000 Nm");
-    shell_print(sh, "  Motor power   : 2013000 W (2013 kW)");
-    shell_print(sh, "  Gear ratio    : 28.0");
-    shell_print(sh, "  Battery       : 1650 kWh");
-    shell_print(sh, "  Vmax          : 17.8 m/s (64 km/h)");
-    shell_print(sh, "  Surface mu    : %.2f  (live)", g_surface_mu);
+    shell_print(sh, "  Mass          : %.0f kg (%.0f t)", s_hdv.drive.mass_kg, s_hdv.drive.mass_kg / 1000.0);
+    shell_print(sh, "  Wheelbase     : %.2f m",            s_hdv.wheelbase_m);
+    shell_print(sh, "  Track width   : %.2f m",            s_hdv.track_width_m);
+    shell_print(sh, "  Wheel radius  : %.3f m",            s_hdv.drive.wheel_radius_m);
+    shell_print(sh, "  Motor torque  : %.0f Nm",           s_hdv.drive.motor_torque_max_nm);
+    shell_print(sh, "  Motor power   : %.0f W (%.0f kW)",  s_hdv.drive.motor_power_max_w,
+                                                            s_hdv.drive.motor_power_max_w / 1000.0);
+    shell_print(sh, "  Gear ratio    : %.1f",              s_hdv.drive.gear_ratio);
+    shell_print(sh, "  Battery       : %.0f kWh",          s_hdv.battery_params.capacity_kWh);
+    shell_print(sh, "  Vmax          : %.1f m/s (%.0f km/h)", s_hdv.drive.v_max_mps,
+                                                              s_hdv.drive.v_max_mps * 3.6);
+    shell_print(sh, "  Surface mu    : %.2f  (live)", g_ctrl_bus.surface_mu);
     return 0;
 }
 SHELL_CMD_REGISTER(vehicle, NULL, "Vehicle info", cmd_vehicle_info);
@@ -452,18 +436,15 @@ SHELL_CMD_REGISTER(system, &system_cmds, "System commands", NULL);
 
 #include "mqtt/mqtt_client.hpp"
 
-extern atomic_t g_ctrl_source;
-extern atomic_t g_mqtt_rx_count;
-
 static int cmd_mqtt_status(const struct shell* sh, size_t argc, char** argv)
 {
     (void)argc; (void)argv;
     const char* src_str =
-        (atomic_get(&g_ctrl_source) == CTRL_MQTT) ? "MQTT" :
-        (atomic_get(&g_ctrl_source) == CTRL_HTTP) ? "HTTP" : "CAN";
+        (atomic_get(&g_ctrl_bus.ctrl_source) == CTRL_MQTT) ? "MQTT" :
+        (atomic_get(&g_ctrl_bus.ctrl_source) == CTRL_HTTP) ? "HTTP" : "CAN";
     shell_print(sh, "Broker     : %s:%d", g_mqtt_broker_addr, g_mqtt_broker_port);
     shell_print(sh, "Connected  : %s", g_mqtt_connected ? "yes" : "no");
-    shell_print(sh, "MQTT RX    : %u", (uint32_t)atomic_get(&g_mqtt_rx_count));
+    shell_print(sh, "MQTT RX    : %u", (uint32_t)atomic_get(&g_ctrl_bus.mqtt_rx_count));
     shell_print(sh, "Ctrl source: %s", src_str);
     return 0;
 }

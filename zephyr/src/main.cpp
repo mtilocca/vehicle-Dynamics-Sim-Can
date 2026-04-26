@@ -3,50 +3,28 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/sys/atomic.h>
 #include <zephyr/dfu/mcuboot.h>
 
-#include "plant/plant_main/plant_state.hpp"
-#include "sim/actuator_cmd.hpp"
-#include "stats/sys_stats.hpp"
-#include "mqtt/mqtt_client.hpp"
+#include "state/sim_state.hpp"
+#include "state/control_bus.hpp"
+#include "state/system_health.hpp"
 
 LOG_MODULE_REGISTER(hdv_sim, LOG_LEVEL_INF);
 
-// ── Shared state (written by plant thread, read by shell + CAN TX) ────────────
-plant::PlantState g_state{};
-sim::ActuatorCmd  g_cmd{};
+// ── Shared state buses ────────────────────────────────────────────────────────
+hdv::SimStateBus      g_sim_bus{};      // plant output + actuator command
+hdv::ControlBus       g_ctrl_bus{};     // source arbitration + counters + mu
+hdv::SystemHealthBus  g_health_bus{};   // system telemetry (stats_thread writes)
 
-K_MUTEX_DEFINE(g_state_mutex);
-K_MUTEX_DEFINE(g_cmd_mutex);
-
-// ── CAN counters — atomic so no mutex needed for increment/read ───────────────
-// last_rx_t_s lives inside g_cmd.last_update_t_s (written under g_cmd_mutex)
-atomic_t g_can_tx_count      = ATOMIC_INIT(0);
-atomic_t g_can_rx_count      = ATOMIC_INIT(0);
-atomic_t g_can_timeout_count = ATOMIC_INIT(0);
-
-// ── Control source + MQTT counters ────────────────────────────────────────────
-// g_ctrl_source: which source is allowed to write g_cmd (see CtrlSource enum).
-// Defaults to CTRL_CAN on boot; changed via HTTPS dashboard or shell.
-atomic_t g_ctrl_source   = ATOMIC_INIT(CTRL_CAN);
-atomic_t g_mqtt_rx_count = ATOMIC_INIT(0);
-
-// ── Surface friction (set via shell 'plant mu', read by plant in Phase 4) ─────
-double g_surface_mu = 0.72;
-
-// ── System stats (written by stats thread, read by shell + HTTP) ──────────────
-SysStats g_sys_stats{};
-K_MUTEX_DEFINE(g_stats_mutex);
+// K_MUTEX_DEFINE must be at file scope — Zephyr linker constraint.
+K_MUTEX_DEFINE(g_sim_plant_mtx);   // guards g_sim_bus.plant
+K_MUTEX_DEFINE(g_sim_cmd_mtx);     // guards g_sim_bus.cmd
+K_MUTEX_DEFINE(g_health_mtx);      // guards g_health_bus.stats
 
 // ── Watchdog semaphore — given by plant_thread every 10 ms ───────────────────
 #ifdef CONFIG_WATCHDOG
 K_SEM_DEFINE(g_wdt_sem, 0, 1);
 #endif
-
-// ── Plant model pointer (set in Phase 4) ─────────────────────────────────────
-namespace plant { class PlantModel; }
-plant::PlantModel* g_plant = nullptr;
 
 int main(void)
 {

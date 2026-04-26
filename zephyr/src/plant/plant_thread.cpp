@@ -17,27 +17,22 @@
 
 #include "plant/plant_model.hpp"
 #include "sim/actuator_cmd.hpp"
+#include "state/sim_state.hpp"
+#include "state/control_bus.hpp"
+#include "state/system_health.hpp"
+#include "utils/mutex_guard.hpp"
+#include "utils/placement_new.hpp"
+#include "config/vehicle_config_zephyr.hpp"
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
-// ── Shared state (defined in main.cpp) ───────────────────────────────────────
-extern plant::PlantState  g_state;
-extern sim::ActuatorCmd   g_cmd;
-extern struct k_mutex     g_state_mutex;
-extern struct k_mutex     g_cmd_mutex;
-extern atomic_t           g_can_tx_count;
-extern double             g_surface_mu;
-
-// ── System stats (defined in main.cpp) ───────────────────────────────────────
-struct SysStats {
-    uint32_t plant_loop_us_max;
-    uint32_t can_rx_total;
-    uint32_t can_timeout_total;
-    size_t   heap_used;
-    size_t   heap_free;
-};
-extern SysStats      g_sys_stats;
-extern struct k_mutex g_stats_mutex;
+// ── Shared state buses (defined in main.cpp) ─────────────────────────────────
+extern hdv::SimStateBus      g_sim_bus;
+extern hdv::ControlBus       g_ctrl_bus;
+extern hdv::SystemHealthBus  g_health_bus;
+extern struct k_mutex        g_sim_plant_mtx;
+extern struct k_mutex        g_sim_cmd_mtx;
+extern struct k_mutex        g_health_mtx;
 
 // ── Watchdog semaphore (defined in main.cpp, used when CONFIG_WATCHDOG=y) ─────
 #ifdef CONFIG_WATCHDOG
@@ -53,56 +48,13 @@ static constexpr double   DT_S              = 0.01;   // 10 ms step
 static constexpr double   CAN_RX_TIMEOUT_S = 0.5;    // 500 ms watchdog
 static constexpr uint32_t OVERRUN_WARN_US  = 9500;   // warn above 9.5 ms
 
-// ── Vehicle params (mirrors vehicle_config.cpp without STL) ───────────────────
-static plant::PlantModelParams vehicle_params()
-{
-    plant::PlantModelParams p;
 
-    p.wheelbase_m             = 6.30;
-    p.track_width_m           = 7.20;
-    p.geometry.cg_height_m    = 3.20;
-    p.geometry.cg_to_front_m  = 2.52;
-    p.geometry.cg_to_rear_m   = 3.78;
-    p.geometry.yaw_inertia_kgm2 = 8500000.0;
-
-    p.drive.mass_kg              = 218000.0;
-    p.drive.wheel_radius_m       = 1.93;
-    p.drive.motor_torque_max_nm  = 145000.0;
-    p.drive.motor_power_max_w    = 2013000.0;
-    p.drive.gear_ratio           = 28.0;
-    p.drive.drivetrain_eff       = 0.92;
-    p.drive.brake_torque_max_nm  = 2500000.0;
-    p.drive.regen_eff_active     = 0.65;
-    p.drive.regen_eff_coast      = 0.02;
-    p.drive.drag_c               = 1.85;
-    p.drive.roll_c               = 9500.0;
-    p.drive.v_max_mps            = 17.78;
-    p.drive.v_stop_eps           = 0.5;
-
-    p.motor_params.max_power_kW  = 2013.0;
-    p.motor_params.max_torque_nm = 145000.0;
-    p.motor_params.efficiency    = 0.92;
-
-    p.battery_params.capacity_kWh            = 1650.0;
-    p.battery_params.nominal_voltage_v       = 1200.0;
-    p.battery_params.max_charge_power_kW     = 600.0;
-    p.battery_params.max_discharge_power_kW  = 2400.0;
-    p.battery_params.efficiency_charge       = 0.91;
-    p.battery_params.efficiency_discharge    = 0.93;
-    p.battery_params.min_soc                 = 0.18;
-    p.battery_params.max_soc                 = 0.88;
-
-    p.dynamic_config.enabled    = true;
-    p.dynamic_config.surface_mu = 0.72;
-
-    return p;
-}
-
-// ── PlantModel pointer — heap-allocated inside plant_thread() ────────────────
+// ── PlantModel storage — placement-new into a static buffer ──────────────────
 // Construction (~95 ms) is deferred to thread start so watchdog_thread can arm
 // and feed the IWDG first. File-scope construction ran before any threads and
 // starved the IWDG. Function-local static requires __cxa_guard_acquire which
 // Zephyr's newlib doesn't provide.
+alignas(plant::PlantModel) static uint8_t s_plant_buf[sizeof(plant::PlantModel)];
 static plant::PlantModel* s_plant = nullptr;
 
 // ── 10 ms periodic timer ──────────────────────────────────────────────────────
@@ -116,11 +68,11 @@ static void plant_thread(void*, void*, void*)
 {
     LOG_INF("[plant] Heavy-Duty Electric Vehicle plant thread started (dt=10 ms, prio=5)");
 
-    s_plant = new plant::PlantModel{vehicle_params()};
+    s_plant = new (s_plant_buf) plant::PlantModel{config::hdv_default_params()};
 
     {
         auto p = s_plant->params();
-        p.dynamic_config.surface_mu = g_surface_mu;
+        p.dynamic_config.surface_mu = g_ctrl_bus.surface_mu;
         s_plant->set_params(p);
     }
 
@@ -135,22 +87,20 @@ static void plant_thread(void*, void*, void*)
         // ── Surface mu propagation ────────────────────────────────────────────
         {
             static double last_mu = 0.0;
-            if (g_surface_mu != last_mu) {
-                last_mu = g_surface_mu;
+            if (g_ctrl_bus.surface_mu != last_mu) {
+                last_mu = g_ctrl_bus.surface_mu;
                 auto p = s_plant->params();
-                p.dynamic_config.surface_mu = g_surface_mu;
+                p.dynamic_config.surface_mu = g_ctrl_bus.surface_mu;
                 s_plant->set_params(p);
             }
         }
 
-        // ── Read actuation command (timestamp inside g_cmd under mutex) ───────
+        // ── Read actuation command (timestamp inside g_sim_bus.cmd under mutex) ─
         sim::ActuatorCmd cmd;
-        k_mutex_lock(&g_cmd_mutex, K_FOREVER);
-        cmd = g_cmd;
-        k_mutex_unlock(&g_cmd_mutex);
+        { hdv::MutexGuard g(g_sim_cmd_mtx); cmd = g_sim_bus.cmd; }
 
         // ── CAN RX watchdog — safe mode if no fresh command for 500 ms ───────
-        // last_update_t_s is written under g_cmd_mutex; we read it via the
+        // last_update_t_s is written under g_sim_cmd_mtx; we read it via the
         // local copy so the check is race-free.
         if (cmd.last_update_t_s > 0.0 &&
             (t_s - cmd.last_update_t_s) > CAN_RX_TIMEOUT_S) {
@@ -159,15 +109,11 @@ static void plant_thread(void*, void*, void*)
 
         // ── Step plant physics ────────────────────────────────────────────────
         plant::PlantState local_state;
-        k_mutex_lock(&g_state_mutex, K_FOREVER);
-        local_state = g_state;
-        k_mutex_unlock(&g_state_mutex);
+        { hdv::MutexGuard g(g_sim_plant_mtx); local_state = g_sim_bus.plant; }
 
         s_plant->step(local_state, cmd, DT_S);
 
-        k_mutex_lock(&g_state_mutex, K_FOREVER);
-        g_state = local_state;
-        k_mutex_unlock(&g_state_mutex);
+        { hdv::MutexGuard g(g_sim_plant_mtx); g_sim_bus.plant = local_state; }
 
         // ── Loop timing + overrun detection ───────────────────────────────────
         const uint32_t dt_cycles = k_cycle_get_32() - t0_cycles;
@@ -178,11 +124,12 @@ static void plant_thread(void*, void*, void*)
         }
 
         // Update worst-case in sys_stats
-        k_mutex_lock(&g_stats_mutex, K_FOREVER);
-        if (loop_us > g_sys_stats.plant_loop_us_max) {
-            g_sys_stats.plant_loop_us_max = loop_us;
+        {
+            hdv::MutexGuard g(g_health_mtx);
+            if (loop_us > g_health_bus.stats.plant_loop_us_max) {
+                g_health_bus.stats.plant_loop_us_max = loop_us;
+            }
         }
-        k_mutex_unlock(&g_stats_mutex);
 
         // ── CAN TX ────────────────────────────────────────────────────────────
         can_tx_send_all(local_state, t_s, loop_us);

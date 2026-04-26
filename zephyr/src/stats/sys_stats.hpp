@@ -6,6 +6,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+namespace hdv {
+
 struct SysStats {
     uint32_t plant_loop_us_max   = 0;  // worst-case simulator loop since boot (μs)
     uint32_t can_rx_total        = 0;
@@ -13,3 +15,8 @@ struct SysStats {
     size_t   heap_used           = 0;  // bytes allocated (0 if CONFIG_SYS_HEAP_RUNTIME_STATS=n)
     size_t   heap_free           = 0;
 };
+
+} // namespace hdv
+
+// Temporary shim — remove when all consumers use hdv::SysStats directly (Phase L).
+using SysStats = hdv::SysStats;

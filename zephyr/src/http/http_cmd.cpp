@@ -17,12 +17,15 @@
 #include "sim/actuator_cmd.hpp"
 #include "http_auth.hpp"   // HDV_API_TOKEN (generated, gitignored)
 #include "mqtt/mqtt_client.hpp"
+#include "utils/mutex_guard.hpp"
+#include "state/sim_state.hpp"
+#include "state/control_bus.hpp"
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
-extern sim::ActuatorCmd g_cmd;
-extern struct k_mutex   g_cmd_mutex;
-extern atomic_t         g_ctrl_source;
+extern hdv::SimStateBus  g_sim_bus;
+extern hdv::ControlBus   g_ctrl_bus;
+extern struct k_mutex    g_sim_cmd_mtx;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -149,9 +152,7 @@ bool verify_bearer(const char* token_value)
 void apply_web_cmd(const char* qs)
 {
     sim::ActuatorCmd cmd;
-    k_mutex_lock(&g_cmd_mutex, K_FOREVER);
-    cmd = g_cmd;
-    k_mutex_unlock(&g_cmd_mutex);
+    { hdv::MutexGuard g(g_sim_cmd_mtx); cmd = g_sim_bus.cmd; }
 
     const char* v;
     if ((v = find_param(qs, "steer")))
@@ -169,9 +170,9 @@ void apply_web_cmd(const char* qs)
 
     // Control source switch — changes which thread is allowed to write g_cmd.
     if ((v = find_param(qs, "ctrl"))) {
-        if      (strncmp(v, "mqtt", 4) == 0) atomic_set(&g_ctrl_source, CTRL_MQTT);
-        else if (strncmp(v, "http", 4) == 0) atomic_set(&g_ctrl_source, CTRL_HTTP);
-        else                                  atomic_set(&g_ctrl_source, CTRL_CAN);
+        if      (strncmp(v, "mqtt", 4) == 0) atomic_set(&g_ctrl_bus.ctrl_source, CTRL_MQTT);
+        else if (strncmp(v, "http", 4) == 0) atomic_set(&g_ctrl_bus.ctrl_source, CTRL_HTTP);
+        else                                  atomic_set(&g_ctrl_bus.ctrl_source, CTRL_CAN);
     }
 
     // MQTT broker address / port — triggers a reconnect if changed.
@@ -204,13 +205,11 @@ void apply_web_cmd(const char* qs)
     }
 
     // Only write g_cmd when HTTP is the active control source.
-    if (atomic_get(&g_ctrl_source) != CTRL_HTTP) {
+    if (atomic_get(&g_ctrl_bus.ctrl_source) != CTRL_HTTP) {
         return;
     }
 
     cmd.last_update_t_s = (double)k_uptime_get_32() / 1000.0;
 
-    k_mutex_lock(&g_cmd_mutex, K_FOREVER);
-    g_cmd = cmd;
-    k_mutex_unlock(&g_cmd_mutex);
+    { hdv::MutexGuard g(g_sim_cmd_mtx); g_sim_bus.cmd = cmd; }
 }

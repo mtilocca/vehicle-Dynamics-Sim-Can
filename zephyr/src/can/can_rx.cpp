@@ -17,15 +17,16 @@
 
 #include "sim/actuator_cmd.hpp"
 #include "mqtt/mqtt_client.hpp"
+#include "state/sim_state.hpp"
+#include "state/control_bus.hpp"
+#include "utils/mutex_guard.hpp"
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
-// ── Shared state (defined in main.cpp) ───────────────────────────────────────
-extern sim::ActuatorCmd  g_cmd;
-extern struct k_mutex    g_cmd_mutex;
-extern atomic_t          g_can_rx_count;
-extern atomic_t          g_can_timeout_count;
-extern atomic_t          g_ctrl_source;
+// ── Shared state buses (defined in main.cpp) ─────────────────────────────────
+extern hdv::SimStateBus  g_sim_bus;
+extern hdv::ControlBus   g_ctrl_bus;
+extern struct k_mutex    g_sim_cmd_mtx;
 
 // ── ACTUATOR_CMD_1 — bare 29-bit J1939 ID ────────────────────────────────────
 static const uint32_t ACTUATOR_CMD_ID = 0x18EFF021u;
@@ -153,7 +154,7 @@ static void can_rx_thread(void*, void*, void*)
             uint16_t seq = (uint16_t)zf.data[6] | ((uint16_t)zf.data[7] << 8);
             if (seq_init && seq <= last_seq) {
                 LOG_WRN("CAN: possible replay — seq %u <= last %u, dropping", seq, last_seq);
-                atomic_inc(&g_can_timeout_count);
+                atomic_inc(&g_ctrl_bus.can_timeout_count);
                 continue;
             }
             last_seq = seq;
@@ -163,15 +164,14 @@ static void can_rx_thread(void*, void*, void*)
             decode_actuator_cmd(zf, c);
             c.last_update_t_s = k_uptime_get_32() / 1000.0;
 
-            if (atomic_get(&g_ctrl_source) == CTRL_CAN) {
-                k_mutex_lock(&g_cmd_mutex, K_FOREVER);
-                g_cmd = c;
-                k_mutex_unlock(&g_cmd_mutex);
+            if (atomic_get(&g_ctrl_bus.ctrl_source) == CTRL_CAN) {
+                hdv::MutexGuard g(g_sim_cmd_mtx);
+                g_sim_bus.cmd = c;
             }
 
-            atomic_inc(&g_can_rx_count);
+            atomic_inc(&g_ctrl_bus.can_rx_count);
         } else {
-            atomic_inc(&g_can_timeout_count);
+            atomic_inc(&g_ctrl_bus.can_timeout_count);
         }
     }
 }

@@ -15,6 +15,10 @@
 #include "http_html.hpp"
 #include "stats/sys_stats.hpp"
 #include "mqtt/mqtt_client.hpp"
+#include "utils/mutex_guard.hpp"
+#include "state/sim_state.hpp"
+#include "state/control_bus.hpp"
+#include "state/system_health.hpp"
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
@@ -24,19 +28,13 @@ static const char kDashboardCss[] = {
     '\0'
 };
 
-// ── Shared globals (defined in main.cpp) ─────────────────────────────────────
-extern plant::PlantState    g_state;
-extern sim::ActuatorCmd     g_cmd;
-extern struct k_mutex       g_state_mutex;
-extern struct k_mutex       g_cmd_mutex;
-extern atomic_t             g_can_tx_count;
-extern atomic_t             g_can_rx_count;
-extern atomic_t             g_can_timeout_count;
-extern double               g_surface_mu;
-extern SysStats             g_sys_stats;
-extern struct k_mutex       g_stats_mutex;
-extern atomic_t             g_ctrl_source;
-extern atomic_t             g_mqtt_rx_count;
+// ── Shared state buses (defined in main.cpp) ─────────────────────────────────
+extern hdv::SimStateBus      g_sim_bus;
+extern hdv::ControlBus       g_ctrl_bus;
+extern hdv::SystemHealthBus  g_health_bus;
+extern struct k_mutex        g_sim_plant_mtx;
+extern struct k_mutex        g_sim_cmd_mtx;
+extern struct k_mutex        g_health_mtx;
 
 // ── Low-level send helper ─────────────────────────────────────────────────────
 
@@ -56,9 +54,7 @@ static void send_str(int fd, const char* s)
 static void send_resources_card(int fd)
 {
     SysStats st{};
-    k_mutex_lock(&g_stats_mutex, K_FOREVER);
-    st = g_sys_stats;
-    k_mutex_unlock(&g_stats_mutex);
+    { hdv::MutexGuard g(g_health_mtx); st = g_health_bus.stats; }
 
     const size_t heap_total = CONFIG_HEAP_MEM_POOL_SIZE;
     int heap_pct = (heap_total > 0 && st.heap_used > 0)
@@ -253,12 +249,12 @@ void send_api_state(int fd)
     sim::ActuatorCmd  c{};
     SysStats st{};
 
-    k_mutex_lock(&g_state_mutex, K_FOREVER);  s = g_state;        k_mutex_unlock(&g_state_mutex);
-    k_mutex_lock(&g_cmd_mutex,   K_FOREVER);  c = g_cmd;          k_mutex_unlock(&g_cmd_mutex);
-    k_mutex_lock(&g_stats_mutex, K_FOREVER);  st = g_sys_stats;   k_mutex_unlock(&g_stats_mutex);
+    { hdv::MutexGuard g(g_sim_plant_mtx); s  = g_sim_bus.plant; }
+    { hdv::MutexGuard g(g_sim_cmd_mtx);  c  = g_sim_bus.cmd;  }
+    { hdv::MutexGuard g(g_health_mtx); st = g_health_bus.stats; }
 
     uint32_t uptime_s = k_uptime_get_32() / 1000;
-    int src = (int)atomic_get(&g_ctrl_source);
+    int src = (int)atomic_get(&g_ctrl_bus.ctrl_source);
     const char* gear_str =
         (c.gear_position == sim::GearPosition::FORWARD) ? "F" :
         (c.gear_position == sim::GearPosition::REVERSE) ? "R" : "N";
@@ -286,15 +282,15 @@ void send_api_state(int fd)
         s.surface_mu,
         c.system_enable ? 1 : 0, gear_str,
         c.drive_torque_cmd_nm, c.brake_cmd_pct, c.steer_cmd_deg,
-        (uint32_t)atomic_get(&g_can_tx_count),
-        (uint32_t)atomic_get(&g_can_rx_count),
-        (uint32_t)atomic_get(&g_can_timeout_count),
+        (uint32_t)atomic_get(&g_ctrl_bus.can_tx_count),
+        (uint32_t)atomic_get(&g_ctrl_bus.can_rx_count),
+        (uint32_t)atomic_get(&g_ctrl_bus.can_timeout_count),
         c.last_update_t_s,
         st.heap_used, st.heap_free,
         (uint32_t)CONFIG_HEAP_MEM_POOL_SIZE,
         st.plant_loop_us_max,
         g_mqtt_connected ? 1 : 0,
-        (uint32_t)atomic_get(&g_mqtt_rx_count),
+        (uint32_t)atomic_get(&g_ctrl_bus.mqtt_rx_count),
         src);
 
     if (n <= 0 || n >= (int)sizeof(body)) return;
@@ -385,13 +381,8 @@ void send_page(int fd)
     plant::PlantState s{};
     sim::ActuatorCmd  c{};
 
-    k_mutex_lock(&g_state_mutex, K_FOREVER);
-    s = g_state;
-    k_mutex_unlock(&g_state_mutex);
-
-    k_mutex_lock(&g_cmd_mutex, K_FOREVER);
-    c = g_cmd;
-    k_mutex_unlock(&g_cmd_mutex);
+    { hdv::MutexGuard g(g_sim_plant_mtx); s = g_sim_bus.plant; }
+    { hdv::MutexGuard g(g_sim_cmd_mtx); c = g_sim_bus.cmd; }
 
     uint32_t ms      = k_uptime_get_32();
     uint32_t sec_up  = ms / 1000;
@@ -480,10 +471,10 @@ void send_page(int fd)
         "<tr><td>Timeouts</td>"
         "<td id='can-to'><span class='%s'>%u</span></td></tr>"
         "<tr><td>Last RX</td><td id='can-lrx'>%.3f s</td></tr>",
-        (uint32_t)atomic_get(&g_can_tx_count),
-        (uint32_t)atomic_get(&g_can_rx_count),
-        atomic_get(&g_can_timeout_count) ? "val-warn" : "",
-        (uint32_t)atomic_get(&g_can_timeout_count),
+        (uint32_t)atomic_get(&g_ctrl_bus.can_tx_count),
+        (uint32_t)atomic_get(&g_ctrl_bus.can_rx_count),
+        atomic_get(&g_ctrl_bus.can_timeout_count) ? "val-warn" : "",
+        (uint32_t)atomic_get(&g_ctrl_bus.can_timeout_count),
         c.last_update_t_s);
     send_str(fd, buf);
     send_str(fd, "</table></div>");
@@ -566,7 +557,7 @@ void send_page(int fd)
 
     // Control source card — toggle which input writes g_cmd
     {
-        int src = (int)atomic_get(&g_ctrl_source);
+        int src = (int)atomic_get(&g_ctrl_bus.ctrl_source);
         const char* ac = "btn btn-active";
         const char* in = "btn";
         snprintf(buf, sizeof(buf),
@@ -611,7 +602,7 @@ void send_page(int fd)
             "</div>",
             g_mqtt_connected ? "val-hi" : "val-warn",
             g_mqtt_connected ? "connected" : "disconnected",
-            (uint32_t)atomic_get(&g_mqtt_rx_count));
+            (uint32_t)atomic_get(&g_ctrl_bus.mqtt_rx_count));
         send_str(fd, buf);
     }
 

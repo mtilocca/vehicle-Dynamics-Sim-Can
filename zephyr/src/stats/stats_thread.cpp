@@ -11,14 +11,16 @@
 #include <zephyr/sys/atomic.h>
 
 #include "sys_stats.hpp"
+#include "utils/mutex_guard.hpp"
+#include "state/control_bus.hpp"
+#include "state/system_health.hpp"
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
 // Defined in main.cpp
-extern SysStats       g_sys_stats;
-extern struct k_mutex g_stats_mutex;
-extern atomic_t       g_can_rx_count;
-extern atomic_t       g_can_timeout_count;
+extern hdv::ControlBus       g_ctrl_bus;
+extern hdv::SystemHealthBus  g_health_bus;
+extern struct k_mutex        g_health_mtx;
 
 static void stats_thread(void*, void*, void*)
 {
@@ -31,13 +33,14 @@ static void stats_thread(void*, void*, void*)
         sys_heap_runtime_stats_get(&_system_heap, &heap_stats);
 #endif
 
-        k_mutex_lock(&g_stats_mutex, K_FOREVER);
-        g_sys_stats.can_rx_total      = (uint32_t)atomic_get(&g_can_rx_count);
-        g_sys_stats.can_timeout_total = (uint32_t)atomic_get(&g_can_timeout_count);
-        g_sys_stats.heap_used         = heap_stats.allocated_bytes;
-        g_sys_stats.heap_free         = heap_stats.free_bytes;
-        // plant_loop_us_max is written by plant_thread under g_stats_mutex
-        k_mutex_unlock(&g_stats_mutex);
+        {
+            hdv::MutexGuard g(g_health_mtx);
+            g_health_bus.stats.can_rx_total      = (uint32_t)atomic_get(&g_ctrl_bus.can_rx_count);
+            g_health_bus.stats.can_timeout_total = (uint32_t)atomic_get(&g_ctrl_bus.can_timeout_count);
+            g_health_bus.stats.heap_used         = heap_stats.allocated_bytes;
+            g_health_bus.stats.heap_free         = heap_stats.free_bytes;
+            // plant_loop_us_max is written by plant_thread under g_health_mtx
+        }
     }
 }
 

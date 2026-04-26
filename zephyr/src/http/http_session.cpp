@@ -12,6 +12,7 @@
 #include <zephyr/logging/log.h>
 #include <string.h>
 #include <stdio.h>
+#include "utils/mutex_guard.hpp"
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
@@ -73,20 +74,21 @@ bool session_create(char* token_out, int len)
         snprintf(token_out + 2 * i, 3, "%02x", rnd[i]);
     token_out[32] = '\0';
 
-    k_mutex_lock(&g_session_mutex, K_FOREVER);
-    evict_expired();
-
-    // Find a free slot; if all full, evict slot 0
     int slot = 0;
-    for (int i = 0; i < MAX_SESSIONS; ++i) {
-        if (!s_sessions[i].used) { slot = i; break; }
-    }
+    {
+        hdv::MutexGuard g(g_session_mutex);
+        evict_expired();
 
-    strncpy(s_sessions[slot].token, token_out, 32);
-    s_sessions[slot].token[32]    = '\0';
-    s_sessions[slot].expires_ms   = k_uptime_get_32() + SESSION_TTL_MS;
-    s_sessions[slot].used         = true;
-    k_mutex_unlock(&g_session_mutex);
+        // Find a free slot; if all full, evict slot 0
+        for (int i = 0; i < MAX_SESSIONS; ++i) {
+            if (!s_sessions[i].used) { slot = i; break; }
+        }
+
+        strncpy(s_sessions[slot].token, token_out, 32);
+        s_sessions[slot].token[32]    = '\0';
+        s_sessions[slot].expires_ms   = k_uptime_get_32() + SESSION_TTL_MS;
+        s_sessions[slot].used         = true;
+    }
 
     LOG_INF("Session created: slot=%d tok=%.8s...", slot, token_out);
     return true;
@@ -100,16 +102,17 @@ bool session_check(const char* cookie_hdr)
     uint32_t now   = k_uptime_get_32();
     bool     found = false;
 
-    k_mutex_lock(&g_session_mutex, K_FOREVER);
-    for (int i = 0; i < MAX_SESSIONS; ++i) {
-        if (s_sessions[i].used &&
-            strncmp(s_sessions[i].token, tok, 32) == 0 &&
-            (int32_t)(now - s_sessions[i].expires_ms) < 0) {
-            found = true;
-            break;
+    {
+        hdv::MutexGuard g(g_session_mutex);
+        for (int i = 0; i < MAX_SESSIONS; ++i) {
+            if (s_sessions[i].used &&
+                strncmp(s_sessions[i].token, tok, 32) == 0 &&
+                (int32_t)(now - s_sessions[i].expires_ms) < 0) {
+                found = true;
+                break;
+            }
         }
     }
-    k_mutex_unlock(&g_session_mutex);
     return found;
 }
 
@@ -118,14 +121,15 @@ void session_invalidate(const char* cookie_hdr)
     char tok[33];
     if (!extract_sid(cookie_hdr, tok, sizeof(tok))) return;
 
-    k_mutex_lock(&g_session_mutex, K_FOREVER);
-    for (int i = 0; i < MAX_SESSIONS; ++i) {
-        if (s_sessions[i].used &&
-            strncmp(s_sessions[i].token, tok, 32) == 0) {
-            s_sessions[i].used = false;
-            LOG_INF("Session invalidated: slot=%d", i);
-            break;
+    {
+        hdv::MutexGuard g(g_session_mutex);
+        for (int i = 0; i < MAX_SESSIONS; ++i) {
+            if (s_sessions[i].used &&
+                strncmp(s_sessions[i].token, tok, 32) == 0) {
+                s_sessions[i].used = false;
+                LOG_INF("Session invalidated: slot=%d", i);
+                break;
+            }
         }
     }
-    k_mutex_unlock(&g_session_mutex);
 }

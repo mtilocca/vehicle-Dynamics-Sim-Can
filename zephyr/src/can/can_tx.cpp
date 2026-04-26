@@ -13,10 +13,15 @@
 #include <math.h>   // floor, fmin, fmax
 
 #include "plant/plant_main/plant_state.hpp"
+#include "config/vehicle_config_zephyr.hpp"
+#include "state/control_bus.hpp"
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
-extern volatile uint32_t g_can_tx_count;
+// File-scope params — avoids function-local static guard (__cxa_guard_acquire unavailable).
+static const plant::PlantModelParams s_hdv = config::hdv_default_params();
+
+extern hdv::ControlBus g_ctrl_bus;
 
 // ── Encoding helpers ──────────────────────────────────────────────────────────
 
@@ -88,7 +93,7 @@ static void tx_send(const struct device* dev, uint32_t id29,
     // Dropping a frame is preferable to stalling the 10ms loop (which trips the WDT).
     int r = can_send(dev, &zf, K_NO_WAIT, nullptr, nullptr);
     if (r == 0) {
-        g_can_tx_count++;
+        atomic_inc(&g_ctrl_bus.can_tx_count);
     }
 }
 
@@ -239,7 +244,7 @@ static void encode_motor_state_1(uint8_t* d, const plant::PlantState& s)
 {
     // Derive motor speed from rear-wheel angular speed + gear ratio
     // wheel_speed (rad/s) × gear_ratio → motor speed (rad/s) → RPM
-    const double gear_ratio = 28.0;
+    const double gear_ratio = s_hdv.drive.gear_ratio;
     double omega_w = (s.omega_rl_radps + s.omega_rr_radps) * 0.5;
     double motor_rpm = (omega_w * gear_ratio) * (60.0 / (2.0 * 3.14159265358979));
 
@@ -296,9 +301,9 @@ static void encode_orientation_state(uint8_t* d, const plant::PlantState& s)
 // track_width_mm     [56:63] u8  factor 100.0
 static void encode_drivetrain_state(uint8_t* d)
 {
-    pack_u16(d, 0, enc_u16(28.0,  0.01));   // gear ratio
-    d[2] = (uint8_t)(92.0 / 0.5);           // 92% efficiency
-    pack_u16(d, 3, enc_u16(1930.0, 1.0));   // wheel radius mm
+    pack_u16(d, 0, enc_u16(s_hdv.drive.gear_ratio,             0.01));  // gear ratio
+    d[2] = (uint8_t)(s_hdv.drive.drivetrain_eff * 100.0 / 0.5);        // efficiency
+    pack_u16(d, 3, enc_u16(s_hdv.drive.wheel_radius_m * 1000.0, 1.0)); // wheel radius mm
     pack_u16(d, 5, enc_u16(6300.0, 1.0));   // wheelbase mm
     d[7] = (uint8_t)(7200.0 / 100.0);       // track width (7200 mm → 72)
 }

@@ -18,18 +18,19 @@
 
 #include "mqtt_client.hpp"
 #include "tls/tls_creds.hpp"
+#include "utils/mutex_guard.hpp"
 #include "sim/actuator_cmd.hpp"
 #include "plant/plant_main/plant_state.hpp"
+#include "state/sim_state.hpp"
+#include "state/control_bus.hpp"
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
-// ── Shared globals (defined in main.cpp) ─────────────────────────────────────
-extern sim::ActuatorCmd  g_cmd;
-extern struct k_mutex    g_cmd_mutex;
-extern plant::PlantState g_state;
-extern struct k_mutex    g_state_mutex;
-extern atomic_t          g_ctrl_source;
-extern atomic_t          g_mqtt_rx_count;
+// ── Shared state buses (defined in main.cpp) ─────────────────────────────────
+extern hdv::SimStateBus  g_sim_bus;
+extern hdv::ControlBus   g_ctrl_bus;
+extern struct k_mutex    g_sim_plant_mtx;
+extern struct k_mutex    g_sim_cmd_mtx;
 
 // ── Module-level state (extern'd in mqtt_client.hpp) ─────────────────────────
 char g_mqtt_broker_addr[32] = CONFIG_HDV_MQTT_BROKER_ADDR;
@@ -83,7 +84,7 @@ static void apply_mqtt_cmd(const char* payload, int len)
         return;
     }
 
-    if (atomic_get(&g_ctrl_source) != CTRL_MQTT) {
+    if (atomic_get(&g_ctrl_bus.ctrl_source) != CTRL_MQTT) {
         LOG_DBG("MQTT: cmd discarded — ctrl source is not MQTT");
         return;
     }
@@ -100,11 +101,9 @@ static void apply_mqtt_cmd(const char* payload, int len)
                                                sim::GearPosition::NEUTRAL;
     c.last_update_t_s     = (double)k_uptime_get_32() / 1000.0;
 
-    k_mutex_lock(&g_cmd_mutex, K_FOREVER);
-    g_cmd = c;
-    k_mutex_unlock(&g_cmd_mutex);
+    { hdv::MutexGuard g(g_sim_cmd_mtx); g_sim_bus.cmd = c; }
 
-    atomic_inc(&g_mqtt_rx_count);
+    atomic_inc(&g_ctrl_bus.mqtt_rx_count);
 
     LOG_INF("MQTT: cmd rx → enable=%d gear=%c torque=%d steer=%d brake=%d",
             mc.enable, gear_ch, mc.torque, mc.steer, mc.brake);
@@ -115,9 +114,7 @@ static void apply_mqtt_cmd(const char* payload, int len)
 static void publish_vehicle_state(struct mqtt_client* client)
 {
     plant::PlantState s{};
-    k_mutex_lock(&g_state_mutex, K_FOREVER);
-    s = g_state;
-    k_mutex_unlock(&g_state_mutex);
+    { hdv::MutexGuard g(g_sim_plant_mtx); s = g_sim_bus.plant; }
 
     char buf[PAYLOAD_SIZE];
     int len = snprintf(buf, sizeof(buf),
