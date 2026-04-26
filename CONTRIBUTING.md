@@ -96,6 +96,44 @@ pyocd flash --target stm32h743xx --connect attach --erase sector \
 > If the error occurs *during* the write, change USB cable and port (Raspberry Pi USB
 > hub contention is the most common cause).
 
+### UART flash (STM32 system bootloader — no ST-Link required)
+
+Use this when the ST-Link is unavailable or the chip needs full recovery without SWD.
+Requires a USB-UART adapter wired to the STM32's USART1 (PA9 TX / PA10 RX) via the
+Morpho connector (CN10 pin 21 / pin 33).
+
+```bash
+# Install stm32flash
+sudo apt install stm32flash
+
+# 1. Enter STM32 system bootloader:
+#    - Bridge JP6 pins 1-2 (BOOT0 = 1)  — or patch-wire CN11 pin 7 to 3.3 V
+#    - Press the RESET button (B2)
+#    - Confirm: stm32flash -b 115200 /dev/ttyUSB0  (should print chip ID)
+
+# 2a. Full recovery — MCUboot first, then signed app:
+stm32flash -b 115200 -w /home/baloo/zephyrproject/build/mcuboot/zephyr/zephyr.hex \
+  -v /dev/ttyUSB0
+
+stm32flash -b 115200 \
+  -w /home/baloo/zephyrproject/build/zephyr/zephyr/zephyr.signed.hex \
+  -v -g 0x08040000 /dev/ttyUSB0
+
+# 2b. App-only update (MCUboot already present):
+stm32flash -b 115200 \
+  -w /home/baloo/zephyrproject/build/zephyr/zephyr/zephyr.signed.hex \
+  -v -g 0x08040000 /dev/ttyUSB0
+
+# 3. Return to normal boot:
+#    - Restore JP6 to boot-from-flash (pins 2-3) and press RESET
+
+# Adjust /dev/ttyUSB0 to your adapter's device node.
+# Baud 115200 is reliable at 3.3 V; try 230400 on short cables.
+```
+
+> **Morpho pinout (CN10):** PA9 = pin 21 (TX), PA10 = pin 33 (RX), GND = any GND pin.
+> Connect adapter TX → PA10, adapter RX → PA9 (cross-wired as usual for UART).
+
 ### UART monitor
 
 ```bash

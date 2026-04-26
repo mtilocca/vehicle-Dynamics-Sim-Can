@@ -55,6 +55,41 @@ docs/          # Source documentation (MkDocs)
 
 ---
 
+## Flashing Firmware (STM32H753ZI)
+
+### Via ST-Link / pyocd (normal workflow)
+
+```bash
+# Build + OTA flash in one shot (board already running firmware)
+bash scripts/ota_flash.sh
+
+# SWD flash via pyocd (ST-Link, fresh board or full recovery)
+cd /home/baloo/zephyrproject
+.venv/bin/pyocd flash --target stm32h743xx --connect attach --erase sector \
+  build/zephyr/zephyr/zephyr.signed.hex
+```
+
+### Via UART (STM32 system bootloader — no ST-Link required)
+
+Wire a USB-UART adapter to Morpho **CN10 pin 21 (PA9 TX)** and **pin 33 (PA10 RX)**.
+Set BOOT0 = 1 (bridge JP6 pins 1-2), press RESET, then:
+
+```bash
+sudo apt install stm32flash
+
+# Full recovery — MCUboot first, then app
+stm32flash -b 115200 -w build/mcuboot/zephyr/zephyr.hex -v /dev/ttyUSB0
+stm32flash -b 115200 -w build/zephyr/zephyr/zephyr.signed.hex -v -g 0x08040000 /dev/ttyUSB0
+
+# App-only update (MCUboot already present)
+stm32flash -b 115200 -w build/zephyr/zephyr/zephyr.signed.hex -v -g 0x08040000 /dev/ttyUSB0
+```
+
+Restore JP6 to boot-from-flash and press RESET when done.
+See [CONTRIBUTING.md](CONTRIBUTING.md#uart-flash-stm32-system-bootloader--no-st-link-required) for full details.
+
+---
+
 ## Roadmap
 
 ### Completed
@@ -63,6 +98,7 @@ docs/          # Source documentation (MkDocs)
 - [x] 5-sensor simulation suite with ML-ready CSV logging
 - [x] Real-time InfluxDB + Grafana telemetry
 - [x] Hardware-in-the-Loop — Zephyr RTOS port on STM32H753ZI
+- [x] UART flash support — STM32 system bootloader (no ST-Link required)
 
 ### Next
 - [ ] DDS closed-loop control (Fast-DDS / CycloneDDS)
