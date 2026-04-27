@@ -69,12 +69,18 @@
 &spi1 {
     status = "okay";
     /* pinctrl-0 / pinctrl-names / cs-gpios inherited from board DTS */
+    /* fifo-enable: on H7 this sets LL_SPI_SetTransferSize(N) per transaction
+     * and clears EOT/OVR/TXTF flags at completion — prevents stale SPI state
+     * from leaking across calls (TSIZE=0 "endless" mode is unreliable here). */
+    fifo-enable;
 
     st67w61_dev: wifi@0 {
         compatible = "st,st67w61";
         reg = <0>;
         status = "okay";
-        spi-max-frequency = <DT_FREQ_M(10)>;
+        /* 480 MHz PLL1_Q / 128 = 3.75 MHz — conservative margin for debugging.
+         * Restore to DT_FREQ_M(10) once boot message is confirmed working. */
+        spi-max-frequency = <DT_FREQ_M(4)>;
         /* CHIP_EN: D5 = PE11 — active-low (GPIO_ACTIVE_LOW): logical 0 = physical HIGH = module on */
         chip-en-gpios = <&gpioe 11 GPIO_ACTIVE_LOW>;
         /* BOOT:    D6 = PE9  — drive LOW = normal SPI AT mode (HIGH = firmware update) */

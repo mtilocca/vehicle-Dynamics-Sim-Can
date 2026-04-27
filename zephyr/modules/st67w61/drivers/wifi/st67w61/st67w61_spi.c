@@ -48,14 +48,13 @@ static void rdy_rising_isr(const struct device *port,
 }
 
 /* Wait for SPI_RDY HIGH using interrupt + semaphore (never misses a short pulse).
- * Reset the semaphore first, then check current level — if already HIGH, return
- * immediately without waiting for the next edge. */
+ * Caller must k_sem_reset(&dat->rdy_sem) BEFORE the action that triggers the edge,
+ * so a brief pulse that arrives before this call is already captured in the semaphore. */
 static int wait_rdy(const struct device *dev, k_timeout_t timeout)
 {
     const struct st67w61_config *cfg = dev->config;
     struct st67w61_data         *dat = dev->data;
 
-    k_sem_reset(&dat->rdy_sem);           /* drain any stale edge from previous txn */
     if (gpio_pin_get_dt(&cfg->rdy)) return 0;  /* already HIGH */
     return k_sem_take(&dat->rdy_sem, timeout);
 }
@@ -150,35 +149,25 @@ int st67w61_spi_init(const struct device *dev)
 void st67w61_spi_hw_reset(const struct device *dev)
 {
     const struct st67w61_config *cfg = dev->config;
-    char ready_buf[16] = {};
+    struct st67w61_data         *dat = dev->data;
+    char ready_buf[32] = {};
 
-    LOG_INF("CHIP_EN off (PE11 → physical LOW), BOOT → LOW, RDY=%d",
-            gpio_pin_get_dt(&cfg->rdy));
+    LOG_INF("HW reset: CHIP_EN → OFF");
+    gpio_pin_set_dt(&cfg->chip_en, 1);   /* physical LOW = module off */
+    k_msleep(200);
 
-    gpio_pin_set_dt(&cfg->chip_en, 1);   /* active-LOW → physical LOW → module off */
-    k_msleep(100);
+    /* Pre-arm semaphore BEFORE releasing CHIP_EN so the brief RDY boot pulse
+     * (fires ~100 ms after power-on, shorter than one polling interval) is
+     * captured in the semaphore before wait_rdy() checks it. */
+    k_sem_reset(&dat->rdy_sem);
+    LOG_INF("HW reset: CHIP_EN → ON — RDY=%d", gpio_pin_get_dt(&cfg->rdy));
+    gpio_pin_set_dt(&cfg->chip_en, 0);   /* physical HIGH = module on */
 
-    LOG_INF("CHIP_EN on  (PE11 → physical HIGH) — releasing module");
-    gpio_pin_set_dt(&cfg->chip_en, 0);   /* active-LOW → physical HIGH → module on */
-
-    /* Poll RDY every 100 ms during boot window so we can see when it asserts */
-    for (int i = 0; i < 20; i++) {
-        k_msleep(100);
-        int rdy = gpio_pin_get_dt(&cfg->rdy);
-        if (rdy) {
-            LOG_INF("RDY asserted at T+%d ms after CHIP_EN — module booted!", (i + 1) * 100);
-            break;
-        }
-        if ((i + 1) % 5 == 0) {
-            LOG_INF("Waiting for RDY... T+%d ms, RDY=%d", (i + 1) * 100, rdy);
-        }
-    }
-    LOG_INF("RDY state after 2 s boot window: %d", gpio_pin_get_dt(&cfg->rdy));
-
-    /* Module sends "\r\nready\r\n" spontaneously; read it via RX-only transaction */
+    /* Module sends "\r\nready\r\n" spontaneously after boot.
+     * wait_rdy() inside transact will catch the interrupt-captured edge. */
     int rc = st67w61_spi_transact(dev, NULL, 0,
                                    (uint8_t *)ready_buf, sizeof(ready_buf) - 1,
-                                   K_MSEC(10000));
+                                   K_SECONDS(8));
     if (rc < 0) {
         LOG_WRN("No ready message from module (rc=%d) — continuing", rc);
     } else {
@@ -216,6 +205,8 @@ int st67w61_spi_transact(const struct device *dev,
          * This ensures the module finished any previous transaction. */
         wait_rdy_low_ms(dev, timeout_ms);
 
+        /* Arm semaphore BEFORE CS so the RDY HIGH pulse after CS is captured. */
+        k_sem_reset(&dat->rdy_sem);
         gpio_pin_set_dt(cs, 1);  /* assert CS */
 
         /* Module drives RDY HIGH after CS to signal it can accept data. */
@@ -240,67 +231,57 @@ int st67w61_spi_transact(const struct device *dev,
         }
 
         wait_rdy_low(dev);  /* wait for RDY to settle after TX */
+        /* Arm for the response RDY edge now that TX is fully complete. */
+        k_sem_reset(&dat->rdy_sem);
     }
 
     /* ── RX phase ─────────────────────────────────────────────────────────── */
 
     /* Wait for module to assert RDY HIGH (rising edge = response ready).
-     * For RX-only calls this is the module's spontaneous "ready" signal. */
+     * For RX-only (boot): sem was pre-armed in hw_reset before CHIP_EN release.
+     * For post-TX: sem was re-armed above after wait_rdy_low. */
     rc = wait_rdy(dev, timeout);
     if (rc) {
         LOG_WRN("SPI_RDY timeout — no response from module");
         return rc;
     }
 
-    /* Assert CS and immediately clock — do NOT wait for RDY again.
-     * Reference: NCP raises RDY → host raises CS → host generates clock. */
+    /* Assert CS and clock the full frame in ONE spi_transceive call.
+     * On STM32H7, splitting into header-read + payload-read causes the SPI
+     * peripheral to do LL_SPI_Disable → LL_SPI_Enable mid-CS, which briefly
+     * releases SCK/MOSI and can corrupt the module's SPI slave byte count,
+     * resulting in all-zero MISO for the payload portion. */
     gpio_pin_set_dt(cs, 1);
 
-    /* Send proper empty header (magic + len=0 + reserved) while reading
-     * the module's response header.  Must use magic bytes, not all-zeros. */
-    static const uint8_t empty_hdr[ST67W61_HDR_LEN] = {0xAA, 0x55, 0, 0, 0, 0, 0, 0};
-    uint8_t resp_hdr[ST67W61_HDR_LEN];
-    struct spi_buf     tx_hdr_spi = { .buf = (void *)empty_hdr, .len = ST67W61_HDR_LEN };
-    struct spi_buf     rx_hdr_spi = { .buf = resp_hdr,          .len = ST67W61_HDR_LEN };
-    struct spi_buf_set tx_hdr_set = { .buffers = &tx_hdr_spi, .count = 1 };
-    struct spi_buf_set rx_hdr_set = { .buffers = &rx_hdr_spi, .count = 1 };
+    /* Reuse dat->tx_buf as dummy TX: magic header bytes, rest 0. */
+    memset(dat->tx_buf, 0, ST67W61_BUF_LEN);
+    dat->tx_buf[0] = 0xAA; dat->tx_buf[1] = 0x55;
 
-    rc = spi_transceive(cfg->spi.bus, &no_cs, &tx_hdr_set, &rx_hdr_set);
-    if (rc) {
-        gpio_pin_set_dt(cs, 0);
-        return rc;
-    }
+    static uint8_t rx_frame[ST67W61_BUF_LEN];
+    struct spi_buf     tx_b = { .buf = dat->tx_buf, .len = ST67W61_BUF_LEN };
+    struct spi_buf     rx_b = { .buf = rx_frame,    .len = ST67W61_BUF_LEN };
+    struct spi_buf_set txs  = { .buffers = &tx_b, .count = 1 };
+    struct spi_buf_set rxs  = { .buffers = &rx_b, .count = 1 };
 
-    uint16_t resp_len = (uint16_t)resp_hdr[2] | ((uint16_t)resp_hdr[3] << 8);
-
-    if (resp_len == 0) {
-        gpio_pin_set_dt(cs, 0);
-        wait_rdy_low(dev);
-        return 0;
-    }
-
-    uint16_t pad      = (uint16_t)((4 - (resp_len % 4)) % 4);
-    uint16_t to_read  = resp_len + pad;
-    uint16_t copy_len = (resp_len < resp_cap - 1) ? resp_len : (uint16_t)(resp_cap - 1);
-
-    static uint8_t scratch[ST67W61_MAX_PAYLOAD + 4];
-    static uint8_t dummy_pay[ST67W61_MAX_PAYLOAD + 4];
-
-    if (to_read > sizeof(scratch)) to_read = (uint16_t)sizeof(scratch);
-
-    struct spi_buf     rp_spi = { .buf = scratch,   .len = to_read };
-    struct spi_buf     dp_spi = { .buf = dummy_pay, .len = to_read };
-    struct spi_buf_set rp_set = { .buffers = &rp_spi, .count = 1 };
-    struct spi_buf_set dp_set = { .buffers = &dp_spi, .count = 1 };
-
-    rc = spi_transceive(cfg->spi.bus, &no_cs, &dp_set, &rp_set);
+    rc = spi_transceive(cfg->spi.bus, &no_cs, &txs, &rxs);
     gpio_pin_set_dt(cs, 0);
+    wait_rdy_low(dev);
 
     if (rc) return rc;
 
-    wait_rdy_low(dev);
+    LOG_DBG("RX hdr: %02x %02x %02x %02x %02x %02x %02x %02x",
+            rx_frame[0], rx_frame[1], rx_frame[2], rx_frame[3],
+            rx_frame[4], rx_frame[5], rx_frame[6], rx_frame[7]);
 
-    memcpy(resp_buf, scratch, copy_len);
+    uint16_t resp_len = (uint16_t)rx_frame[2] | ((uint16_t)rx_frame[3] << 8);
+    if (resp_len == 0) return 0;
+    if (resp_len > ST67W61_MAX_PAYLOAD) {
+        LOG_WRN("resp_len=%u exceeds MAX_PAYLOAD — discarding", resp_len);
+        return -EMSGSIZE;
+    }
+
+    uint16_t copy_len = (resp_len < resp_cap - 1) ? resp_len : (uint16_t)(resp_cap - 1);
+    memcpy(resp_buf, rx_frame + ST67W61_HDR_LEN, copy_len);
     resp_buf[copy_len] = '\0';
     return (int)copy_len;
 }
