@@ -59,8 +59,9 @@
  *   D12 = PA6  (SPI1_MISO)
  *   D11 = PB5  (SPI1_MOSI)
  *   D10 = PD14 (CS — GPIO_ACTIVE_LOW, already in board DTS)
- *   D8  = PF3  (SPI_RDY  — verify against X-NUCLEO-67W61M1 schematic)
- *   D7  = PG12 (RESETN   — verify against X-NUCLEO-67W61M1 schematic)
+ *   D5  = PE11 (CHIP_EN — confirmed from NUCLEO-U575ZI-Q ref main.h)
+ *   D6  = PE9  (BOOT    — confirmed from NUCLEO-U575ZI-Q ref main.h, drive LOW = normal mode)
+ *   D3  = PE13 (SPI_RDY — confirmed from NUCLEO-U575ZI-Q ref main.h)
  *
  * The board DTS already enables SPI1 with pinctrl and D10/CS.
  * We override it here to add the ST67W61 child device and keep CS settings.
@@ -74,10 +75,12 @@
         reg = <0>;
         status = "okay";
         spi-max-frequency = <DT_FREQ_M(10)>;
-        /* RESETN: D7 = PG12, active-low */
-        resetn-gpios = <&gpiog 12 GPIO_ACTIVE_LOW>;
-        /* SPI_RDY: D8 = PF3, active-high (module asserts when ready) */
-        rdy-gpios    = <&gpiof 3 GPIO_ACTIVE_HIGH>;
+        /* CHIP_EN: D5 = PE11 — active-low (GPIO_ACTIVE_LOW): logical 0 = physical HIGH = module on */
+        chip-en-gpios = <&gpioe 11 GPIO_ACTIVE_LOW>;
+        /* BOOT:    D6 = PE9  — drive LOW = normal SPI AT mode (HIGH = firmware update) */
+        boot-gpios    = <&gpioe 9  GPIO_ACTIVE_HIGH>;
+        /* SPI_RDY: D3 = PE13 — module drives HIGH when ready; PULL_DOWN = LOW when idle */
+        rdy-gpios     = <&gpioe 13 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
     };
 };
 

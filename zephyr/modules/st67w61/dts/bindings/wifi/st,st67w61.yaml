@@ -5,23 +5,33 @@ description: |
   ST67W61 Wi-Fi + BT combo module (X-NUCLEO-67W61M1 HAT).
   Communicates with the host STM32 via SPI using ST's framed AT protocol.
   Reference: stm32-hotspot/ST67W61-Bare-metal-implementation
+  Pin mapping confirmed from NUCLEO-U575ZI-Q reference project main.h.
 
 compatible: "st,st67w61"
 
 include: spi-device.yaml
 
 properties:
-  resetn-gpios:
+  chip-en-gpios:
     type: phandle-array
     required: true
     description: |
-      Active-low reset GPIO. Drive low ≥1 ms to hard-reset the module.
-      Typically wired to Arduino D7 (PG12 on NUCLEO-H753ZI).
+      Chip-enable GPIO. Drive HIGH to enable module, LOW to power it off.
+      Use GPIO_ACTIVE_LOW so driver logic treats "assert = module off".
+      Confirmed: Arduino D5 = PE11 on NUCLEO-H753ZI (ref: CHIP_EN_Pin GPIOE 11).
+
+  boot-gpios:
+    type: phandle-array
+    required: true
+    description: |
+      BOOT mode select. Drive LOW for normal SPI AT-command mode.
+      If left floating and module has internal pull-up, HIGH = firmware update mode.
+      Confirmed: Arduino D6 = PE9 on NUCLEO-H753ZI (ref: BOOT_Pin GPIOE 9).
 
   rdy-gpios:
     type: phandle-array
     required: true
     description: |
-      SPI_RDY input from module (active-high). The module asserts this
-      before it can accept a new SPI frame. Poll or interrupt before TX.
-      Typically wired to Arduino D8 (PF3 on NUCLEO-H753ZI).
+      SPI_RDY input from module. Module asserts HIGH when ready to send/receive.
+      Configure active-high with GPIO_PULL_DOWN (ensures LOW = not-ready when idle).
+      Confirmed: Arduino D3 = PE13 on NUCLEO-H753ZI (ref: SPI_RDY_Pin GPIOE 13).

@@ -40,9 +40,11 @@ config ST67W61_SPI_MAX_HZ
 
 config ST67W61_AT_TIMEOUT_MS
 	int "AT command response timeout (ms)"
-	default 5000
+	default 8000
 	help
 	  How long to wait for an AT command response before returning -ETIMEDOUT.
+	  The first command after cold-boot may take several seconds for the module
+	  to assert SPI_RDY; 8 s gives ample headroom.
 
 config ST67W61_LOG_LEVEL
 	int "Log level (0=off, 1=ERR, 2=WRN, 3=INF, 4=DBG)"

@@ -27,13 +27,19 @@
 
 LOG_MODULE_REGISTER(st67w61, CONFIG_ST67W61_LOG_LEVEL);
 
+/* Dedicated 4 KB work queue — sysworkq default (~1 KB) is too small for the
+ * combined stack depth of hw_init + at_init + spi_transact. */
+K_THREAD_STACK_DEFINE(st67w61_wq_stack, 4096);
+static struct k_work_q st67w61_wq;
+
 /* ── Driver config / data instances ─────────────────────────────────────────── */
 
 static const struct st67w61_config st67w61_cfg_0 = {
-    .spi    = SPI_DT_SPEC_INST_GET(0,
-                SPI_OP_MODE_MASTER | SPI_TRANSFER_MSB | SPI_WORD_SET(8), 0),
-    .resetn = GPIO_DT_SPEC_INST_GET(0, resetn_gpios),
-    .rdy    = GPIO_DT_SPEC_INST_GET(0, rdy_gpios),
+    .spi     = SPI_DT_SPEC_INST_GET(0,
+                 SPI_OP_MODE_MASTER | SPI_TRANSFER_MSB | SPI_WORD_SET(8), 0),
+    .chip_en = GPIO_DT_SPEC_INST_GET(0, chip_en_gpios),
+    .boot    = GPIO_DT_SPEC_INST_GET(0, boot_gpios),
+    .rdy     = GPIO_DT_SPEC_INST_GET(0, rdy_gpios),
 };
 
 static struct st67w61_data st67w61_data_0;
@@ -74,7 +80,7 @@ static void hw_init_work_handler(struct k_work *work)
         strncpy(dat->ssid, CONFIG_ST67W61_SSID, sizeof(dat->ssid) - 1);
         strncpy(dat->psk,  CONFIG_ST67W61_PASSWORD, sizeof(dat->psk) - 1);
         dat->security = WIFI_SECURITY_TYPE_PSK;
-        k_work_submit(&dat->connect_work);
+        k_work_submit_to_queue(&st67w61_wq, &dat->connect_work);
     }
 }
 
@@ -215,7 +221,7 @@ static int st67w61_mgmt_connect(const struct device *dev,
     dat->security = params->security;
     k_mutex_unlock(&dat->mutex);
 
-    k_work_submit(&dat->connect_work);
+    k_work_submit_to_queue(&st67w61_wq, &dat->connect_work);
     return 0;
 }
 
@@ -271,6 +277,12 @@ static void st67w61_iface_init(struct net_if *iface)
     const struct device  *dev = net_if_get_device(iface);
     struct st67w61_data  *dat = dev->data;
 
+    /* NET_IF_OFFLOAD_INIT creates NET_IF_MAX_CONFIGS entries sharing one if_dev;
+     * net_if_init() calls api->init for each entry.  Only initialize on first call. */
+    if (dat->iface != NULL) {
+        return;
+    }
+
     dat->iface = iface;
     /* MAC is zeros until hw_init_work reads it; placeholder keeps net_if happy */
     net_if_set_link_addr(iface, dat->mac, sizeof(dat->mac), NET_LINK_ETHERNET);
@@ -287,7 +299,7 @@ static void st67w61_iface_init(struct net_if *iface)
     net_if_carrier_off(iface);
 
     /* Kick off the blocking hardware init now that iface is wired up */
-    k_work_submit(&dat->hw_init_work);
+    k_work_submit_to_queue(&st67w61_wq, &dat->hw_init_work);
 }
 
 /* ── Driver init (POST_KERNEL — must be non-blocking, no sleeps) ─────────────── */
@@ -300,6 +312,10 @@ static int st67w61_init(const struct device *dev)
     k_mutex_init(&dat->mutex);
     k_work_init(&dat->connect_work, connect_work_handler);
     k_work_init(&dat->hw_init_work,  hw_init_work_handler);
+
+    k_work_queue_start(&st67w61_wq, st67w61_wq_stack,
+                       K_THREAD_STACK_SIZEOF(st67w61_wq_stack),
+                       8, NULL);  /* preemptible prio 8 — between CAN RX (6) and HTTP (10) */
 
     /* Configure SPI bus and GPIO directions (fast — no delays) */
     rc = st67w61_spi_init(dev);

@@ -1,12 +1,10 @@
 /* st67w61.h — internal driver header
  *
- * SPI frame protocol (adapted from stm32-hotspot/ST67W61-Bare-metal-implementation):
- *   Header  : 8 bytes — [SYNC:2][SEQ:1][LEN:2][TYPE:1][RSVD:2]
- *   Payload : 0–ST67W61_MAX_PAYLOAD bytes (must be 4-byte aligned)
- *   CRC32   : 4 bytes (appended when ST67W61_USE_CRC=1)
+ * SPI frame protocol (stm32-hotspot/ST67W61-Bare-metal-implementation):
+ *   Header  : 8 bytes — [0xAA][0x55][LEN_L][LEN_H][0x00][0x00][0x00][0x00]
+ *   Payload : AT command string (with \r\n), padded to 4-byte boundary (0x88)
  *
- * SYNC = 0xAA55, little-endian.
- * TYPE: 0x01=command  0x02=response  0x03=async-event
+ * CS-first: assert CS, wait RDY HIGH, then clock.  RDY is active-HIGH.
  */
 
 #pragma once
@@ -17,14 +15,9 @@
 #include <zephyr/net/net_if.h>
 #include <zephyr/net/wifi_mgmt.h>
 
-#define ST67W61_SYNC_WORD      0xAA55U
 #define ST67W61_HDR_LEN        8
 #define ST67W61_MAX_PAYLOAD    1024
-#define ST67W61_BUF_LEN        (ST67W61_HDR_LEN + ST67W61_MAX_PAYLOAD + 4)  /* +4 CRC */
-
-#define ST67W61_TYPE_CMD       0x01
-#define ST67W61_TYPE_RESP      0x02
-#define ST67W61_TYPE_EVENT     0x03
+#define ST67W61_BUF_LEN        (ST67W61_HDR_LEN + ST67W61_MAX_PAYLOAD + 4)  /* +4 align pad */
 
 #define ST67W61_OK_STR         "OK"
 #define ST67W61_ERROR_STR      "ERROR"
@@ -45,17 +38,21 @@
 
 struct st67w61_config {
     struct spi_dt_spec  spi;
-    struct gpio_dt_spec resetn;
-    struct gpio_dt_spec rdy;
+    struct gpio_dt_spec chip_en;  /* CHIP_EN: D5 = PE11, active-low in DTS (LOW=off, HIGH=on) */
+    struct gpio_dt_spec boot;     /* BOOT:    D6 = PE9,  drive LOW for normal SPI AT mode */
+    struct gpio_dt_spec rdy;      /* SPI_RDY: D3 = PE13, active-high, input */
 };
 
 struct st67w61_data {
-    struct net_if  *iface;
-    uint8_t         mac[6];
-    struct k_mutex  mutex;
-    struct k_work   connect_work;
-    struct k_work   hw_init_work;  /* deferred: reset + AT init + MAC read */
-    bool            hw_ready;      /* set when hw_init_work completes OK */
+    struct net_if        *iface;
+    uint8_t               mac[6];
+    struct k_mutex        mutex;
+    struct k_work         connect_work;
+    struct k_work         hw_init_work;  /* deferred: reset + AT init + MAC read */
+    bool                  hw_ready;      /* set when hw_init_work completes OK */
+    /* RDY interrupt — semaphore given on rising edge; never misses a short pulse */
+    struct k_sem          rdy_sem;
+    struct gpio_callback  rdy_cb;
     /* copy of params from mgmt_connect — work handler reads these */
     char            ssid[WIFI_SSID_MAX_LEN + 1];
     char            psk[65];

@@ -24,9 +24,14 @@ LOG_MODULE_DECLARE(st67w61, CONFIG_ST67W61_LOG_LEVEL);
 static int at_cmd(const struct device *dev, const char *cmd,
                    char *resp, size_t resp_cap, k_timeout_t timeout)
 {
+    /* ST67W61 requires AT commands terminated with \r\n */
+    char buf[128];
+    int n = snprintf(buf, sizeof(buf), "%s\r\n", cmd);
+    if (n < 0 || (size_t)n >= sizeof(buf)) return -ENOMEM;
+
     LOG_DBG("AT> %s", cmd);
     int rc = st67w61_spi_transact(dev,
-                                    (const uint8_t *)cmd, (uint16_t)strlen(cmd),
+                                    (const uint8_t *)buf, (uint16_t)n,
                                     (uint8_t *)resp, (uint16_t)resp_cap,
                                     timeout);
     if (rc < 0) return rc;
@@ -41,7 +46,7 @@ static bool resp_is_ok(const char *resp)
 
 int st67w61_at_init(const struct device *dev)
 {
-    char resp[AT_RESP_BUF];
+    char resp[AT_RESP_BUF] = {};
     k_timeout_t t = K_MSEC(CONFIG_ST67W61_AT_TIMEOUT_MS);
 
     /* Verify module is alive */
