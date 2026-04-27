@@ -1,0 +1,54 @@
+# Kconfig — ST67W61 Wi-Fi driver (X-NUCLEO-67W61M1 HAT)
+
+config WIFI_ST67W61
+	bool "ST67W61 Wi-Fi+BT module driver"
+	default y
+	depends on WIFI && DT_HAS_ST_ST67W61_ENABLED
+	select NET_L2_WIFI_MGMT
+	select WIFI_OFFLOAD
+	select NET_OFFLOAD
+	select NET_SOCKETS
+	imply NET_SOCKETS_OFFLOAD
+	select GPIO
+	select SPI
+	help
+	  Enable driver for the ST Microelectronics ST67W61 Wi-Fi+BT
+	  module as fitted on the X-NUCLEO-67W61M1 Arduino HAT.
+	  Communicates via SPI using ST's proprietary AT command protocol.
+	  Adapted from stm32-hotspot/ST67W61-Bare-metal-implementation.
+
+if WIFI_ST67W61
+
+config ST67W61_SSID
+	string "Wi-Fi SSID"
+	default ""
+	help
+	  SSID of the Wi-Fi network to join. Override in wifi_creds.conf
+	  (gitignored) — never hard-code credentials in prj.conf.
+
+config ST67W61_PASSWORD
+	string "Wi-Fi WPA2 password"
+	default ""
+	help
+	  WPA2 password for the Wi-Fi network. Keep in wifi_creds.conf
+	  (gitignored).
+
+config ST67W61_SPI_MAX_HZ
+	int "SPI clock frequency (Hz)"
+	default 10000000
+	help
+	  Maximum SPI clock rate for the ST67W61. ST reference uses 10 MHz;
+	  reduce if noise or cable length causes transfer errors.
+
+config ST67W61_AT_TIMEOUT_MS
+	int "AT command response timeout (ms)"
+	default 5000
+	help
+	  How long to wait for an AT command response before returning -ETIMEDOUT.
+
+config ST67W61_LOG_LEVEL
+	int "Log level (0=off, 1=ERR, 2=WRN, 3=INF, 4=DBG)"
+	range 0 4
+	default 3
+
+endif # WIFI_ST67W61

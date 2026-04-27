@@ -1,0 +1,10 @@
+zephyr_library()
+zephyr_library_sources(
+    st67w61_spi.c
+    st67w61_at.c
+    st67w61_wifi.c
+)
+zephyr_library_include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${ZEPHYR_BASE}/subsys/net/ip
+)

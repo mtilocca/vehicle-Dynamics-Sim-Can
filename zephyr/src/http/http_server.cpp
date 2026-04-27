@@ -31,6 +31,7 @@
 
 #include "http_internal.hpp"
 #include "tls/tls_creds.hpp"
+#include "net/net_mgr.hpp"
 
 LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
@@ -96,7 +97,9 @@ static void send_logout_redirect(int fd)
 // ── HTTP server thread ────────────────────────────────────────────────────────
 static void http_server_thread(void*, void*, void*)
 {
-    k_msleep(2000);  // let Ethernet settle
+    // Wait for Wi-Fi L4 ready (up to 30 s) before starting TLS server.
+    // Replaces the old k_msleep(2000) Ethernet PHY settle delay.
+    net_mgr_wait_connected(K_SECONDS(30));
 
     if (tls_creds_init() != 0) {
         LOG_ERR("HTTPS: TLS credential load failed — aborting"); return;

@@ -1,0 +1,7 @@
+name: st67w61
+
+build:
+  cmake: .
+  kconfig: Kconfig
+  settings:
+    dts_root: .

@@ -48,10 +48,37 @@
     current-speed = <115200>;
 };
 
-/* Static MAC address — locally administered, unicast (safe on any network) */
+/* Ethernet MAC disabled — Wi-Fi provided by X-NUCLEO-67W61M1 HAT (ST67W61) */
 &mac {
+    status = "disabled";
+};
+
+/*
+ * SPI1 — Arduino header (confirmed from nucleo_h753zi arduino_r3_connector.dtsi):
+ *   D13 = PA5  (SPI1_SCK)
+ *   D12 = PA6  (SPI1_MISO)
+ *   D11 = PB5  (SPI1_MOSI)
+ *   D10 = PD14 (CS — GPIO_ACTIVE_LOW, already in board DTS)
+ *   D8  = PF3  (SPI_RDY  — verify against X-NUCLEO-67W61M1 schematic)
+ *   D7  = PG12 (RESETN   — verify against X-NUCLEO-67W61M1 schematic)
+ *
+ * The board DTS already enables SPI1 with pinctrl and D10/CS.
+ * We override it here to add the ST67W61 child device and keep CS settings.
+ */
+&spi1 {
     status = "okay";
-    local-mac-address = [02 00 5E 00 53 01];
+    /* pinctrl-0 / pinctrl-names / cs-gpios inherited from board DTS */
+
+    st67w61_dev: wifi@0 {
+        compatible = "st,st67w61";
+        reg = <0>;
+        status = "okay";
+        spi-max-frequency = <DT_FREQ_M(10)>;
+        /* RESETN: D7 = PG12, active-low */
+        resetn-gpios = <&gpiog 12 GPIO_ACTIVE_LOW>;
+        /* SPI_RDY: D8 = PF3, active-high (module asserts when ready) */
+        rdy-gpios    = <&gpiof 3 GPIO_ACTIVE_HIGH>;
+    };
 };
 
 &iwdg {

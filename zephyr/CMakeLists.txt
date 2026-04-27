@@ -4,6 +4,16 @@ cmake_minimum_required(VERSION 3.20.0)
 # Must be set before find_package(Zephyr) so cmake/mcuboot.cmake picks it up.
 set(MCUBOOT_SIGNING_KEY_FILE ${CMAKE_CURRENT_SOURCE_DIR}/mcuboot_signing_key.pem)
 
+# ── ST67W61 out-of-tree Wi-Fi driver module ───────────────────────────────────
+# Tells Zephyr's CMake to process Kconfig + DTS bindings from the local module.
+list(APPEND ZEPHYR_EXTRA_MODULES ${CMAKE_CURRENT_SOURCE_DIR}/modules/st67w61)
+
+# ── Wi-Fi credentials (gitignored) ────────────────────────────────────────────
+# Generate with: bash scripts/gen_wifi_creds.sh "SSID" "password"
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/wifi_creds.conf")
+    set(EXTRA_CONF_FILE "${CMAKE_CURRENT_SOURCE_DIR}/wifi_creds.conf")
+endif()
+
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(hdv_sim VERSION 1.0.0 LANGUAGES CXX C)
 
@@ -72,6 +82,9 @@ list(APPEND APP_SRCS
 # MQTT client — subscribes to hdv/cmd/actuator, publishes hdv/state/vehicle
 list(APPEND APP_SRCS src/mqtt/mqtt_client.cpp)
 
+# Wi-Fi L4 connection manager
+list(APPEND APP_SRCS src/net/net_mgr.cpp)
+
 target_sources(app PRIVATE ${APP_SRCS})
 
 # ── Embed dashboard CSS ───────────────────────────────────────────────────────
@@ -109,6 +122,7 @@ target_include_directories(app PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/http
     ${CMAKE_CURRENT_SOURCE_DIR}/src/http/page
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/net
     ${CMAKE_CURRENT_SOURCE_DIR}/cpp_compat
     ${CMAKE_CURRENT_BINARY_DIR}    # dashboard.css.inc, server_cert.inc, server_key.inc
 )

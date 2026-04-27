@@ -1,0 +1,1 @@
+add_subdirectory_ifdef(CONFIG_WIFI_ST67W61 drivers/wifi/st67w61)

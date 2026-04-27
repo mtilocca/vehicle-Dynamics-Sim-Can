@@ -8,6 +8,7 @@
 #include "state/sim_state.hpp"
 #include "state/control_bus.hpp"
 #include "state/system_health.hpp"
+#include "net/net_mgr.hpp"
 
 LOG_MODULE_REGISTER(hdv_sim, LOG_LEVEL_INF);
 
@@ -34,6 +35,9 @@ int main(void)
     LOG_INF("Phase : 3 - HTTPS + OTA + CAN (loopback)");
     LOG_INF("========================================");
     LOG_INF("Shell ready on USART3 — type 'help' for commands");
+
+    // Start Wi-Fi connection manager — threads wait on net_mgr_wait_connected().
+    net_mgr_init();
 
     // Confirm image to MCUboot — without this, MCUboot rolls back on next reset.
     if (boot_is_img_confirmed()) {

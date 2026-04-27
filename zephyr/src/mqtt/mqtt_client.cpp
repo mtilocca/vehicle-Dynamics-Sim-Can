@@ -19,6 +19,7 @@
 #include "mqtt_client.hpp"
 #include "mqtt/i_mqtt_client.hpp"
 #include "tls/tls_creds.hpp"
+#include "net/net_mgr.hpp"
 #include "utils/mutex_guard.hpp"
 #include "sim/actuator_cmd.hpp"
 #include "plant/plant_main/plant_state.hpp"
@@ -366,7 +367,9 @@ void ZephyrMqttClient::handle_evt(const struct mqtt_evt* evt)
 
 static void mqtt_thread_fn(void*, void*, void*)
 {
-    k_msleep(2000);  // let Ethernet settle
+    // Wait for Wi-Fi L4 ready before attempting MQTT connection.
+    // Replaces the old k_msleep(2000) Ethernet PHY settle delay.
+    net_mgr_wait_connected(K_SECONDS(30));
 
     ZephyrMqttClient client;
     int backoff_ms = 5000;

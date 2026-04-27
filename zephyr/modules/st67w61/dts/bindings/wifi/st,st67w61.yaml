@@ -1,0 +1,27 @@
+# Copyright (c) 2024 — project-specific out-of-tree binding
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  ST67W61 Wi-Fi + BT combo module (X-NUCLEO-67W61M1 HAT).
+  Communicates with the host STM32 via SPI using ST's framed AT protocol.
+  Reference: stm32-hotspot/ST67W61-Bare-metal-implementation
+
+compatible: "st,st67w61"
+
+include: spi-device.yaml
+
+properties:
+  resetn-gpios:
+    type: phandle-array
+    required: true
+    description: |
+      Active-low reset GPIO. Drive low ≥1 ms to hard-reset the module.
+      Typically wired to Arduino D7 (PG12 on NUCLEO-H753ZI).
+
+  rdy-gpios:
+    type: phandle-array
+    required: true
+    description: |
+      SPI_RDY input from module (active-high). The module asserts this
+      before it can accept a new SPI frame. Poll or interrupt before TX.
+      Typically wired to Arduino D8 (PF3 on NUCLEO-H753ZI).

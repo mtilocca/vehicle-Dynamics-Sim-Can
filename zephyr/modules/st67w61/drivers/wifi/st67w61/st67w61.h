@@ -1,0 +1,81 @@
+/* st67w61.h — internal driver header
+ *
+ * SPI frame protocol (adapted from stm32-hotspot/ST67W61-Bare-metal-implementation):
+ *   Header  : 8 bytes — [SYNC:2][SEQ:1][LEN:2][TYPE:1][RSVD:2]
+ *   Payload : 0–ST67W61_MAX_PAYLOAD bytes (must be 4-byte aligned)
+ *   CRC32   : 4 bytes (appended when ST67W61_USE_CRC=1)
+ *
+ * SYNC = 0xAA55, little-endian.
+ * TYPE: 0x01=command  0x02=response  0x03=async-event
+ */
+
+#pragma once
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/spi.h>
+#include <zephyr/net/net_if.h>
+#include <zephyr/net/wifi_mgmt.h>
+
+#define ST67W61_SYNC_WORD      0xAA55U
+#define ST67W61_HDR_LEN        8
+#define ST67W61_MAX_PAYLOAD    1024
+#define ST67W61_BUF_LEN        (ST67W61_HDR_LEN + ST67W61_MAX_PAYLOAD + 4)  /* +4 CRC */
+
+#define ST67W61_TYPE_CMD       0x01
+#define ST67W61_TYPE_RESP      0x02
+#define ST67W61_TYPE_EVENT     0x03
+
+#define ST67W61_OK_STR         "OK"
+#define ST67W61_ERROR_STR      "ERROR"
+
+/* AT commands — ST67W61 proprietary set.
+ * Reference: UM3475 / ST67W611M1 AT Command Guide.
+ * Verify command strings against the actual firmware version on the module. */
+#define ST67W61_AT_TEST        "AT"
+#define ST67W61_AT_RESET       "AT+RST"
+#define ST67W61_AT_WFJAP       "AT+WFJAP"   /* +WFJAP="ssid","psk" — join AP */
+#define ST67W61_AT_WFDAP       "AT+WFDAP"   /* disconnect from AP */
+#define ST67W61_AT_WFSTAT      "AT+WFSTAT"  /* Wi-Fi link status */
+#define ST67W61_AT_NSTAT       "AT+NSTAT"   /* network (IP) status */
+#define ST67W61_AT_GETMAC      "AT+GETMAC"  /* get MAC address */
+#define ST67W61_AT_NSTCP       "AT+NSTCP"   /* open TCP connection: +NSTCP="host",port */
+#define ST67W61_AT_NSEND       "AT+NSEND"   /* send on TCP: +NSEND=id,len */
+#define ST67W61_AT_NCLOSE      "AT+NCLOSE"  /* close TCP: +NCLOSE=id */
+
+struct st67w61_config {
+    struct spi_dt_spec  spi;
+    struct gpio_dt_spec resetn;
+    struct gpio_dt_spec rdy;
+};
+
+struct st67w61_data {
+    struct net_if  *iface;
+    uint8_t         mac[6];
+    struct k_mutex  mutex;
+    struct k_work   connect_work;
+    /* copy of params from mgmt_connect — work handler reads these */
+    char            ssid[WIFI_SSID_MAX_LEN + 1];
+    char            psk[65];
+    uint8_t         security;
+    bool            connected;
+    uint16_t        tx_seq;
+    uint8_t         tx_buf[ST67W61_BUF_LEN];
+    uint8_t         rx_buf[ST67W61_BUF_LEN];
+};
+
+/* SPI transport layer (st67w61_spi.c) */
+int st67w61_spi_init(const struct device *dev);
+int st67w61_spi_transact(const struct device *dev,
+                          const uint8_t *payload, uint16_t tx_len,
+                          uint8_t *resp_buf, uint16_t resp_cap,
+                          k_timeout_t timeout);
+
+/* AT command layer (st67w61_at.c) */
+int st67w61_at_init(const struct device *dev);
+int st67w61_at_cmd(const struct device *dev, const char *cmd,
+                    char *resp, size_t resp_cap, k_timeout_t timeout);
+int st67w61_at_connect(const struct device *dev,
+                        const char *ssid, const char *psk);
+int st67w61_at_disconnect(const struct device *dev);
+int st67w61_at_get_mac(const struct device *dev, uint8_t mac[6]);
