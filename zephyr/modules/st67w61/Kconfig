@@ -6,9 +6,7 @@ config WIFI_ST67W61
 	depends on WIFI && DT_HAS_ST_ST67W61_ENABLED
 	select NET_L2_WIFI_MGMT
 	select WIFI_OFFLOAD
-	select NET_OFFLOAD
 	select NET_SOCKETS
-	imply NET_SOCKETS_OFFLOAD
 	select GPIO
 	select SPI
 	help

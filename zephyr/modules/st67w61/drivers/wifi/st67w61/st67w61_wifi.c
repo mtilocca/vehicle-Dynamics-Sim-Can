@@ -16,6 +16,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/spi.h>
 #include <zephyr/net/net_if.h>
+#include <zephyr/net/net_offload.h>
 #include <zephyr/net/wifi_mgmt.h>
 #include <zephyr/net/conn_mgr/connectivity_wifi_mgmt.h>
 #include <zephyr/logging/log.h>
@@ -37,6 +38,46 @@ static const struct st67w61_config st67w61_cfg_0 = {
 
 static struct st67w61_data st67w61_data_0;
 
+/* ── Deferred hardware init (runs in system work queue after threads start) ───── */
+
+static void hw_init_work_handler(struct k_work *work)
+{
+    struct st67w61_data *dat = CONTAINER_OF(work, struct st67w61_data, hw_init_work);
+    const struct device *dev = net_if_get_device(dat->iface);
+    int rc;
+
+    /* Release reset and wait for module boot — safe here (work queue thread) */
+    st67w61_spi_hw_reset(dev);
+
+    rc = st67w61_at_init(dev);
+    if (rc) {
+        LOG_ERR("ST67W61 AT init failed: %d", rc);
+        return;
+    }
+
+    rc = st67w61_at_get_mac(dev, dat->mac);
+    if (rc) {
+        LOG_ERR("ST67W61 MAC read failed: %d", rc);
+        return;
+    }
+
+    /* Update link address with real MAC now that we have it */
+    net_if_set_link_addr(dat->iface, dat->mac, sizeof(dat->mac), NET_LINK_ETHERNET);
+    LOG_INF("ST67W61 ready — MAC %02X:%02X:%02X:%02X:%02X:%02X",
+            dat->mac[0], dat->mac[1], dat->mac[2],
+            dat->mac[3], dat->mac[4], dat->mac[5]);
+
+    dat->hw_ready = true;
+
+    /* Auto-connect on boot if SSID is configured */
+    if (strlen(CONFIG_ST67W61_SSID) > 0) {
+        strncpy(dat->ssid, CONFIG_ST67W61_SSID, sizeof(dat->ssid) - 1);
+        strncpy(dat->psk,  CONFIG_ST67W61_PASSWORD, sizeof(dat->psk) - 1);
+        dat->security = WIFI_SECURITY_TYPE_PSK;
+        k_work_submit(&dat->connect_work);
+    }
+}
+
 /* ── Wi-Fi connection work handler ───────────────────────────────────────────── */
 
 static void connect_work_handler(struct k_work *work)
@@ -44,6 +85,11 @@ static void connect_work_handler(struct k_work *work)
     struct st67w61_data *dat = CONTAINER_OF(work, struct st67w61_data, connect_work);
     const struct device *dev = net_if_get_device(dat->iface);
     int rc;
+
+    if (!dat->hw_ready) {
+        LOG_WRN("Wi-Fi hardware not ready yet — connect deferred");
+        return;
+    }
 
     rc = st67w61_at_connect(dev, dat->ssid, dat->psk);
     if (rc) {
@@ -54,8 +100,98 @@ static void connect_work_handler(struct k_work *work)
 
     dat->connected = true;
     LOG_INF("Wi-Fi connected to \"%s\"", dat->ssid);
+    net_if_carrier_on(dat->iface);
     wifi_mgmt_raise_connect_result_event(dat->iface, 0);
 }
+
+/* ── net_offload stubs ───────────────────────────────────────────────────────── */
+/* Setting iface->if_dev->offload to a non-NULL pointer makes net_if_is_offloaded()
+ * return true, which prevents notify_iface_up() from calling iface_ipv6_start() /
+ * iface_ipv4_start() — those would queue packets through the NULL OFFLOADED_NETDEV
+ * L2 send pointer and crash.  Full TCP socket offload (AT+NSTCP etc.) is TODO. */
+
+static int off_get(sa_family_t family, enum net_sock_type type,
+                   enum net_ip_protocol ip_proto, struct net_context **context)
+{
+    ARG_UNUSED(family); ARG_UNUSED(type);
+    ARG_UNUSED(ip_proto); ARG_UNUSED(context);
+    return -ENOTSUP;
+}
+
+static int off_bind(struct net_context *context,
+                    const struct sockaddr *addr, socklen_t addrlen)
+{
+    ARG_UNUSED(context); ARG_UNUSED(addr); ARG_UNUSED(addrlen);
+    return -ENOTSUP;
+}
+
+static int off_listen(struct net_context *context, int backlog)
+{
+    ARG_UNUSED(context); ARG_UNUSED(backlog);
+    return -ENOTSUP;
+}
+
+static int off_connect(struct net_context *context,
+                       const struct sockaddr *addr, socklen_t addrlen,
+                       net_context_connect_cb_t cb, int32_t timeout,
+                       void *user_data)
+{
+    ARG_UNUSED(context); ARG_UNUSED(addr); ARG_UNUSED(addrlen);
+    ARG_UNUSED(cb); ARG_UNUSED(timeout); ARG_UNUSED(user_data);
+    return -ENOTSUP;
+}
+
+static int off_accept(struct net_context *context,
+                      net_tcp_accept_cb_t cb, int32_t timeout, void *user_data)
+{
+    ARG_UNUSED(context); ARG_UNUSED(cb);
+    ARG_UNUSED(timeout); ARG_UNUSED(user_data);
+    return -ENOTSUP;
+}
+
+static int off_send(struct net_pkt *pkt, net_context_send_cb_t cb,
+                    int32_t timeout, void *user_data)
+{
+    ARG_UNUSED(pkt); ARG_UNUSED(cb);
+    ARG_UNUSED(timeout); ARG_UNUSED(user_data);
+    return -ENOTSUP;
+}
+
+static int off_sendto(struct net_pkt *pkt,
+                      const struct sockaddr *dst_addr, socklen_t addrlen,
+                      net_context_send_cb_t cb, int32_t timeout,
+                      void *user_data)
+{
+    ARG_UNUSED(pkt); ARG_UNUSED(dst_addr); ARG_UNUSED(addrlen);
+    ARG_UNUSED(cb); ARG_UNUSED(timeout); ARG_UNUSED(user_data);
+    return -ENOTSUP;
+}
+
+static int off_recv(struct net_context *context, net_context_recv_cb_t cb,
+                    int32_t timeout, void *user_data)
+{
+    ARG_UNUSED(context); ARG_UNUSED(cb);
+    ARG_UNUSED(timeout); ARG_UNUSED(user_data);
+    return -ENOTSUP;
+}
+
+static int off_put(struct net_context *context)
+{
+    ARG_UNUSED(context);
+    return -ENOTSUP;
+}
+
+static struct net_offload st67w61_net_offload = {
+    .get     = off_get,
+    .bind    = off_bind,
+    .listen  = off_listen,
+    .connect = off_connect,
+    .accept  = off_accept,
+    .send    = off_send,
+    .sendto  = off_sendto,
+    .recv    = off_recv,
+    .put     = off_put,
+};
 
 /* ── WiFi management ops ─────────────────────────────────────────────────────── */
 
@@ -89,6 +225,7 @@ static int st67w61_mgmt_disconnect(const struct device *dev)
     int rc = st67w61_at_disconnect(dev);
     if (rc == 0) {
         dat->connected = false;
+        net_if_carrier_off(dat->iface);
         wifi_mgmt_raise_disconnect_result_event(dat->iface, 0);
     }
     return rc;
@@ -135,14 +272,25 @@ static void st67w61_iface_init(struct net_if *iface)
     struct st67w61_data  *dat = dev->data;
 
     dat->iface = iface;
+    /* MAC is zeros until hw_init_work reads it; placeholder keeps net_if happy */
     net_if_set_link_addr(iface, dat->mac, sizeof(dat->mac), NET_LINK_ETHERNET);
 
-    LOG_INF("ST67W61 net_if init — MAC %02X:%02X:%02X:%02X:%02X:%02X",
-            dat->mac[0], dat->mac[1], dat->mac[2],
-            dat->mac[3], dat->mac[4], dat->mac[5]);
+    /* Register offload ops so net_if_is_offloaded() returns true.
+     * Without this, notify_iface_up() calls iface_ipv6_start() which queues
+     * an RS packet — net_if_tx then calls the NULL OFFLOADED_NETDEV L2 send
+     * and crashes (PC=0x00000000, USAGE FAULT). */
+    iface->if_dev->offload = &st67w61_net_offload;
+
+    /* Carrier is off until Wi-Fi associates.  NET_IF_OFFLOAD_INIT sets
+     * NET_IF_LOWER_UP by default; clear it now so no TX is attempted
+     * before the link is actually up. */
+    net_if_carrier_off(iface);
+
+    /* Kick off the blocking hardware init now that iface is wired up */
+    k_work_submit(&dat->hw_init_work);
 }
 
-/* ── Driver init ─────────────────────────────────────────────────────────────── */
+/* ── Driver init (POST_KERNEL — must be non-blocking, no sleeps) ─────────────── */
 
 static int st67w61_init(const struct device *dev)
 {
@@ -151,26 +299,13 @@ static int st67w61_init(const struct device *dev)
 
     k_mutex_init(&dat->mutex);
     k_work_init(&dat->connect_work, connect_work_handler);
+    k_work_init(&dat->hw_init_work,  hw_init_work_handler);
 
-    /* Bring up SPI + hard-reset module */
+    /* Configure SPI bus and GPIO directions (fast — no delays) */
     rc = st67w61_spi_init(dev);
     if (rc) return rc;
 
-    /* Verify AT comms and read MAC */
-    rc = st67w61_at_init(dev);
-    if (rc) return rc;
-
-    rc = st67w61_at_get_mac(dev, dat->mac);
-    if (rc) return rc;
-
-    /* Auto-connect on boot using Kconfig credentials */
-    if (strlen(CONFIG_ST67W61_SSID) > 0) {
-        strncpy(dat->ssid, CONFIG_ST67W61_SSID, sizeof(dat->ssid) - 1);
-        strncpy(dat->psk,  CONFIG_ST67W61_PASSWORD, sizeof(dat->psk) - 1);
-        dat->security = WIFI_SECURITY_TYPE_PSK;
-        k_work_submit(&dat->connect_work);
-    }
-
+    /* hw_init_work is submitted from st67w61_iface_init once iface is wired up */
     return 0;
 }
 

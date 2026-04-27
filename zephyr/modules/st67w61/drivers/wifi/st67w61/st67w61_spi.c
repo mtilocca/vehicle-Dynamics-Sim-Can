@@ -59,6 +59,8 @@ static void build_frame(struct st67w61_data *data,
     }
 }
 
+/* Configure SPI bus and GPIO pins only — no delays, safe to call at POST_KERNEL.
+ * The actual hardware reset (slow, blocking) is deferred to hw_init_work. */
 int st67w61_spi_init(const struct device *dev)
 {
     const struct st67w61_config *cfg = dev->config;
@@ -76,17 +78,27 @@ int st67w61_spi_init(const struct device *dev)
         return -ENODEV;
     }
 
+    /* Hold module in reset until hw_init_work runs (GPIO_ACTIVE_LOW:
+     * GPIO_OUTPUT_ACTIVE = logical 1 = physical LOW = RESETN asserted). */
     gpio_pin_configure_dt(&cfg->resetn, GPIO_OUTPUT_ACTIVE);
     gpio_pin_configure_dt(&cfg->rdy,    GPIO_INPUT);
 
-    /* Hard-reset the module: assert RESETN low ≥1 ms, then release */
-    gpio_pin_set_dt(&cfg->resetn, 0);
-    k_msleep(10);
-    gpio_pin_set_dt(&cfg->resetn, 1);
-    k_msleep(500);  /* module boot-up time after reset */
-
-    LOG_INF("ST67W61 SPI transport ready");
     return 0;
+}
+
+/* Hardware reset + boot wait — called from hw_init_work (work queue context).
+ * RESETN is active-low: logical 1 = physical LOW = module in reset. */
+void st67w61_spi_hw_reset(const struct device *dev)
+{
+    const struct st67w61_config *cfg = dev->config;
+
+    /* Ensure reset is asserted, hold ≥100 ms (required by ST67W61 datasheet) */
+    gpio_pin_set_dt(&cfg->resetn, 1);
+    k_msleep(100);
+    gpio_pin_set_dt(&cfg->resetn, 0);  /* release reset → module starts booting */
+    k_msleep(2000);                    /* wait for module cold-boot (≤2 s typical) */
+
+    LOG_INF("ST67W61 reset released — waiting for first command");
 }
 
 int st67w61_spi_transact(const struct device *dev,

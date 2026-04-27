@@ -54,6 +54,8 @@ struct st67w61_data {
     uint8_t         mac[6];
     struct k_mutex  mutex;
     struct k_work   connect_work;
+    struct k_work   hw_init_work;  /* deferred: reset + AT init + MAC read */
+    bool            hw_ready;      /* set when hw_init_work completes OK */
     /* copy of params from mgmt_connect — work handler reads these */
     char            ssid[WIFI_SSID_MAX_LEN + 1];
     char            psk[65];
@@ -65,7 +67,8 @@ struct st67w61_data {
 };
 
 /* SPI transport layer (st67w61_spi.c) */
-int st67w61_spi_init(const struct device *dev);
+int  st67w61_spi_init(const struct device *dev);      /* fast: configure only */
+void st67w61_spi_hw_reset(const struct device *dev);  /* slow: must run in work ctx */
 int st67w61_spi_transact(const struct device *dev,
                           const uint8_t *payload, uint16_t tx_len,
                           uint8_t *resp_buf, uint16_t resp_cap,
