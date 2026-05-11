@@ -29,6 +29,10 @@ list(APPEND APP_SRCS
 # Phase 3c: common TLS credentials library (HTTPS + future MQTTS)
 list(APPEND APP_SRCS src/tls/tls_creds.cpp)
 
+# Memory optimisation: redirect mbedTLS heap to SRAM1 at APPLICATION init time.
+# See src/tls/mbedtls_heap_sram1.c for rationale and trade-offs.
+list(APPEND APP_SRCS src/tls/mbedtls_heap_sram1.c)
+
 # Phase 3: CAN RX thread
 list(APPEND APP_SRCS src/can/can_rx.cpp)
 

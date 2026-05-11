@@ -93,3 +93,54 @@
 &scratch_partition {
     reg = <0x001E0000 DT_SIZE_K(128)>;
 };
+
+/* ── Additional SRAM banks as named linker regions ───────────────────────────
+ * STM32H753ZI has four SRAM banks that are completely unused when the firmware
+ * only references AXI SRAM (0x24000000, domain D1):
+ *
+ *   SRAM1  0x30000000  128 KB  (D2 domain — DMA1/2, Ethernet, BDMA accessible)
+ *   SRAM2  0x30020000  128 KB  (D2 domain — DMA1/2, Ethernet, BDMA accessible)
+ *   SRAM4  0x38000000   64 KB  (D3 domain — BDMA accessible only)
+ *   DTCM   0x20000000  128 KB  (M7 local-bus — NOT DMA accessible; for stacks/data)
+ *
+ * Adding compatible = "zephyr,memory-region" causes Zephyr's CMake machinery to
+ * emit a named MEMORY region in the generated linker script for each node.
+ * Application code can then place variables into these banks with:
+ *     Z_GENERIC_SECTION(SRAM1)   // or SRAM2 / SRAM4 / DTCM
+ *
+ * If the board/SoC DTSI (e.g. stm32h7.dtsi) already defines nodes at these
+ * addresses with labels such as sram1, sram2, sram4, dtcm, replace each block
+ * below with the shorter node-reference form, e.g.:
+ *     &sram1 { zephyr,memory-region = "SRAM1"; };
+ * to extend the existing node instead of creating a new top-level node.
+ *
+ * DMA safety:
+ *   DTCM is on the M7 local bus and is NOT visible to DMA controllers.
+ *   Never place DMA-backed buffers (Ethernet descriptors, CAN FIFOs) in DTCM.
+ *   SRAM1/SRAM2 are safe for DMA transfers (D2 domain, AHB slave ports).
+ */
+/ {
+    sram_d2_1: memory@30000000 {
+        compatible = "zephyr,memory-region", "mmio-sram";
+        reg = <0x30000000 DT_SIZE_K(128)>;
+        zephyr,memory-region = "SRAM1";
+    };
+
+    sram_d2_2: memory@30020000 {
+        compatible = "zephyr,memory-region", "mmio-sram";
+        reg = <0x30020000 DT_SIZE_K(128)>;
+        zephyr,memory-region = "SRAM2";
+    };
+
+    sram_d3: memory@38000000 {
+        compatible = "zephyr,memory-region", "mmio-sram";
+        reg = <0x38000000 DT_SIZE_K(64)>;
+        zephyr,memory-region = "SRAM4";
+    };
+
+    dtcm_region: memory@20000000 {
+        compatible = "zephyr,memory-region", "arm,cortex-m-dtcm";
+        reg = <0x20000000 DT_SIZE_K(128)>;
+        zephyr,memory-region = "DTCM";
+    };
+};
