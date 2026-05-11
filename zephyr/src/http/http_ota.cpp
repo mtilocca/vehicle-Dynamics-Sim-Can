@@ -20,6 +20,7 @@
 #include <zephyr/dfu/mcuboot.h>
 #include <zephyr/storage/flash_map.h>
 #include <zephyr/sys/reboot.h>
+#include <zephyr/linker/sections.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -31,8 +32,11 @@ LOG_MODULE_DECLARE(hdv_sim, LOG_LEVEL_INF);
 
 K_MUTEX_DEFINE(g_ota_mutex);
 
-// Static receive buffer — keeps 4 KB off the HTTP thread stack.
-static uint8_t s_rx_buf[RX_CHUNK_SIZE];
+/* 4 KB firmware-chunk receive buffer placed in SRAM2 (0x30020000, D2 domain).
+ * Keeping it off AXI SRAM reduces pressure on the ~75%-full D1 SRAM region.
+ * flash_img_buffered_write() does not use DMA to read this buffer, so SRAM2
+ * is safe here (no M7-local-bus restriction). */
+static uint8_t Z_GENERIC_SECTION(SRAM2) s_rx_buf[RX_CHUNK_SIZE];
 
 // ── JSON response helper ──────────────────────────────────────────────────────
 
