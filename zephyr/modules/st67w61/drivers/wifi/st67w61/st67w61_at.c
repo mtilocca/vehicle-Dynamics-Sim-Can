@@ -29,13 +29,18 @@ static int at_cmd(const struct device *dev, const char *cmd,
     int n = snprintf(buf, sizeof(buf), "%s\r\n", cmd);
     if (n < 0 || (size_t)n >= sizeof(buf)) return -ENOMEM;
 
-    LOG_DBG("AT> %s", cmd);
+    LOG_INF("AT> %s", cmd);
+    int64_t t0 = k_uptime_get();
     int rc = st67w61_spi_transact(dev,
                                     (const uint8_t *)buf, (uint16_t)n,
                                     (uint8_t *)resp, (uint16_t)resp_cap,
                                     timeout);
-    if (rc < 0) return rc;
-    LOG_DBG("AT< %.*s", rc, resp);
+    int64_t elapsed = k_uptime_get() - t0;
+    if (rc < 0) {
+        LOG_ERR("AT> %s FAILED rc=%d (%lld ms)", cmd, rc, elapsed);
+        return rc;
+    }
+    LOG_INF("AT< [%d B, %lld ms]: '%.*s'", rc, elapsed, rc, resp);
     return rc;
 }
 
@@ -49,13 +54,32 @@ int st67w61_at_init(const struct device *dev)
     char resp[AT_RESP_BUF] = {};
     k_timeout_t t = K_MSEC(CONFIG_ST67W61_AT_TIMEOUT_MS);
 
-    /* Verify module is alive */
+    LOG_INF("AT init: sending AT test (timeout %u ms)", CONFIG_ST67W61_AT_TIMEOUT_MS);
     int rc = at_cmd(dev, ST67W61_AT_TEST, resp, sizeof(resp), t);
+
+    if (IS_ENABLED(CONFIG_ST67W61_AT_INIT_GMR_FALLBACK)) {
+        char resp2[AT_RESP_BUF] = {};
+        LOG_INF("AT init: also probing AT+GMR for firmware ID (diagnostic)");
+        int rc2 = at_cmd(dev, "AT+GMR", resp2, sizeof(resp2), t);
+        LOG_INF("AT+GMR result: rc=%d resp_len=%d", rc2, rc2 > 0 ? rc2 : 0);
+        if (rc2 > 0) {
+            /* Hex-dump up to first 64 bytes so non-printable replies still
+             * give us something to inspect. */
+            char hex[3 * 64 + 1];
+            size_t n = (size_t)rc2 > 64 ? 64 : (size_t)rc2;
+            for (size_t i = 0; i < n; i++) {
+                snprintf(hex + 3*i, 4, "%02x ", (uint8_t)resp2[i]);
+            }
+            LOG_INF("AT+GMR hex[0..%u]: %s", (unsigned)n, hex);
+        }
+    }
+
     if (rc < 0 || !resp_is_ok(resp)) {
-        LOG_ERR("AT test failed (rc=%d, resp='%s')", rc, resp);
+        LOG_ERR("AT test FAILED: rc=%d resp='%s' has_ok=%d",
+                rc, resp, (int)resp_is_ok(resp));
         return -EIO;
     }
-    LOG_INF("ST67W61 module alive");
+    LOG_INF("ST67W61 module alive — AT OK");
     return 0;
 }
 
@@ -95,7 +119,11 @@ int st67w61_at_connect(const struct device *dev,
 {
     char cmd[128];
     char resp[AT_RESP_BUF];
-    k_timeout_t t = K_MSEC(CONFIG_ST67W61_AT_TIMEOUT_MS * 4);  /* association can take ~15s */
+    uint32_t assoc_timeout_ms = CONFIG_ST67W61_AT_TIMEOUT_MS * 4;
+    k_timeout_t t = K_MSEC(assoc_timeout_ms);  /* association can take ~15s */
+
+    LOG_INF("AT connect: SSID='%s' psk_len=%zu timeout=%u ms",
+            ssid, strlen(psk), assoc_timeout_ms);
 
     /* AT+WFJAP="ssid","password"
      * TODO: verify exact command format in UM3475 for your module FW version */
@@ -103,8 +131,9 @@ int st67w61_at_connect(const struct device *dev,
 
     int rc = at_cmd(dev, cmd, resp, sizeof(resp), t);
     if (rc < 0) return rc;
+    LOG_INF("AT connect response: '%s'", resp);
     if (!resp_is_ok(resp)) {
-        LOG_ERR("WFJAP failed: %s", resp);
+        LOG_ERR("WFJAP failed — no OK in response");
         return -EIO;
     }
     return 0;

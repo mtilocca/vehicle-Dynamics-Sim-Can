@@ -68,19 +68,34 @@
  */
 &spi1 {
     status = "okay";
-    /* pinctrl-0 / pinctrl-names / cs-gpios inherited from board DTS */
+    /* pinctrl-0 / pinctrl-names inherited from board DTS.
+     * cs-gpios overridden: ST67W61 SPI CS is active-HIGH (reference spi_port_set_cs(1)
+     * drives GPIO_PIN_SET = physical HIGH = chip selected). Board DTS default is
+     * GPIO_ACTIVE_LOW which inverts the sense and prevents CS from ever asserting. */
+    cs-gpios = <&gpiod 14 GPIO_ACTIVE_HIGH>;
     /* fifo-enable: on H7 this sets LL_SPI_SetTransferSize(N) per transaction
      * and clears EOT/OVR/TXTF flags at completion — prevents stale SPI state
      * from leaking across calls (TSIZE=0 "endless" mode is unreliable here). */
     fifo-enable;
+    /* mssi-clock: 8 SPI clock cycles between CS assertion and first SCK edge.
+     * At 1.875 MHz: 8 × 533 ns ≈ 4.3 µs CS setup time.
+     * ST67W61 may need time to recognise CS and load its shift register. */
+    mssi-clock = <8>;
+    /* midi-clock: 4 cycles between consecutive SPI frames.
+     * Ensures MISO is in a clean state between each byte burst. */
+    midi-clock = <4>;
 
     st67w61_dev: wifi@0 {
         compatible = "st,st67w61";
         reg = <0>;
         status = "okay";
-        /* 480 MHz PLL1_Q / 128 = 3.75 MHz — conservative margin for debugging.
-         * Restore to DT_FREQ_M(10) once boot message is confirmed working. */
-        spi-max-frequency = <DT_FREQ_M(4)>;
+        /* 480 MHz PLL1_Q / 64 = 7.5 MHz — matches reference project's 10 MHz intent.
+         * Reference Echo project uses SPI_BAUDRATEPRESCALER_16 on 160 MHz = 10 MHz.
+         * DT_FREQ_M(8) selects DIV64 → actual 7.5 MHz.
+         * Prior value DT_FREQ_M(2) = 1.875 MHz may have caused module timeout:
+         * at 1.875 MHz, 1036-byte RX takes ~12 ms (with Zephyr polling overhead);
+         * if the module has an internal rx-complete timeout it could abort early. */
+        spi-max-frequency = <DT_FREQ_M(8)>;
         /* CHIP_EN: D5 = PE11 — active-low (GPIO_ACTIVE_LOW): logical 0 = physical HIGH = module on */
         chip-en-gpios = <&gpioe 11 GPIO_ACTIVE_LOW>;
         /* BOOT:    D6 = PE9  — drive LOW = normal SPI AT mode (HIGH = firmware update) */

@@ -52,15 +52,21 @@ static void hw_init_work_handler(struct k_work *work)
     const struct device *dev = net_if_get_device(dat->iface);
     int rc;
 
-    /* Release reset and wait for module boot — safe here (work queue thread) */
+    LOG_INF("HW init: starting SPI reset + boot drain");
+    int64_t t0 = k_uptime_get();
     st67w61_spi_hw_reset(dev);
+    LOG_INF("HW init: reset+drain done (%lld ms)", k_uptime_get() - t0);
 
+    LOG_INF("HW init: running AT init");
+    int64_t t_at = k_uptime_get();
     rc = st67w61_at_init(dev);
+    LOG_INF("HW init: AT init %s (%lld ms)", rc ? "FAILED" : "OK", k_uptime_get() - t_at);
     if (rc) {
         LOG_ERR("ST67W61 AT init failed: %d", rc);
         return;
     }
 
+    LOG_INF("HW init: reading MAC");
     rc = st67w61_at_get_mac(dev, dat->mac);
     if (rc) {
         LOG_ERR("ST67W61 MAC read failed: %d", rc);
@@ -69,18 +75,22 @@ static void hw_init_work_handler(struct k_work *work)
 
     /* Update link address with real MAC now that we have it */
     net_if_set_link_addr(dat->iface, dat->mac, sizeof(dat->mac), NET_LINK_ETHERNET);
-    LOG_INF("ST67W61 ready — MAC %02X:%02X:%02X:%02X:%02X:%02X",
+    LOG_INF("ST67W61 ready — MAC %02X:%02X:%02X:%02X:%02X:%02X (total init %lld ms)",
             dat->mac[0], dat->mac[1], dat->mac[2],
-            dat->mac[3], dat->mac[4], dat->mac[5]);
+            dat->mac[3], dat->mac[4], dat->mac[5],
+            k_uptime_get() - t0);
 
     dat->hw_ready = true;
 
     /* Auto-connect on boot if SSID is configured */
     if (strlen(CONFIG_ST67W61_SSID) > 0) {
+        LOG_INF("HW init: auto-connect to SSID '%s'", CONFIG_ST67W61_SSID);
         strncpy(dat->ssid, CONFIG_ST67W61_SSID, sizeof(dat->ssid) - 1);
         strncpy(dat->psk,  CONFIG_ST67W61_PASSWORD, sizeof(dat->psk) - 1);
         dat->security = WIFI_SECURITY_TYPE_PSK;
         k_work_submit_to_queue(&st67w61_wq, &dat->connect_work);
+    } else {
+        LOG_WRN("HW init: no SSID configured — skipping auto-connect");
     }
 }
 
@@ -93,19 +103,24 @@ static void connect_work_handler(struct k_work *work)
     int rc;
 
     if (!dat->hw_ready) {
-        LOG_WRN("Wi-Fi hardware not ready yet — connect deferred");
+        LOG_WRN("Wi-Fi connect: hardware not ready — aborting");
         return;
     }
 
+    LOG_INF("Wi-Fi connect: SSID='%s' security=%d psk_len=%zu",
+            dat->ssid, dat->security, strlen(dat->psk));
+    int64_t t0 = k_uptime_get();
+
     rc = st67w61_at_connect(dev, dat->ssid, dat->psk);
+    int64_t elapsed = k_uptime_get() - t0;
     if (rc) {
-        LOG_ERR("Wi-Fi connect failed: %d", rc);
+        LOG_ERR("Wi-Fi connect FAILED: rc=%d (%lld ms)", rc, elapsed);
         wifi_mgmt_raise_connect_result_event(dat->iface, rc);
         return;
     }
 
     dat->connected = true;
-    LOG_INF("Wi-Fi connected to \"%s\"", dat->ssid);
+    LOG_INF("Wi-Fi connected: SSID='%s' in %lld ms — carrier ON", dat->ssid, elapsed);
     net_if_carrier_on(dat->iface);
     wifi_mgmt_raise_connect_result_event(dat->iface, 0);
 }
@@ -209,6 +224,9 @@ static int st67w61_mgmt_connect(const struct device *dev,
     if (params->ssid_length > WIFI_SSID_MAX_LEN) return -EINVAL;
     if (params->psk_length  > 64)                return -EINVAL;
 
+    LOG_INF("mgmt_connect: SSID='%.*s' security=%d hw_ready=%d",
+            params->ssid_length, params->ssid, params->security, (int)dat->hw_ready);
+
     k_mutex_lock(&dat->mutex, K_FOREVER);
     memcpy(dat->ssid, params->ssid, params->ssid_length);
     dat->ssid[params->ssid_length] = '\0';
@@ -228,11 +246,16 @@ static int st67w61_mgmt_connect(const struct device *dev,
 static int st67w61_mgmt_disconnect(const struct device *dev)
 {
     struct st67w61_data *dat = dev->data;
+    LOG_INF("mgmt_disconnect: was_connected=%d SSID='%s'",
+            (int)dat->connected, dat->ssid);
     int rc = st67w61_at_disconnect(dev);
     if (rc == 0) {
         dat->connected = false;
         net_if_carrier_off(dat->iface);
         wifi_mgmt_raise_disconnect_result_event(dat->iface, 0);
+        LOG_INF("mgmt_disconnect: carrier OFF");
+    } else {
+        LOG_ERR("mgmt_disconnect: AT+WFDAP failed rc=%d", rc);
     }
     return rc;
 }

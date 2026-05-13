@@ -61,6 +61,9 @@ struct st67w61_data {
     uint16_t        tx_seq;
     uint8_t         tx_buf[ST67W61_BUF_LEN];
     uint8_t         rx_buf[ST67W61_BUF_LEN];
+    /* Cached no-CS SPI config — stable pointer prevents Zephyr driver from
+     * reconfiguring CFG2 (and clearing IOSWP) on every TX spi_transceive call. */
+    struct spi_config spi_no_cs_cfg;
 };
 
 /* SPI transport layer (st67w61_spi.c) */

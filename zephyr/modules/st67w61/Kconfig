@@ -51,4 +51,92 @@ config ST67W61_LOG_LEVEL
 	range 0 4
 	default 3
 
+config ST67W61_CS_SETUP_US
+	int "CS-to-SCK setup delay (us) for software-managed CS"
+	range 0 1000
+	default 20
+	help
+	  Microseconds to busy-wait after asserting CS before starting the
+	  SPI transfer. STM32H7 software-managed CS has no built-in setup
+	  time; the ST67W61's MISO output driver needs a few microseconds
+	  after CS asserts to leave high-impedance. Without this delay the
+	  first byte of the boot header reads back corrupted (the floating
+	  MISO line samples as 0 for the first ~7 SCK cycles).
+
+# ── SPI mode/framing sweep (Approach A) ─────────────────────────────────────
+# Defaults reproduce the current behaviour (Mode 0, MSB, magic-bytes dummy).
+# Use these to walk the matrix when boot frame reads back corrupted.
+
+config ST67W61_SPI_CPOL
+	bool "SPI clock polarity CPOL=1 (SCK idles HIGH)"
+	default n
+	help
+	  When unset, SCK idles LOW (Mode 0/1). When set, SCK idles HIGH
+	  (Mode 2/3). Reference uses CPOL=0.
+
+config ST67W61_SPI_CPHA
+	bool "SPI clock phase CPHA=1 (sample on second edge)"
+	default n
+	help
+	  When unset, data sampled on first SCK edge (Mode 0/2). When set,
+	  data sampled on second edge (Mode 1/3). Reference uses CPHA=0.
+
+config ST67W61_SPI_LSB_FIRST
+	bool "Transfer LSB first"
+	default n
+	help
+	  Default is MSB-first (standard SPI). Set y to test LSB-first
+	  framing when investigating bit-order corruption.
+
+config ST67W61_RX_DUMMY_BYTE
+	hex "TX-during-RX dummy fill byte"
+	range 0x00 0xff
+	default 0xff
+	help
+	  Byte to send on MOSI during slave-to-master RX. Overrides the
+	  AA-55 magic-header dummy used by the bare-metal reference.
+	  0xFF is the canonical SPI "idle" filler; 0x00 emulates a quiet
+	  MOSI line; 0xAA / 0x55 test for MOSI-to-MISO coupling that would
+	  show up as the dummy pattern appearing in the read-back bytes.
+
+# ── Module-state recovery (Approach B) ──────────────────────────────────────
+
+config ST67W61_BOOT_LEVEL_FOR_AT
+	int "BOOT pin level for normal AT mode (0 = LOW, 1 = HIGH)"
+	range 0 1
+	default 0
+	help
+	  Most ST67W61 datasheets say BOOT must be LOW for normal AT mode
+	  and HIGH for firmware-update mode.  If the boot frame reads back
+	  as a fixed garbage pattern and AT never works, the BOOT polarity
+	  on this HAT may be inverted — flip this to 1 to test.
+
+config ST67W61_CHIP_EN_OFF_HOLD_MS
+	int "CHIP_EN OFF hold time (ms) during reset"
+	range 50 5000
+	default 500
+	help
+	  Milliseconds to hold CHIP_EN in the off (physical LOW) state
+	  during reset. Longer holds let the module's internal LDOs fully
+	  discharge before power-on.  Reference uses 500 ms; previous local
+	  value 50 ms was too short for a true cold cycle.
+
+config ST67W61_FORCE_RX_ON_NORDY
+	bool "Force-read 32 RX bytes when RDY never asserts"
+	default y
+	help
+	  Diagnostic: if the module never raises RDY HIGH after a TX,
+	  clock 32 dummy bytes anyway and dump them to the log. Lets us
+	  see whether the module is responding without using the RDY
+	  handshake. Disable once protocol is healthy.
+
+config ST67W61_AT_INIT_GMR_FALLBACK
+	bool "Send AT+GMR after AT init fails"
+	default y
+	help
+	  Diagnostic: when the initial AT test fails, also blind-send
+	  AT+GMR and log whatever the module replies. AT+GMR returns the
+	  NCP firmware version string, which tells us if we're on an
+	  older protocol variant.
+
 endif # WIFI_ST67W61
