@@ -21,6 +21,7 @@ High-fidelity vehicle dynamics simulation for electric autonomous vehicles — p
 - ✅ **ML-ready CSV output** — 90+ columns, ground truth + measurements + tyre state
 - ✅ **Visitor pattern architecture** — priority-ordered subsystem execution
 - ✅ **HIL — Zephyr RTOS on STM32H753ZI** — deterministic 10 ms plant loop on real hardware
+- ✅ **Web UI + OTA** — TypeScript/Vite dashboard served over HTTPS by the board, signed-image OTA updates
 
 ---
 
@@ -47,6 +48,7 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
 ```
 src/           # Shared C++ plant, sensors, CAN, sim
 zephyr/        # Zephyr RTOS HIL port (STM32H753ZI)
+webui/         # TypeScript + Vite dashboard, embedded in the firmware
 scripts/       # Build and run helper scripts
 config/        # Vehicle YAML configuration
 tools/         # Analysis and CAN utilities
@@ -63,8 +65,10 @@ docs/          # Source documentation (MkDocs)
 - [x] 5-sensor simulation suite with ML-ready CSV logging
 - [x] Real-time InfluxDB + Grafana telemetry
 - [x] Hardware-in-the-Loop — Zephyr RTOS port on STM32H753ZI
+- [x] HTTPS web UI (TypeScript/Vite) and MCUboot OTA updates
 
 ### Next
+- [ ] WebSocket telemetry/command channel for the web UI
 - [ ] DDS closed-loop control (Fast-DDS / CycloneDDS)
 - [ ] ROS2 integration for sensor fusion nodes
 - [ ] Full 6-DOF dynamics (roll, pitch, heave)

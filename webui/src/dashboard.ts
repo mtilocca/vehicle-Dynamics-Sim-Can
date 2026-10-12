@@ -188,13 +188,19 @@ async function pollSystem(): Promise<void> {
   setTimeout(pollSystem, 5000);
 }
 
+let failures = 0;
+
 async function poll(): Promise<void> {
   try {
     render(await getState());
+    failures = 0;
   } catch {
-    const s = $("status");
-    s.textContent = "OFFLINE";
-    s.className = "pill off";
+    // The board serves one request at a time, so a single timeout is normal under load.
+    if (++failures >= 3) {
+      const s = $("status");
+      s.textContent = "OFFLINE";
+      s.className = "pill off";
+    }
   }
   setTimeout(poll, POLL_MS);
 }

@@ -47,8 +47,22 @@ nav:
   - Home: index.md
   - Simulation Models:
       - Overview: models_overview.md
+      - Architecture: ARCHITECTURE.md
+      - Vehicle Dynamics: VEHICLE_DYNAMICS.md
+      - Sensor System: SENSOR_SYSTEM.md
       - Sensor Suite: sensor_public.md
   - Zephyr HIL Port:
       - Overview: zephyr/ZEPHYR_PORT.md
+      - Build, Flash & OTA: zephyr/BUILD_AND_OTA.md
+      - Web UI & HTTP API: zephyr/WEB_UI.md
       - MQTT(S) Control: zephyr/MQTT.md
-  - Reference PDFs: pdfs/index.md
+  - Security & Boot:
+      - Security Hardening: zephyr/SECURITY_HARDENING.md
+      - MCUboot & OTA: zephyr/MCUBOOT_OTA.md
+      - Signing & Flash Recovery: mcuboot_signing_and_flash_recovery.md
+      - HTTPS / TLS: https_tls_implementation.md
+      - Watchdog Boot-Loop Post-mortem: zephyr/IWDG_BOOT_LOOP_POSTMORTEM.md
+  - Reference:
+      - Build / Flash / UART (legacy): zephyr/ZEPHYR_BUILD_FLASH_UART.md
+      - Raspberry Pi 5 Setup: zephyr/ZEPHYR_RPI5_SETUP.md
+      - Reference PDFs: pdfs/index.md

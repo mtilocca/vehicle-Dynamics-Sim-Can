@@ -219,11 +219,13 @@ It has a `default y` but is listed explicitly for documentation clarity.
 ### Record buffer and contexts
 
 ```conf
-CONFIG_MBEDTLS_SSL_MAX_CONTENT_LEN=4096
-CONFIG_NET_SOCKETS_TLS_MAX_CONTEXTS=2
+CONFIG_MBEDTLS_SSL_MAX_CONTENT_LEN=16384
+CONFIG_NET_SOCKETS_TLS_MAX_CONTEXTS=5
+CONFIG_MBEDTLS_HEAP_SIZE=131072
 ```
-4096 B record buffer is sufficient for the dashboard page (largest response).
-Two TLS contexts: one HTTPS + one reserved for future MQTTS.
+The record buffer was 4096 B in the first TLS bring-up and is now the TLS maximum of 16384 B. The UI
+shell and assets are sent in 2 KB chunks. Five TLS contexts: HTTPS listen (1) + accepted (2) +
+MQTTS client (1) + headroom (1).
 
 ---
 

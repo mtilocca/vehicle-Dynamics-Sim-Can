@@ -1,5 +1,11 @@
 # Security Hardening — Implementation Reference
 
+!!! warning "Signing algorithm in the built images"
+    This page describes ECDSA-P256, which is what `sysbuild/mcuboot.conf` requests. Sysbuild overrides
+    it: the images actually built and verified use **RSA-2048** with MCUboot's test key
+    (`root-rsa-2048.pem`). See [MCUboot signing & flash recovery](../mcuboot_signing_and_flash_recovery.md)
+    and [Build, Flash & OTA](BUILD_AND_OTA.md#signing-key). The slot0 / slot1 size is **640 KB**.
+
 **STM32H753ZI / Nucleo-H753ZI — Phases 1 through 3b**
 
 ---

@@ -301,6 +301,12 @@ K_THREAD_DEFINE(led_tid, 512, led_thread, NULL, NULL, NULL, 12, 0, 0);
 
 ### 1d — HTTP dashboard (`zephyr/src/http/`)
 
+!!! info "Superseded"
+    This section describes the original server-rendered dashboard on plain HTTP (port 80, `snprintf`-built
+    HTML, `dashboard.css`, 30 s meta-refresh). The firmware now serves a TypeScript/Vite UI over
+    HTTPS on port 443; see [Web UI & HTTP API](WEB_UI.md). `http_html.hpp` and `dashboard.css` no longer
+    exist, and `http_page.cpp` now holds the login page and the JSON endpoints.
+
 A `K_THREAD_DEFINE` thread at **priority 10** serves a live HTML dashboard on port 80. The HTTP module is split across three source files for maintainability, plus a real CSS file embedded at build time.
 
 | File | Responsibility |
@@ -660,6 +666,11 @@ graph TD
 | `sleep_for(10ms)` | `k_msleep(10)` (not used — timer-driven) |
 
 ### Web dashboard — Phase 4 additions
+
+!!! info "Superseded"
+    The Controls and Kernel Threads cards below were later rebuilt in the TypeScript UI
+    ([Web UI & HTTP API](WEB_UI.md)). Commands are now refreshed by the browser every 300 ms
+    because of the 500 ms command watchdog.
 
 The HTTP dashboard was extended with two new cards:
 

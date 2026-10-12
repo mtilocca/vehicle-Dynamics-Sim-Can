@@ -6,6 +6,12 @@ Target: **STM32H753ZI** (Nucleo-H753ZI) cross-compiled from **Raspberry Pi 5** (
 
 ## Prerequisites
 
+!!! warning "Current workflow"
+    The paths and commands on this page are the original Raspberry Pi 5 setup (`~/zephyrproject`,
+    SDK 0.17). The firmware now needs a **Zephyr v3.7.0** workspace, builds the web UI first, and is
+    normally flashed over the network. See [Build, Flash & OTA](BUILD_AND_OTA.md) for the current
+    steps; this page remains useful for the shell command list and UART troubleshooting.
+
 West workspace must already be initialised at `~/zephyrproject` and the Zephyr SDK installed at `~/zephyr-sdk-0.17.0`.
 See `docs/ZEPHYR_RPI5_SETUP.md` for the one-time setup.
 

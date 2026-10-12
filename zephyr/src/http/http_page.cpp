@@ -7,6 +7,7 @@
 #include <zephyr/net/socket.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/atomic.h>
+#include <zephyr/storage/flash_map.h>
 #include <stdio.h>   /* snprintf */
 #include <string.h>  /* strlen */
 
@@ -139,7 +140,7 @@ void send_api_system(int fd)
         "\"ram_image\":%zu,\"ram_total\":%u,"
         "\"heap_gen\":%u,\"heap_tls\":%u,\"stacks\":%zu,\"threads\":[",
         g_mqtt_broker_addr, g_mqtt_broker_port,
-        flash_used, 768u * 1024u,
+        flash_used, (unsigned)FIXED_PARTITION_SIZE(slot0_partition),
         ram_image, 512u * 1024u,
         (unsigned)CONFIG_HEAP_MEM_POOL_SIZE, (unsigned)CONFIG_MBEDTLS_HEAP_SIZE, stacks_sz);
 

@@ -597,7 +597,7 @@ graph TD
     SEM["k_sem"]
     PLANT["plant_tid  prio=5  16KB\nplant/plant_thread.cpp"]
     CANRX["can_rx_tid  prio=3  1KB\ncan/can_rx.cpp"]
-    HTTP["http_tid  prio=10  8KB\nhttp/http_server.cpp"]
+    HTTP["http_tid  prio=10  16KB\nhttp/http_server.cpp"]
     LED["led_tid  prio=12  512B\nled/led_task.cpp"]
     GCMD["g_cmd  k_mutex"]
     GSTATE["g_state  k_mutex"]
@@ -620,25 +620,26 @@ graph TD
 - **10 ms deterministic plant step** — `k_timer` → `k_sem` → `plant_thread`; no `sleep_for`, no `std::chrono`
 - **CAN watchdog** — if no `ACTUATOR_CMD_1` for 500 ms the plant enters safe-mode (coast, zero torque/brake)
 - **Braking** — `brake_torque_max_nm = 2.5 MNm` → ~0.6 g at full 218 t load, limited by Dugoff tyre friction
-- **Web dashboard** — live plant state, Controls card (STOP / FWD / REV / steer ±5°), Kernel Threads stack-usage panel
-- **CSS embedded at build time** — `generate_inc_file_for_target(dashboard.css → dashboard.css.inc)`; edit `.css` without touching C++
+- **Web UI over HTTPS** — TypeScript + Vite single-page app embedded in the firmware (~17 KB): live plant state, controls with command hold, control-source selector, kernel threads, memory map, OTA upload — see [Web UI & HTTP API](zephyr/WEB_UI.md)
+- **OTA firmware update** — signed images uploaded to slot1, applied by MCUboot — see [Build, Flash & OTA](zephyr/BUILD_AND_OTA.md)
 - **Shell** — `plant inject <steer> <torque> <brake>`, `plant mu <val>`, `can rx_frame`, `can tx_test`
 
 ### Build & Flash
 
 ```bash
-cd ~/zephyrproject
-rm -rf build
-west build -b nucleo_h753zi ~/repos/vehicle-Dynamics-Sim-Can/zephyr
-west flash
-picocom -b 115200 /dev/ttyACM0   # UART shell
+# needs a Zephyr v3.7.0 workspace — see Build, Flash & OTA
+bash scripts/ota_flash.sh          # web UI + firmware build, then OTA upload
+picocom -b 115200 /dev/ttyACM0     # UART shell
 ```
 
-Dashboard: `http://192.168.1.80`
+Dashboard: `https://192.168.1.80` (self-signed certificate, log in with the API token)
+
+![Web UI](img/ui-dashboard-top.png)
 
 ### Documentation
 
-- [`zephyr_overview.md`](zephyr_overview.md) — full port guide (Phases 0–5)
+- [Zephyr port guide](zephyr/ZEPHYR_PORT.md) — full port guide (Phases 0–5)
+- [Web UI & HTTP API](zephyr/WEB_UI.md) · [Build, Flash & OTA](zephyr/BUILD_AND_OTA.md)
 - [`pdfs/index.md`](pdfs/index.md) — in-depth architecture with flowcharts
 
 ---
