@@ -1,0 +1,1735 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="High-fidelity vehicle dynamics simulation for electric autonomous vehicles — physics models, CAN bus integration, and Zephyr RTOS HIL port.">
+      
+      
+        <meta name="author" content="Mario Tilocca">
+      
+      
+        <link rel="canonical" href="https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr/IWDG_BOOT_LOOP_POSTMORTEM/">
+      
+      
+        <link rel="prev" href="../../https_tls_implementation/">
+      
+      
+        <link rel="next" href="../ZEPHYR_BUILD_FLASH_UART/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Watchdog Boot-Loop Post-mortem - Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#iwdg-boot-loop-root-cause-analysis-fix" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" class="md-header__button md-logo" aria-label="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Watchdog Boot-Loop Post-mortem
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../models_overview/" class="md-tabs__link">
+          
+  
+  
+  Simulation Models
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../ZEPHYR_PORT/" class="md-tabs__link">
+          
+  
+  
+  Zephyr HIL Port
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../SECURITY_HARDENING/" class="md-tabs__link">
+          
+  
+  
+  Security & Boot
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../ZEPHYR_BUILD_FLASH_UART/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" class="md-nav__button md-logo" aria-label="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulation Models
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Simulation Models
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models_overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ARCHITECTURE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../VEHICLE_DYNAMICS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vehicle Dynamics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../SENSOR_SYSTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sensor_public/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Suite
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zephyr HIL Port
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Zephyr HIL Port
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ZEPHYR_PORT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../BUILD_AND_OTA/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build, Flash & OTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../WEB_UI/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web UI & HTTP API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MQTT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT(S) Control
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security & Boot
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Security & Boot
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SECURITY_HARDENING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security Hardening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MCUBOOT_OTA/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCUboot & OTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mcuboot_signing_and_flash_recovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Signing & Flash Recovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../https_tls_implementation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTPS / TLS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Watchdog Boot-Loop Post-mortem
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Watchdog Boot-Loop Post-mortem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#background" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#boot-sequence-what-zephyr-does-before-threads-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Boot Sequence — What Zephyr Does Before Threads Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#root-causes-in-discovery-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Root Causes — In Discovery Order
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Root Causes — In Discovery Order">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cause-1-plantmodel-constructed-at-file-scope-95-ms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cause 1: PlantModel constructed at file scope (~95 ms)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cause-2-watchdog_thread-stack-too-small-512b-2048b" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cause 2: watchdog_thread stack too small (512B → 2048B)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cause-3-net-config-sys_init-blocks-for-30s-waiting-for-phy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cause 3: Net config SYS_INIT blocks for 30s waiting for PHY
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cause-4-no-iwdg-kick-before-threads-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cause 4: No IWDG kick before threads start
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cause-5-main-thread-priority-equal-to-or-higher-than-watchdog_thread" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cause 5: main() thread priority equal to or higher than watchdog_thread
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagnosis-flowchart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnosis Flowchart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fix-summary-flowchart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fix Summary Flowchart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Changes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lessons-learned" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lessons Learned
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verified-boot-log-working" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verified Boot Log (Working)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ZEPHYR_BUILD_FLASH_UART/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build / Flash / UART (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ZEPHYR_RPI5_SETUP/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raspberry Pi 5 Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pdfs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference PDFs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#background" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#boot-sequence-what-zephyr-does-before-threads-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Boot Sequence — What Zephyr Does Before Threads Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#root-causes-in-discovery-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Root Causes — In Discovery Order
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Root Causes — In Discovery Order">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cause-1-plantmodel-constructed-at-file-scope-95-ms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cause 1: PlantModel constructed at file scope (~95 ms)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cause-2-watchdog_thread-stack-too-small-512b-2048b" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cause 2: watchdog_thread stack too small (512B → 2048B)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cause-3-net-config-sys_init-blocks-for-30s-waiting-for-phy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cause 3: Net config SYS_INIT blocks for 30s waiting for PHY
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cause-4-no-iwdg-kick-before-threads-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cause 4: No IWDG kick before threads start
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cause-5-main-thread-priority-equal-to-or-higher-than-watchdog_thread" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cause 5: main() thread priority equal to or higher than watchdog_thread
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagnosis-flowchart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnosis Flowchart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fix-summary-flowchart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fix Summary Flowchart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Changes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lessons-learned" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lessons Learned
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verified-boot-log-working" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verified Boot Log (Working)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="iwdg-boot-loop-root-cause-analysis-fix">IWDG Boot Loop — Root Cause Analysis &amp; Fix<a class="headerlink" href="#iwdg-boot-loop-root-cause-analysis-fix" title="Permanent link">&para;</a></h1>
+<p><strong>Board</strong>: Nucleo-H753ZI (STM32H753ZI)<br />
+<strong>RTOS</strong>: Zephyr v3.7.0<br />
+<strong>Symptom</strong>: MCU entered a continuous reset loop after re-enabling <code>CONFIG_WATCHDOG=y</code><br />
+<strong>Resolution</strong>: Multi-level SYS_INIT IWDG kick + deferred PlantModel construction + NET_CONFIG_INIT_TIMEOUT=0 + main thread priority below watchdog thread</p>
+<hr />
+<h2 id="background">Background<a class="headerlink" href="#background" title="Permanent link">&para;</a></h2>
+<p>The STM32H7 Independent Watchdog (IWDG) has two properties that make it dangerous during development:</p>
+<ol>
+<li><strong>It cannot be stopped once started</strong> — once <code>wdt_setup()</code> is called, the only way to clear it is a Power-On Reset (POR), i.e. cutting VDD. A warm reset (NRST button, OpenOCD reset, IWDG reset itself) leaves it running.</li>
+<li><strong>It persists across warm resets</strong> — every time the IWDG fires, the MCU resets, but the IWDG immediately resumes counting from its last configured reload value. If that value was set to a short timeout by a previous boot loop, the next boot also fails within that short window.</li>
+</ol>
+<p>This created a <strong>self-reinforcing loop</strong>: the IWDG fired → MCU reset → IWDG resumed with the same short timeout → fired again before the firmware could feed it.</p>
+<hr />
+<h2 id="boot-sequence-what-zephyr-does-before-threads-start">Boot Sequence — What Zephyr Does Before Threads Start<a class="headerlink" href="#boot-sequence-what-zephyr-does-before-threads-start" title="Permanent link">&para;</a></h2>
+<p>Understanding the Zephyr boot order is critical to understanding why this happened:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>┌─────────────────────────────────────────────────────────────────┐
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│                     ZEPHYR BOOT SEQUENCE                        │
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├─────────────────────────────────────────────────────────────────┤
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│  1. Reset vector / startup assembly                             │
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│  2. SYS_INIT level: PRE_KERNEL_1  (clocks, basic HW)           │
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│  3. SYS_INIT level: PRE_KERNEL_2  (more drivers)               │
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│  4. SYS_INIT level: POST_KERNEL   (kernel services available)   │
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│  5. SYS_INIT level: APPLICATION   (net stack, PHY negotiation)  │
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│     └─ CONFIG_NET_CONFIG_SETTINGS blocks here waiting for link  │
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│        Default timeout: 30 seconds                              │
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│  6. Scheduler starts — threads begin running                    │
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│     └─ main() thread                                            │
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│     └─ watchdog_thread                                          │
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>│     └─ plant_thread                                             │
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│     └─ http_thread                                              │
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<p><strong>Key insight</strong>: Threads only start after ALL SYS_INIT hooks complete. If the IWDG fires during any SYS_INIT phase, <code>watchdog_thread</code> never gets a chance to run.</p>
+<hr />
+<h2 id="root-causes-in-discovery-order">Root Causes — In Discovery Order<a class="headerlink" href="#root-causes-in-discovery-order" title="Permanent link">&para;</a></h2>
+<h3 id="cause-1-plantmodel-constructed-at-file-scope-95-ms">Cause 1: PlantModel constructed at file scope (~95 ms)<a class="headerlink" href="#cause-1-plantmodel-constructed-at-file-scope-95-ms" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1">// BEFORE (broken) — file scope, runs during C++ static init before any threads:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">static</span><span class="w"> </span><span class="n">plant</span><span class="o">::</span><span class="n">PlantModel</span><span class="w"> </span><span class="n">s_plant</span><span class="p">{</span><span class="n">vehicle_params</span><span class="p">()};</span>
+</code></pre></div>
+<p>The <code>PlantModel</code> constructor registers 8 subsystems, taking ~95ms of CPU time during C++ static initialization — before <code>PRE_KERNEL_1</code> even runs. With a fresh IWDG timeout of ~1s this was survivable, but after the loop started (short stored timeout), 95ms was already fatal.</p>
+<p><strong>Fix</strong>: Heap-allocate inside <code>plant_thread()</code> so construction is deferred until after the scheduler starts:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1">// AFTER (fixed) — construction deferred to thread start:</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">static</span><span class="w"> </span><span class="n">plant</span><span class="o">::</span><span class="n">PlantModel</span><span class="o">*</span><span class="w"> </span><span class="n">s_plant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">;</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">plant_thread</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="p">)</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="p">{</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="n">s_plant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">plant</span><span class="o">::</span><span class="n">PlantModel</span><span class="p">{</span><span class="n">vehicle_params</span><span class="p">()};</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="p">...</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="cause-2-watchdog_thread-stack-too-small-512b-2048b">Cause 2: watchdog_thread stack too small (512B → 2048B)<a class="headerlink" href="#cause-2-watchdog_thread-stack-too-small-512b-2048b" title="Permanent link">&para;</a></h3>
+<p><code>LOG_MODE_IMMEDIATE=y</code> writes synchronously to UART inline within the logging call. The call chain <code>wdt_install_timeout → STM32 HAL → LOG_INF → synchronous UART write</code> exceeded 512B of stack. The MPU caught the overflow → fault → reset. The fault dump couldn't print because the stack was already corrupt.</p>
+<p><strong>Fix</strong>: <code>K_THREAD_DEFINE(watchdog_tid, 2048, ...)</code> </p>
+<h3 id="cause-3-net-config-sys_init-blocks-for-30s-waiting-for-phy">Cause 3: Net config SYS_INIT blocks for 30s waiting for PHY<a class="headerlink" href="#cause-3-net-config-sys_init-blocks-for-30s-waiting-for-phy" title="Permanent link">&para;</a></h3>
+<p><code>CONFIG_NET_CONFIG_SETTINGS=y</code> installs an APPLICATION-level SYS_INIT hook that blocks until the Ethernet PHY negotiates a link. Default timeout is 30 seconds. Threads don't start until this returns. The IWDG fires long before threads run.</p>
+<p><strong>Fix</strong>: <code>CONFIG_NET_CONFIG_INIT_TIMEOUT=0</code> — return immediately, let threads start, PHY negotiation completes asynchronously.</p>
+<h3 id="cause-4-no-iwdg-kick-before-threads-start">Cause 4: No IWDG kick before threads start<a class="headerlink" href="#cause-4-no-iwdg-kick-before-threads-start" title="Permanent link">&para;</a></h3>
+<p>Even with the above fixes, the IWDG left running from a prior session had an unknown (possibly very short) countdown remaining when OpenOCD released the CPU. There was no mechanism to reload it before the scheduler started.</p>
+<p><strong>Fix</strong>: <code>SYS_INIT_NAMED</code> hooks at every boot level that write <code>0xAAAA</code> directly to the IWDG KR register:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="cp">#define IWDG1_KR (*((volatile uint32_t*)0x58004800U))</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">iwdg_early_kick</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="o">*</span><span class="n">IWDG1_KR</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0xAAAAU</span><span class="p">;</span><span class="w">  </span><span class="c1">// reload counter — safe at any init level</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="p">}</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">SYS_INIT_NAMED</span><span class="p">(</span><span class="n">iwdg_kick_pk1</span><span class="p">,</span><span class="w"> </span><span class="n">iwdg_early_kick</span><span class="p">,</span><span class="w"> </span><span class="n">PRE_KERNEL_1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">SYS_INIT_NAMED</span><span class="p">(</span><span class="n">iwdg_kick_pk2</span><span class="p">,</span><span class="w"> </span><span class="n">iwdg_early_kick</span><span class="p">,</span><span class="w"> </span><span class="n">PRE_KERNEL_2</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">SYS_INIT_NAMED</span><span class="p">(</span><span class="n">iwdg_kick_pok</span><span class="p">,</span><span class="w"> </span><span class="n">iwdg_early_kick</span><span class="p">,</span><span class="w"> </span><span class="n">POST_KERNEL</span><span class="p">,</span><span class="w">  </span><span class="mi">0</span><span class="p">);</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="n">SYS_INIT_NAMED</span><span class="p">(</span><span class="n">iwdg_kick_app</span><span class="p">,</span><span class="w"> </span><span class="n">iwdg_early_kick</span><span class="p">,</span><span class="w"> </span><span class="n">APPLICATION</span><span class="p">,</span><span class="w">  </span><span class="mi">0</span><span class="p">);</span>
+</code></pre></div>
+<p><strong>Why direct register write</strong>: At <code>PRE_KERNEL_1</code> the Zephyr WDT driver is not initialized. The LL function <code>LL_IWDG_ReloadCounter()</code> requires the STM32 HAL headers and may not be safe at all init levels. Writing <code>0xAAAA</code> to address <code>0x58004800</code> is always valid per the STM32H7 reference manual — it reloads the counter regardless of whether IWDG is running.</p>
+<p><strong>Important</strong>: Reprogramming <code>PR</code> and <code>RLR</code> at <code>PRE_KERNEL_1</code> was attempted and caused a hang — the LSI oscillator is not yet stable at that level, so <code>SR.PVU/RVU</code> bits never clear, causing an infinite loop. Only the reload key (<code>0xAAAA</code>) is safe at early init levels.</p>
+<h3 id="cause-5-main-thread-priority-equal-to-or-higher-than-watchdog_thread">Cause 5: main() thread priority equal to or higher than watchdog_thread<a class="headerlink" href="#cause-5-main-thread-priority-equal-to-or-higher-than-watchdog_thread" title="Permanent link">&para;</a></h3>
+<p>With <code>CONFIG_MAIN_THREAD_PRIORITY</code> defaulting to 0 (highest preemptive), <code>main()</code> was scheduled before <code>watchdog_thread</code> (priority 2). <code>LOG_MODE_IMMEDIATE</code> meant every banner log line blocked the CPU for ~2ms. Ten banner lines = ~20ms before watchdog_thread ran — enough to miss a tight IWDG window.</p>
+<p><strong>Fix</strong>: <code>CONFIG_MAIN_THREAD_PRIORITY=3</code> — below watchdog (2), so WDT feeds before main() logs anything.</p>
+<hr />
+<h2 id="diagnosis-flowchart">Diagnosis Flowchart<a class="headerlink" href="#diagnosis-flowchart" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>                    IWDG Boot Loop Detected
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>                           │
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>                           ▼
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>              Does UART show ANY output?
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>               /                    \
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>             NO                     YES
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>              │                      │
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>              ▼                      ▼
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    IWDG firing before          Does WDT thread
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>    PRE_KERNEL_1 runs           log appear?
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>    → Add SYS_INIT_NAMED         /         \
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>      kicks at all levels       NO          YES
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>    → Power cycle board          │           │
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>                                 ▼           ▼
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>                       Does net config    Does "grace period
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>                       log appear?        over" appear?
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>                        /       \          /         \
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>                       NO       YES       NO          YES
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>                        │        │         │           │
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>                        ▼        ▼         ▼           ▼
+<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>                  Stack      NET_CONFIG  plant_thread  Semaphore
+<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a>                  overflow   blocking   not giving    stall or
+<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a>                  → increase  → set     g_wdt_sem     priority
+<a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a>                  stack to    TIMEOUT=0  → check      inversion
+<a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a>                  2048B               plant loop
+</code></pre></div>
+<hr />
+<h2 id="fix-summary-flowchart">Fix Summary Flowchart<a class="headerlink" href="#fix-summary-flowchart" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Power-On / Warm Reset
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>        │
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>        ▼
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a> PRE_KERNEL_1 SYS_INIT
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a> IWDG1_KR = 0xAAAA ──────────────────┐
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>        │                            │ Reloads IWDG counter
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>        ▼                            │ with whatever timeout
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a> PRE_KERNEL_2 SYS_INIT               │ was previously set
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a> IWDG1_KR = 0xAAAA ──────────────────┤
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>        │                            │
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>        ▼                            │
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a> POST_KERNEL SYS_INIT                │
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a> IWDG1_KR = 0xAAAA ──────────────────┤
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>        │                            │
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>        ▼                            │
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a> APPLICATION SYS_INIT                │
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a> IWDG1_KR = 0xAAAA ──────────────────┘
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a> NET_CONFIG returns immediately
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a> (INIT_TIMEOUT=0)
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>        │
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>        ▼
+<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a> Scheduler starts
+<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>        │
+<a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a>        ├──► watchdog_thread (priority 2) ◄── Runs FIRST
+<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a>        │    wdt_install_timeout()             (before main)
+<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a>        │    wdt_setup() → fresh 1s IWDG
+<a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a>        │    wdt_feed() every 500ms
+<a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a>        │    [10s grace period]
+<a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a>        │         │
+<a id="__codelineno-5-30" name="__codelineno-5-30" href="#__codelineno-5-30"></a>        │         ▼
+<a id="__codelineno-5-31" name="__codelineno-5-31" href="#__codelineno-5-31"></a>        │    g_wdt_sem taken ◄──────────────── plant_thread
+<a id="__codelineno-5-32" name="__codelineno-5-32" href="#__codelineno-5-32"></a>        │    wdt_feed() every 10ms step        gives sem
+<a id="__codelineno-5-33" name="__codelineno-5-33" href="#__codelineno-5-33"></a>        │
+<a id="__codelineno-5-34" name="__codelineno-5-34" href="#__codelineno-5-34"></a>        ├──► main() (priority 3)
+<a id="__codelineno-5-35" name="__codelineno-5-35" href="#__codelineno-5-35"></a>        │    logs banner, starts CAN/HTTP
+<a id="__codelineno-5-36" name="__codelineno-5-36" href="#__codelineno-5-36"></a>        │
+<a id="__codelineno-5-37" name="__codelineno-5-37" href="#__codelineno-5-37"></a>        └──► plant_thread (priority 5)
+<a id="__codelineno-5-38" name="__codelineno-5-38" href="#__codelineno-5-38"></a>             new PlantModel() ← deferred here
+<a id="__codelineno-5-39" name="__codelineno-5-39" href="#__codelineno-5-39"></a>             10ms physics loop
+<a id="__codelineno-5-40" name="__codelineno-5-40" href="#__codelineno-5-40"></a>             k_sem_give(&amp;g_wdt_sem) each step
+</code></pre></div>
+<hr />
+<h2 id="configuration-changes">Configuration Changes<a class="headerlink" href="#configuration-changes" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Change</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>prj.conf</code></td>
+<td><code>CONFIG_MAIN_THREAD_PRIORITY=3</code></td>
+<td>watchdog_thread (2) feeds IWDG before main logs</td>
+</tr>
+<tr>
+<td><code>prj.conf</code></td>
+<td><code>CONFIG_NET_CONFIG_INIT_TIMEOUT=0</code></td>
+<td>don't block in SYS_INIT waiting for PHY</td>
+</tr>
+<tr>
+<td><code>watchdog_thread.cpp</code></td>
+<td><code>SYS_INIT_NAMED</code> at all 4 boot levels</td>
+<td>kick IWDG before any thread runs</td>
+</tr>
+<tr>
+<td><code>watchdog_thread.cpp</code></td>
+<td>Stack 512B → 2048B</td>
+<td>LOG_MODE_IMMEDIATE + HAL call chain</td>
+</tr>
+<tr>
+<td><code>plant_thread.cpp</code></td>
+<td>Moved PlantModel to heap in thread</td>
+<td>defer 95ms constructor until after WDT armed</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="lessons-learned">Lessons Learned<a class="headerlink" href="#lessons-learned" title="Permanent link">&para;</a></h2>
+<ol>
+<li>
+<p><strong>IWDG on STM32H7 is persistent</strong> — always assume it is running after any non-POR reset. Design firmware accordingly.</p>
+</li>
+<li>
+<p><strong><code>SYS_INIT</code> hooks block thread start</strong> — any hook that takes longer than the IWDG timeout will cause a reset loop. Use <code>INIT_TIMEOUT=0</code> for network config and kick the IWDG at every init level.</p>
+</li>
+<li>
+<p><strong>File-scope C++ constructors run before Zephyr init</strong> — heavy objects (subsystems, large data structures) must not be constructed at file scope. Use pointers with deferred heap allocation inside thread functions.</p>
+</li>
+<li>
+<p><strong>Stack sizing with LOG_MODE_IMMEDIATE</strong> — immediate logging adds ~300–500B to every thread's peak stack depth due to synchronous UART writes. Any thread that logs needs at least 1–2KB.</p>
+</li>
+<li>
+<p><strong>Power cycle is the only real reset for IWDG</strong> — during firmware development, keep a power-cycle step in the flash procedure when changing watchdog code.</p>
+</li>
+<li>
+<p><strong>SYS_INIT function names must be unique</strong> — <code>SYS_INIT(fn, level, prio)</code> uses the function name as the linker symbol. Registering the same function at multiple levels requires <code>SYS_INIT_NAMED(unique_name, fn, level, prio)</code>.</p>
+</li>
+<li>
+<p><strong><code>0xAAAA</code> to IWDG KR is always safe</strong> — direct register write, no LSI clock required, no HAL dependency. Use this for early-boot IWDG kicks before driver init completes. Never spin on <code>SR.PVU/RVU</code> at PRE_KERNEL_1 — LSI is not stable yet.</p>
+</li>
+</ol>
+<hr />
+<h2 id="verified-boot-log-working">Verified Boot Log (Working)<a class="headerlink" href="#verified-boot-log-working" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>[00:00:00.xxx] &lt;inf&gt; hdv_sim: [PlantModel] Ready: 5 subsystems, dynamic=ON
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>[00:00:00.xxx] &lt;inf&gt; hdv_sim: WDT: thread started, counter reloaded
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>[00:00:00.xxx] &lt;inf&gt; hdv_sim: WDT: armed (1s timeout). Feeding during 10s init grace period...
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>[00:00:02.366] &lt;inf&gt; hdv_sim: HTTP server listening on 192.168.1.80:80
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>[00:00:03.659] &lt;inf&gt; phy_mii: PHY (0) Link speed 100 Mb, full duplex
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>[00:00:10.080] &lt;inf&gt; hdv_sim: WDT: grace period over — monitoring plant_thread via g_wdt_sem
+</code></pre></div>
+<p>No resets. Dashboard reachable. LEDs running. IWDG feeding every 10ms via plant_thread semaphore.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@11/dist/mermaid.min.js"></script>
+      
+        <script src="../../js/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

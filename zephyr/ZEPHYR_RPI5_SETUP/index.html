@@ -15,21 +15,25 @@
         <link rel="canonical" href="https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr/ZEPHYR_RPI5_SETUP/">
       
       
+        <link rel="prev" href="../ZEPHYR_BUILD_FLASH_UART/">
+      
+      
+        <link rel="next" href="../../pdfs/">
       
       
         
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>Zephyr RTOS — Development Setup on Raspberry Pi 5 (Ubuntu Server 24, arm64) - XCMG XDE320 — Vehicle Dynamics Simulator</title>
+        <title>Raspberry Pi 5 Setup - Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -88,7 +92,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="XCMG XDE320 — Vehicle Dynamics Simulator" class="md-header__button md-logo" aria-label="XCMG XDE320 — Vehicle Dynamics Simulator" data-md-component="logo">
+    <a href="../.." title="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" class="md-header__button md-logo" aria-label="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,13 +106,13 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            XCMG XDE320 — Vehicle Dynamics Simulator
+            Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Zephyr RTOS — Development Setup on Raspberry Pi 5 (Ubuntu Server 24, arm64)
+              Raspberry Pi 5 Setup
             
           </span>
         </div>
@@ -222,7 +226,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../zephyr_overview/" class="md-tabs__link">
+        <a href="../ZEPHYR_PORT/" class="md-tabs__link">
           
   
   
@@ -239,17 +243,40 @@
   
   
   
-    <li class="md-tabs__item">
-      <a href="../../pdfs/" class="md-tabs__link">
+    
+    
+      <li class="md-tabs__item">
+        <a href="../SECURITY_HARDENING/" class="md-tabs__link">
+          
+  
+  
+  Security & Boot
+
+        </a>
+      </li>
+    
+  
+
+      
         
+  
   
   
     
   
-  Reference PDFs
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../ZEPHYR_BUILD_FLASH_UART/" class="md-tabs__link">
+          
+  
+  
+  Reference
 
-      </a>
-    </li>
+        </a>
+      </li>
+    
   
 
       
@@ -275,13 +302,13 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="XCMG XDE320 — Vehicle Dynamics Simulator" class="md-nav__button md-logo" aria-label="XCMG XDE320 — Vehicle Dynamics Simulator" data-md-component="logo">
+    <a href="../.." title="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" class="md-nav__button md-logo" aria-label="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    XCMG XDE320 — Vehicle Dynamics Simulator
+    Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
@@ -400,6 +427,90 @@
   
   
     <li class="md-nav__item">
+      <a href="../../ARCHITECTURE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../VEHICLE_DYNAMICS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vehicle Dynamics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../SENSOR_SYSTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../sensor_public/" class="md-nav__link">
         
   
@@ -487,7 +598,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../zephyr_overview/" class="md-nav__link">
+      <a href="../ZEPHYR_PORT/" class="md-nav__link">
         
   
   
@@ -495,6 +606,90 @@
     
   
     Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../BUILD_AND_OTA/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build, Flash & OTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../WEB_UI/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web UI & HTTP API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MQTT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT(S) Control
   
 
     
@@ -521,6 +716,569 @@
   
   
   
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security & Boot
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Security & Boot
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SECURITY_HARDENING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security Hardening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MCUBOOT_OTA/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCUboot & OTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mcuboot_signing_and_flash_recovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Signing & Flash Recovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../https_tls_implementation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTPS / TLS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../IWDG_BOOT_LOOP_POSTMORTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Watchdog Boot-Loop Post-mortem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ZEPHYR_BUILD_FLASH_UART/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build / Flash / UART (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raspberry Pi 5 Setup
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raspberry Pi 5 Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Steps
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Steps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-update-the-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Update the system
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-install-system-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Install system dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-create-a-dedicated-workspace-folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Create a dedicated workspace folder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-create-and-activate-a-python-venv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Create and activate a Python venv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-install-west" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Install West
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-initialize-the-west-workspace-with-zephyr-v370" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Initialize the West workspace with Zephyr v3.7.0
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-install-zephyrs-python-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Install Zephyr's Python requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-download-the-zephyr-sdk-arm64-minimal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Download the Zephyr SDK (arm64 minimal)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-install-the-arm-cortex-m-toolchain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Install the ARM Cortex-M toolchain
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-set-environment-variables-add-to-bashrc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Set environment variables (add to ~/.bashrc)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#11-build-the-zephyr-hello_world-sample-for-nucleo_h753zi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Build the Zephyr hello_world sample for nucleo_h753zi
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-flash-to-the-stm32-board-board-connected-via-usb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Flash to the STM32 board (board connected via USB)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-monitor-serial-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Monitor serial output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-build-your-own-app-instead-of-the-sample" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Build your own app instead of the sample
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../../pdfs/" class="md-nav__link">
         
@@ -538,6 +1296,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -821,7 +1587,7 @@
 </code></pre></div>
 <h3 id="5-install-west">5. Install West<a class="headerlink" href="#5-install-west" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pip<span class="w"> </span>install<span class="w"> </span>west
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>west<span class="w"> </span>--version<span class="w">   </span><span class="c1"># verify: &quot;West version: v1.x.x&quot;</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>west<span class="w"> </span>--version<span class="w">   </span><span class="c1"># verify: "West version: v1.x.x"</span>
 </code></pre></div>
 <h3 id="6-initialize-the-west-workspace-with-zephyr-v370">6. Initialize the West workspace with Zephyr v3.7.0<a class="headerlink" href="#6-initialize-the-west-workspace-with-zephyr-v370" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>west<span class="w"> </span>init<span class="w"> </span>-m<span class="w"> </span>https://github.com/zephyrproject-rtos/zephyr<span class="w"> </span>--mr<span class="w"> </span>v3.7.0<span class="w"> </span>.
@@ -845,8 +1611,8 @@ Verify:</p>
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="c1"># arm-zephyr-eabi-gcc (Zephyr SDK 0.17.0) 12.2.0</span>
 </code></pre></div>
 <h3 id="10-set-environment-variables-add-to-bashrc">10. Set environment variables (add to ~/.bashrc)<a class="headerlink" href="#10-set-environment-variables-add-to-bashrc" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;export ZEPHYR_SDK_INSTALL_DIR=$HOME/zephyr-sdk-0.17.0&#39;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>~/.bashrc
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;source $HOME/zephyrproject/.venv/bin/activate&#39;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>~/.bashrc
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nb">echo</span><span class="w"> </span><span class="s1">'export ZEPHYR_SDK_INSTALL_DIR=$HOME/zephyr-sdk-0.17.0'</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>~/.bashrc
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nb">echo</span><span class="w"> </span><span class="s1">'source $HOME/zephyrproject/.venv/bin/activate'</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>~/.bashrc
 <a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="nb">source</span><span class="w"> </span>~/.bashrc
 </code></pre></div>
 <h3 id="11-build-the-zephyr-hello_world-sample-for-nucleo_h753zi">11. Build the Zephyr hello_world sample for nucleo_h753zi<a class="headerlink" href="#11-build-the-zephyr-hello_world-sample-for-nucleo_h753zi" title="Permanent link">&para;</a></h3>
@@ -1008,7 +1774,7 @@ Verify:</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@11/dist/mermaid.min.js"></script>
       

@@ -1,0 +1,1758 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="High-fidelity vehicle dynamics simulation for electric autonomous vehicles — physics models, CAN bus integration, and Zephyr RTOS HIL port.">
+      
+      
+        <meta name="author" content="Mario Tilocca">
+      
+      
+        <link rel="canonical" href="https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr/MCUBOOT_OTA/">
+      
+      
+        <link rel="prev" href="../SECURITY_HARDENING/">
+      
+      
+        <link rel="next" href="../../mcuboot_signing_and_flash_recovery/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>MCUboot & OTA - Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#mcuboot-secure-bootloader-ota-firmware-update" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" class="md-header__button md-logo" aria-label="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              MCUboot & OTA
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../models_overview/" class="md-tabs__link">
+          
+  
+  
+  Simulation Models
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../ZEPHYR_PORT/" class="md-tabs__link">
+          
+  
+  
+  Zephyr HIL Port
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../SECURITY_HARDENING/" class="md-tabs__link">
+          
+  
+  
+  Security & Boot
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../ZEPHYR_BUILD_FLASH_UART/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" class="md-nav__button md-logo" aria-label="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulation Models
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Simulation Models
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models_overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ARCHITECTURE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../VEHICLE_DYNAMICS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vehicle Dynamics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../SENSOR_SYSTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sensor_public/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Suite
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zephyr HIL Port
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Zephyr HIL Port
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ZEPHYR_PORT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../BUILD_AND_OTA/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build, Flash & OTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../WEB_UI/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web UI & HTTP API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MQTT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT(S) Control
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security & Boot
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Security & Boot
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SECURITY_HARDENING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security Hardening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCUboot & OTA
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCUboot & OTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flash-partition-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flash Partition Layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#boot-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Boot Flow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ecdsa-p256-signing-chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ECDSA-P256 Signing Chain
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ota-update-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OTA Update Flow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rollback-mechanism" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rollback Mechanism
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dts-overlay-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DTS Overlay Design
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DTS Overlay Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-we-override-partitions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why we override partitions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-lesson-mcuboot-needs-chosen-override" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key lesson: MCUboot needs chosen override
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kconfig-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kconfig Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-flash-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build &amp; Flash Commands
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mcuboot_signing_and_flash_recovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Signing & Flash Recovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../https_tls_implementation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTPS / TLS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../IWDG_BOOT_LOOP_POSTMORTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Watchdog Boot-Loop Post-mortem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ZEPHYR_BUILD_FLASH_UART/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build / Flash / UART (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ZEPHYR_RPI5_SETUP/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raspberry Pi 5 Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pdfs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference PDFs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flash-partition-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flash Partition Layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#boot-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Boot Flow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ecdsa-p256-signing-chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ECDSA-P256 Signing Chain
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ota-update-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OTA Update Flow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rollback-mechanism" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rollback Mechanism
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dts-overlay-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DTS Overlay Design
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DTS Overlay Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-we-override-partitions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why we override partitions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-lesson-mcuboot-needs-chosen-override" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key lesson: MCUboot needs chosen override
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kconfig-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kconfig Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-flash-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build &amp; Flash Commands
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="mcuboot-secure-bootloader-ota-firmware-update">MCUboot Secure Bootloader &amp; OTA Firmware Update<a class="headerlink" href="#mcuboot-secure-bootloader-ota-firmware-update" title="Permanent link">&para;</a></h1>
+<div class="admonition warning">
+<p class="admonition-title">Signing algorithm in the built images</p>
+<p>This page describes ECDSA-P256, which is what <code>sysbuild/mcuboot.conf</code> requests. Sysbuild overrides
+it: the images actually built and verified use <strong>RSA-2048</strong> with MCUboot's test key
+(<code>root-rsa-2048.pem</code>). See <a href="../../mcuboot_signing_and_flash_recovery/">MCUboot signing &amp; flash recovery</a>
+and <a href="../BUILD_AND_OTA/#signing-key">Build, Flash &amp; OTA</a>. The slot0 / slot1 size is <strong>640 KB</strong>.</p>
+</div>
+<p><strong>Phases 3a and 3b — STM32H753ZI / Nucleo-H753ZI</strong></p>
+<hr />
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>Phase 3a introduces MCUboot as a cryptographic gatekeeper: every firmware image is verified with an ECDSA-P256 signature before the CPU jumps to it. An unsigned or tampered image is rejected at boot — the board stays in MCUboot and does not execute the payload.</p>
+<p>Phase 3b adds an authenticated HTTP endpoint that streams a new signed binary into the secondary flash slot. MCUboot performs a swap on the next reboot; if the new image fails to confirm itself, an automatic rollback restores the previous firmware.</p>
+<hr />
+<h2 id="flash-partition-layout">Flash Partition Layout<a class="headerlink" href="#flash-partition-layout" title="Permanent link">&para;</a></h2>
+<p>The STM32H753ZI has 2 MB of dual-bank flash with 128 KB sectors.
+The board's default partition layout was overridden in <code>zephyr/app.overlay</code> and <code>zephyr/sysbuild/mcuboot.overlay</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Flash address   Size      Partition          Description
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>─────────────────────────────────────────────────────────
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>0x08000000      128 KB    boot_partition     MCUboot bootloader (ECDSA-P256 verifier)
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>0x08020000      128 KB    storage_partition  Board default — left in place, unused
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>0x08040000      640 KB    slot0_partition    Active application (bank 1, sectors 2-6)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>0x080E0000      128 KB    (unused)           Bank 1 sector 7
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>0x08100000      640 KB    slot1_partition    OTA staging area (bank 2, sectors 0-4)
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>0x081A0000      256 KB    (unused)           Bank 2 sectors 5-6
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>0x081E0000      128 KB    scratch_partition  MCUboot swap scratch area
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>─────────────────────────────────────────────────────────
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>Total: 2048 KB = 2 MB (fully mapped)
+</code></pre></div>
+<p><strong>Key constraint</strong>: MCUboot occupies exactly one 128 KB sector. The app at slot0 starts on sector 2 (0x08040000), a different sector from MCUboot — flashing the app cannot accidentally erase the bootloader.</p>
+<hr />
+<h2 id="boot-flow">Boot Flow<a class="headerlink" href="#boot-flow" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart TD
+    RESET([Power-On / Reset]) --&gt; MCUBOOT[MCUboot starts\nat 0x08000000]
+    MCUBOOT --&gt; VECT[Read slot0 vector table\nat 0x08040000]
+    VECT --&gt; CHECK_MAGIC{Swap magic\npresent in\nslot1 trailer?}
+    CHECK_MAGIC -- Yes --&gt; SWAP[Copy slot1 → slot0\nvia scratch area]
+    SWAP --&gt; VERIFY_NEW[Verify ECDSA-P256\nsignature of new image]
+    CHECK_MAGIC -- No --&gt; VERIFY_CURR[Verify ECDSA-P256\nsignature of slot0]
+    VERIFY_NEW --&gt; SIG_OK_NEW{Signature\nvalid?}
+    VERIFY_CURR --&gt; SIG_OK_CURR{Signature\nvalid?}
+    SIG_OK_NEW -- No --&gt; ROLLBACK[Restore previous\nimage from scratch]
+    SIG_OK_NEW -- Yes --&gt; CHAINLOAD
+    SIG_OK_CURR -- No --&gt; HALT([Halt — no valid image])
+    SIG_OK_CURR -- Yes --&gt; CHAINLOAD[Jump to slot0\nentry point + 0x200 header]
+    ROLLBACK --&gt; CHAINLOAD
+    CHAINLOAD --&gt; APP[Application main]
+    APP --&gt; CONFIRM{boot_is_img_confirmed?}
+    CONFIRM -- No --&gt; WRITE_CONFIRM[boot_write_img_confirmed\nmarks image_ok in flash]
+    CONFIRM -- Yes --&gt; RUN([Normal operation])
+    WRITE_CONFIRM --&gt; RUN</code></pre>
+<hr />
+<h2 id="ecdsa-p256-signing-chain">ECDSA-P256 Signing Chain<a class="headerlink" href="#ecdsa-p256-signing-chain" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Build time:
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  imgtool keygen -k mcuboot_signing_key.pem -t ecdsa-p256
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>        │
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>        ▼
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  Private key  ──────────────────────────────────────────────────
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  (gitignored)                                                    │
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>        │                                                         │
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>        ▼                                                  Public key
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>  west build --sysbuild                              embedded in MCUboot
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>        │                                              at build time
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>        ├─ MCUboot image (verifier embeds public key)
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>        │
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>        └─ App image → imgtool sign → zephyr.signed.bin
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>               • Adds 512-byte header (magic, version, slot size)
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>               • SHA-256 hash over firmware region
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>               • ECDSA-P256 signature over hash
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>               • TLV trailer appended
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>Runtime (every boot):
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>  MCUboot reads TLV → extracts signature → verifies against
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>  embedded public key → SHA-256 hash matches → chainload
+</code></pre></div>
+<p><strong>Key file locations:</strong></p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Location</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mcuboot_signing_key.pem</code></td>
+<td><code>zephyr/</code> (gitignored)</td>
+<td>ECDSA-P256 private key — sign images</td>
+</tr>
+<tr>
+<td>Public key</td>
+<td>Embedded in MCUboot binary</td>
+<td>Verify signatures at boot</td>
+</tr>
+<tr>
+<td><code>sysbuild/mcuboot.conf</code></td>
+<td><code>zephyr/sysbuild/</code></td>
+<td>MCUboot Kconfig: <code>BOOT_SIGNATURE_TYPE_ECDSA_P256=y</code></td>
+</tr>
+<tr>
+<td><code>CMakeLists.txt</code></td>
+<td><code>zephyr/</code></td>
+<td><code>set(MCUBOOT_SIGNING_KEY_FILE ...)</code> — tells west which key to use</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="ota-update-flow">OTA Update Flow<a class="headerlink" href="#ota-update-flow" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>sequenceDiagram
+    participant Dev as Developer / CI
+    participant HTTP as Board HTTP Server
+    participant Flash as STM32 Flash Driver
+    participant MCU as MCUboot (next boot)
+    participant App as New Application
+
+    Dev-&gt;&gt;HTTP: POST /api/firmware\nAuthorization: Bearer &lt;token&gt;\nContent-Type: application/octet-stream\nBody: zephyr.signed.bin (292 KB)
+    HTTP-&gt;&gt;HTTP: Validate Content-Length\n(≤ 640 KB)
+    HTTP-&gt;&gt;HTTP: Lock g_ota_mutex
+    HTTP-&gt;&gt;Flash: flash_img_init_id(slot1_partition)
+    loop 4 KB chunks
+        HTTP-&gt;&gt;Flash: flash_img_buffered_write(chunk, flush)
+        Note over Flash: IMG_ERASE_PROGRESSIVELY:\nerase sector on first write to it
+    end
+    HTTP-&gt;&gt;Flash: boot_request_upgrade(BOOT_UPGRADE_TEST)
+    Note over Flash: Sets swap magic in slot1 trailer
+    HTTP--&gt;&gt;Dev: {"status":"ok","bytes":292772}
+    HTTP-&gt;&gt;HTTP: Unlock g_ota_mutex
+
+    Dev-&gt;&gt;HTTP: POST /api/reboot\nAuthorization: Bearer &lt;token&gt;
+    HTTP--&gt;&gt;Dev: {"status":"rebooting"}
+    HTTP-&gt;&gt;HTTP: zsock_close → k_msleep(200)\n→ sys_reboot(COLD)
+
+    MCU-&gt;&gt;Flash: Read slot1 swap magic → perform swap
+    MCU-&gt;&gt;MCU: Verify ECDSA-P256 signature
+    alt Signature valid
+        MCU-&gt;&gt;App: Chainload new application
+        App-&gt;&gt;Flash: boot_write_img_confirmed()\n→ marks image_ok
+        App-&gt;&gt;App: Normal operation
+    else Signature invalid or image corrupt
+        MCU-&gt;&gt;Flash: Restore previous image from scratch
+        MCU-&gt;&gt;App: Chainload previous application
+    end</code></pre>
+<hr />
+<h2 id="rollback-mechanism">Rollback Mechanism<a class="headerlink" href="#rollback-mechanism" title="Permanent link">&para;</a></h2>
+<p>MCUboot uses <strong>test-mode swap</strong> (<code>BOOT_UPGRADE_TEST</code>):</p>
+<ol>
+<li>After upload, the slot1 trailer contains a swap magic marker but <code>image_ok = 0</code>.</li>
+<li>On the next boot, MCUboot sees the magic, swaps slot1 → slot0, then boots the new image.</li>
+<li>The new image must call <code>boot_write_img_confirmed()</code> before the watchdog fires.</li>
+<li>If the new image crashes before confirming (hard fault, stack overflow, watchdog reset), MCUboot sees <code>image_ok = 0</code> on the subsequent boot and <strong>automatically swaps back</strong> to the previous image.</li>
+</ol>
+<p>This means a corrupt or incompatible OTA binary cannot permanently brick the board.</p>
+<hr />
+<h2 id="dts-overlay-design">DTS Overlay Design<a class="headerlink" href="#dts-overlay-design" title="Permanent link">&para;</a></h2>
+<h3 id="why-we-override-partitions">Why we override partitions<a class="headerlink" href="#why-we-override-partitions" title="Permanent link">&para;</a></h3>
+<p>The board's default <code>nucleo_h753zi.dts</code> defines slot0 as 256 KB — smaller than our 286 KB app binary. The overlay expands slots to 640 KB each while preserving the original node names to avoid DTS unit-address warnings.</p>
+<h3 id="key-lesson-mcuboot-needs-chosen-override">Key lesson: MCUboot needs <code>chosen</code> override<a class="headerlink" href="#key-lesson-mcuboot-needs-chosen-override" title="Permanent link">&para;</a></h3>
+<p>The board DTS has <code>zephyr,code-partition = &amp;slot0_partition</code> in the chosen node. Without an explicit override in <code>sysbuild/mcuboot.overlay</code>, MCUboot links itself to slot0 (0x08040000) — and the app write overwrites the bootloader.</p>
+<p><strong>Fix in <code>sysbuild/mcuboot.overlay</code>:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nf">/</span><span class="cm"> </span><span class="p">{</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span><span class="nf">chosen</span><span class="cm"> </span><span class="p">{</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">        </span><span class="n">zephyr</span><span class="p">,</span><span class="n">code-partition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">boot_partition</span><span class="p">;</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="p">};</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="p">};</span>
+</code></pre></div></p>
+<p>This forces MCUboot to link to boot_partition (0x08000000, 128 KB), not slot0.</p>
+<hr />
+<h2 id="kconfig-summary">Kconfig Summary<a class="headerlink" href="#kconfig-summary" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Value</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CONFIG_BOOTLOADER_MCUBOOT</code></td>
+<td><code>y</code></td>
+<td>App linked to slot0, includes MCUboot header</td>
+</tr>
+<tr>
+<td><code>CONFIG_IMG_MANAGER</code></td>
+<td><code>y</code></td>
+<td><code>boot_request_upgrade()</code>, <code>boot_write_img_confirmed()</code></td>
+</tr>
+<tr>
+<td><code>CONFIG_FLASH_MAP</code></td>
+<td><code>y</code></td>
+<td>Flash area abstraction</td>
+</tr>
+<tr>
+<td><code>CONFIG_STREAM_FLASH</code></td>
+<td><code>y</code></td>
+<td>Streaming write API for OTA</td>
+</tr>
+<tr>
+<td><code>CONFIG_IMG_ERASE_PROGRESSIVELY</code></td>
+<td><code>y</code></td>
+<td>Sector erased on first write — no full pre-erase needed</td>
+</tr>
+<tr>
+<td><code>CONFIG_BOOT_SIGNATURE_TYPE_ECDSA_P256</code></td>
+<td><code>y</code> (MCUboot)</td>
+<td>Signature algorithm</td>
+</tr>
+<tr>
+<td><code>CONFIG_BOOT_MAX_IMG_SECTORS</code></td>
+<td><code>512</code></td>
+<td>Max sectors per slot MCUboot manages</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="build-flash-commands">Build &amp; Flash Commands<a class="headerlink" href="#build-flash-commands" title="Permanent link">&para;</a></h2>
+<p><strong>Initial flash (JTAG, both MCUboot + app):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">cd</span><span class="w"> </span>/home/baloo/zephyrproject
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>rm<span class="w"> </span>-rf<span class="w"> </span>build
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>west<span class="w"> </span>build<span class="w"> </span>-b<span class="w"> </span>nucleo_h753zi<span class="w"> </span>/path/to/zephyr<span class="w"> </span>--sysbuild
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>west<span class="w"> </span>flash
+</code></pre></div></p>
+<p><strong>Subsequent updates (OTA, no JTAG needed):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># After building a new signed app:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nv">TOKEN</span><span class="o">=</span><span class="k">$(</span>grep<span class="w"> </span>-oP<span class="w"> </span><span class="s1">'(?&lt;=")[0-9a-f]{64}'</span><span class="w"> </span>zephyr/src/http/http_auth.hpp<span class="k">)</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://192.168.1.80/api/firmware<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">     </span>-H<span class="w"> </span><span class="s2">"Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">     </span>-H<span class="w"> </span><span class="s2">"Content-Type: application/octet-stream"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">     </span>--data-binary<span class="w"> </span>@build/zephyr/zephyr/zephyr.signed.bin
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://192.168.1.80/api/reboot<span class="w"> </span>-H<span class="w"> </span><span class="s2">"Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">"</span>
+</code></pre></div></p>
+<p><strong>Verify OTA succeeded (UART):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>[MCUBOOT] Bootloader chainload address offset: 0x40000
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>[MCUBOOT] Jumping to the first image slot
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>[00:00:00.xxx] &lt;inf&gt; hdv_sim: Phase : 3b - OTA firmware update
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>[00:00:00.xxx] &lt;inf&gt; hdv_sim: BOOT: image confirmed OK
+</code></pre></div></p>
+<hr />
+<h2 id="known-limitations">Known Limitations<a class="headerlink" href="#known-limitations" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MCUboot not updatable via OTA</td>
+<td>MCUboot lives in boot_partition; OTA only writes to slot1</td>
+</tr>
+<tr>
+<td>Signing key not rotatable via OTA</td>
+<td>The ECDSA public key is baked into the MCUboot binary</td>
+</tr>
+<tr>
+<td>DTS warnings (cosmetic)</td>
+<td><code>partition@80000</code> and <code>partition@c0000</code> node names mismatch their overridden <code>reg</code> values; functional, not fixable without upstream board DTS changes</td>
+</tr>
+<tr>
+<td>Scratch area unused</td>
+<td>MCUboot is configured for overwrite mode; scratch is reserved but not used for swap</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@11/dist/mermaid.min.js"></script>
+      
+        <script src="../../js/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

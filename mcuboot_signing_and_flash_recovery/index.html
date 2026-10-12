@@ -1,0 +1,2049 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="High-fidelity vehicle dynamics simulation for electric autonomous vehicles — physics models, CAN bus integration, and Zephyr RTOS HIL port.">
+      
+      
+        <meta name="author" content="Mario Tilocca">
+      
+      
+        <link rel="canonical" href="https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/mcuboot_signing_and_flash_recovery/">
+      
+      
+        <link rel="prev" href="../zephyr/MCUBOOT_OTA/">
+      
+      
+        <link rel="next" href="../https_tls_implementation/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Signing & Flash Recovery - Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#mcuboot-signing-key-mismatch-flash-recovery-post-mortem" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" class="md-header__button md-logo" aria-label="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Signing & Flash Recovery
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../models_overview/" class="md-tabs__link">
+          
+  
+  
+  Simulation Models
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../zephyr/ZEPHYR_PORT/" class="md-tabs__link">
+          
+  
+  
+  Zephyr HIL Port
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../zephyr/SECURITY_HARDENING/" class="md-tabs__link">
+          
+  
+  
+  Security & Boot
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../zephyr/ZEPHYR_BUILD_FLASH_UART/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" class="md-nav__button md-logo" aria-label="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulation Models
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Simulation Models
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../models_overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ARCHITECTURE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VEHICLE_DYNAMICS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vehicle Dynamics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SENSOR_SYSTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sensor_public/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Suite
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zephyr HIL Port
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Zephyr HIL Port
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/ZEPHYR_PORT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/BUILD_AND_OTA/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build, Flash & OTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/WEB_UI/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web UI & HTTP API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/MQTT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT(S) Control
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security & Boot
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Security & Boot
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/SECURITY_HARDENING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security Hardening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/MCUBOOT_OTA/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCUboot & OTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Signing & Flash Recovery
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Signing & Flash Recovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-the-signing-key-mismatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. The Signing Key Mismatch
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. The Signing Key Mismatch">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#background-two-separate-key-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background: Two separate key concepts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-went-wrong" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What went wrong
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-this-didnt-fail-obviously" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why this didn't fail obviously
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-fix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The fix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#long-term-fix-phase-4-before-rdp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Long-term fix (Phase 4 / before RDP)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-the-usb-cable-flash-io-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. The USB Cable / Flash I/O Error
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. The USB Cable / Flash I/O Error">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#symptom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Symptom
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#investigation-dead-ends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Investigation dead-ends
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-chip-erase-mistake" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The chip-erase mistake
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-actual-fix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The actual fix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recovery-sequence-for-future-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recovery sequence (for future reference)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pyocd-target-note" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pyocd target note
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-dbgmcu-register-addresses-h7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. DBGMCU Register Addresses (H7)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-tls-handshake-failures-https-phase-3c" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. TLS Handshake Failures (HTTPS Phase 3c)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. TLS Handshake Failures (HTTPS Phase 3c)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bug-a-mbedtls-heap-never-initialised" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bug A: mbedTLS heap never initialised
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bug-b-no-cipher-suite-enabled-in-prjconf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bug B: No cipher suite enabled in prj.conf
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bug-b-missing-pem-null-terminator-in-tls_credscpp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bug B: Missing PEM null terminator in tls_creds.cpp
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#build-flash-normal-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build &amp; Flash (normal flow)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verify-https" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verify HTTPS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../https_tls_implementation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTPS / TLS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/IWDG_BOOT_LOOP_POSTMORTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Watchdog Boot-Loop Post-mortem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/ZEPHYR_BUILD_FLASH_UART/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build / Flash / UART (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/ZEPHYR_RPI5_SETUP/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raspberry Pi 5 Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pdfs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference PDFs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-the-signing-key-mismatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. The Signing Key Mismatch
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. The Signing Key Mismatch">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#background-two-separate-key-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background: Two separate key concepts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-went-wrong" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What went wrong
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-this-didnt-fail-obviously" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why this didn't fail obviously
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-fix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The fix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#long-term-fix-phase-4-before-rdp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Long-term fix (Phase 4 / before RDP)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-the-usb-cable-flash-io-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. The USB Cable / Flash I/O Error
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. The USB Cable / Flash I/O Error">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#symptom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Symptom
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#investigation-dead-ends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Investigation dead-ends
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-chip-erase-mistake" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The chip-erase mistake
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-actual-fix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The actual fix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recovery-sequence-for-future-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recovery sequence (for future reference)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pyocd-target-note" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pyocd target note
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-dbgmcu-register-addresses-h7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. DBGMCU Register Addresses (H7)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-tls-handshake-failures-https-phase-3c" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. TLS Handshake Failures (HTTPS Phase 3c)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. TLS Handshake Failures (HTTPS Phase 3c)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bug-a-mbedtls-heap-never-initialised" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bug A: mbedTLS heap never initialised
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bug-b-no-cipher-suite-enabled-in-prjconf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bug B: No cipher suite enabled in prj.conf
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bug-b-missing-pem-null-terminator-in-tls_credscpp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bug B: Missing PEM null terminator in tls_creds.cpp
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#build-flash-normal-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build &amp; Flash (normal flow)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verify-https" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verify HTTPS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="mcuboot-signing-key-mismatch-flash-recovery-post-mortem">MCUboot Signing Key Mismatch &amp; Flash Recovery Post-Mortem<a class="headerlink" href="#mcuboot-signing-key-mismatch-flash-recovery-post-mortem" title="Permanent link">&para;</a></h1>
+<p><strong>Date:</strong> 2026-04-12<br />
+<strong>Branch:</strong> <code>security-hardening</code><br />
+<strong>Board:</strong> NUCLEO-H753ZI (STM32H753ZI, dual-bank 2 MB flash)</p>
+<hr />
+<h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
+<p>During Phase 3c (HTTPS hardening), flashing the signed firmware image took several hours due
+to two independent problems that compounded each other:</p>
+<ol>
+<li>A signing key algorithm mismatch between CMakeLists.txt and what sysbuild actually uses.</li>
+<li>A marginal USB cable that caused pyocd USB I/O errors during flash write, leading to
+   erasing MCUboot off the board and triggering a HardFault boot loop.</li>
+</ol>
+<p>Both were resolved. This document explains what happened, why, and what to do differently
+next time.</p>
+<hr />
+<h2 id="1-the-signing-key-mismatch">1. The Signing Key Mismatch<a class="headerlink" href="#1-the-signing-key-mismatch" title="Permanent link">&para;</a></h2>
+<h3 id="background-two-separate-key-concepts">Background: Two separate key concepts<a class="headerlink" href="#background-two-separate-key-concepts" title="Permanent link">&para;</a></h3>
+<p>A MCUboot setup involves <strong>two completely separate key concepts</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>Key used</th>
+<th>Algorithm</th>
+<th>Set where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MCUboot verification key</td>
+<td><code>root-rsa-2048.pem</code></td>
+<td>RSA-2048</td>
+<td>Compiled into MCUboot binary at MCUboot build time</td>
+</tr>
+<tr>
+<td>Application signing key</td>
+<td><code>MCUBOOT_SIGNING_KEY_FILE</code></td>
+<td>Must match</td>
+<td>Used by <code>imgtool sign</code> to sign the app image TLV</td>
+</tr>
+</tbody>
+</table>
+<p>For MCUboot to accept an app image, the <strong>signature in the app image must verify against
+the public key embedded in MCUboot</strong>. If the algorithm or keypair does not match, MCUboot
+logs <code>[ERR] Image in the primary slot is not valid!</code> and refuses to boot the app.</p>
+<h3 id="what-went-wrong">What went wrong<a class="headerlink" href="#what-went-wrong" title="Permanent link">&para;</a></h3>
+<p><code>zephyr/CMakeLists.txt</code> had:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">set</span><span class="p">(</span><span class="s">MCUBOOT_SIGNING_KEY_FILE</span><span class="w"> </span><span class="o">${</span><span class="nv">CMAKE_CURRENT_SOURCE_DIR</span><span class="o">}</span><span class="s">/mcuboot_signing_key.pem</span><span class="p">)</span>
+</code></pre></div></p>
+<p><code>mcuboot_signing_key.pem</code> is an <strong>EC P-256 private key</strong> (<code>-----BEGIN PRIVATE KEY-----</code>,
+241 bytes) generated locally. Meanwhile, <code>sysbuild/mcuboot.conf</code> set:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>CONFIG_BOOT_SIGNATURE_TYPE_ECDSA_P256=y
+</code></pre></div></p>
+<p>Sounds consistent — but <strong>sysbuild ignores both of these</strong>. The West sysbuild system has its
+own Kconfig (<code>SB_CONFIG_BOOT_SIGNATURE_KEY_FILE</code>) that defaults to:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>&lt;zephyr_base&gt;/../bootloader/mcuboot/root-rsa-2048.pem
+</code></pre></div></p>
+<p>This default causes sysbuild to:
+1. Build MCUboot with RSA-2048 signature type (overriding <code>mcuboot.conf</code>'s ECDSA setting)
+2. Sign the app image with <code>root-rsa-2048.pem</code> using RSA-2048</p>
+<p>So <code>MCUBOOT_SIGNING_KEY_FILE</code> in CMakeLists.txt was silently <strong>never used</strong> by sysbuild.</p>
+<h3 id="why-this-didnt-fail-obviously">Why this didn't fail obviously<a class="headerlink" href="#why-this-didnt-fail-obviously" title="Permanent link">&para;</a></h3>
+<p>Sysbuild's signing override only applies when building the full sysbuild chain. If you build
+the app standalone (without <code>--sysbuild</code>), it DOES use <code>MCUBOOT_SIGNING_KEY_FILE</code>. The
+resulting image looks valid (has a TLV trailer) but MCUboot rejects it silently at boot.</p>
+<h3 id="the-fix">The fix<a class="headerlink" href="#the-fix" title="Permanent link">&para;</a></h3>
+<p>Run a <strong>pristine sysbuild</strong> that builds both MCUboot and the app in one shot. Sysbuild
+ensures the key embedded in MCUboot and the key used to sign the app always match:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">cd</span><span class="w"> </span>/home/baloo/zephyrproject
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>rm<span class="w"> </span>-rf<span class="w"> </span>build
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>.venv/bin/west<span class="w"> </span>build<span class="w"> </span>-b<span class="w"> </span>nucleo_h753zi<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span>/home/baloo/repos/vehicle-Dynamics-Sim-Can/zephyr<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span>--sysbuild<span class="w"> </span>--pristine
+</code></pre></div>
+<p>This produces:
+- <code>build/mcuboot/zephyr/zephyr.hex</code> — MCUboot with embedded RSA-2048 public key
+- <code>build/zephyr/zephyr/zephyr.signed.hex</code> — App signed with matching RSA-2048 private key</p>
+<h3 id="long-term-fix-phase-4-before-rdp">Long-term fix (Phase 4 / before RDP)<a class="headerlink" href="#long-term-fix-phase-4-before-rdp" title="Permanent link">&para;</a></h3>
+<p><code>root-rsa-2048.pem</code> is <strong>publicly available</strong> in the MCUboot GitHub repo. Anyone can use
+it to sign a valid image for this board. Before enabling RDP Level 1:</p>
+<ol>
+<li>Generate a project-specific RSA-2048 keypair:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>python3<span class="w"> </span><span class="nv">$ZEPHYR_BASE</span>/../bootloader/mcuboot/scripts/imgtool.py<span class="w"> </span>keygen<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>-k<span class="w"> </span>zephyr/mcuboot_rsa2048_project.pem<span class="w"> </span>-t<span class="w"> </span>rsa-2048
+</code></pre></div></li>
+<li>Add to <code>zephyr/sysbuild.conf</code>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>SB_CONFIG_BOOT_SIGNATURE_KEY_FILE="&lt;abs-path&gt;/mcuboot_rsa2048_project.pem"
+</code></pre></div></li>
+<li>Rebuild both MCUboot and app with pristine sysbuild.</li>
+<li>Flash both.</li>
+<li>Keep the <code>.pem</code> gitignored — back it up offline.</li>
+</ol>
+<hr />
+<h2 id="2-the-usb-cable-flash-io-error">2. The USB Cable / Flash I/O Error<a class="headerlink" href="#2-the-usb-cable-flash-io-error" title="Permanent link">&para;</a></h2>
+<h3 id="symptom">Symptom<a class="headerlink" href="#symptom" title="Permanent link">&para;</a></h3>
+<p>pyocd consistently failed after writing 5–8 KB of firmware:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>USB Error: [Errno 5] Input/Output Error
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>DebugProbeError: USB Error: [Errno 5] Input/Output Error
+</code></pre></div>
+<p>The error occurred during the smart-erase phase (pyocd reads back flash to determine
+which sectors need erasing before writing). This read-back saturates USB bandwidth on
+a marginal connection.</p>
+<h3 id="investigation-dead-ends">Investigation dead-ends<a class="headerlink" href="#investigation-dead-ends" title="Permanent link">&para;</a></h3>
+<p>Things that were tried and did <strong>not</strong> fix the issue:</p>
+<table>
+<thead>
+<tr>
+<th>Attempt</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pyocd flash --erase sector</code> instead of chip erase</td>
+<td>Same USB error</td>
+</tr>
+<tr>
+<td>Reducing <code>MAXIMUM_TRANSFER_SIZE</code> in stlink.py (6144→512→64)</td>
+<td>Same error, slower</td>
+</tr>
+<tr>
+<td>Installing Keil STM32H7xx DFP pack for pyocd</td>
+<td>Same error (pack helps target, not transport)</td>
+</tr>
+<tr>
+<td>OpenOCD 0.11 as alternative</td>
+<td>STM32H7 dual-bank bug: <code>jtag status contains invalid mode value</code></td>
+</tr>
+<tr>
+<td>OpenOCD 0.12.0 (<code>/usr/bin/openocd</code>)</td>
+<td>Same JTAG error in HardFault state</td>
+</tr>
+<tr>
+<td>DBGMCU freeze (0xE0042054) to pause IWDG</td>
+<td>Wrong address — writes didn't stick</td>
+</tr>
+<tr>
+<td>DBGMCU freeze (0x5C001054) to pause IWDG</td>
+<td>Correct address; writes stick; IWDG froze while halted — but USB error persisted</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-chip-erase-mistake">The chip-erase mistake<a class="headerlink" href="#the-chip-erase-mistake" title="Permanent link">&para;</a></h3>
+<p>During investigation, <code>pyocd flash --erase chip</code> was used to ensure a clean slate.
+This erased the <strong>entire 2 MB flash including MCUboot</strong> at 0x08000000. Without MCUboot,
+the STM32 boots directly to whatever is at the reset vector — erased flash (0xFFFFFFFF) —
+causing an immediate HardFault on every reset.</p>
+<p>With the MCU in a continuous HardFault → reset loop, JTAG was unreliable (OpenOCD
+couldn't attach cleanly) and the IWDG was also firing every ~5 seconds, causing additional
+resets mid-flash.</p>
+<p><strong>Lesson: never use <code>--erase chip</code> on a MCUboot setup.</strong> Always use <code>--erase sector</code>.
+Flash MCUboot first if you must do a full recovery.</p>
+<h3 id="the-actual-fix">The actual fix<a class="headerlink" href="#the-actual-fix" title="Permanent link">&para;</a></h3>
+<p><strong>Changed the USB cable and swapped to a different USB port on the Raspberry Pi.</strong></p>
+<p>The Raspberry Pi 4 USB ports share bandwidth on a single USB 3.0 hub. A marginal cable
+on a loaded port caused the ST-Link USB transfers to time out. After the swap, pyocd
+completed the full 351 KB app flash without error.</p>
+<h3 id="recovery-sequence-for-future-reference">Recovery sequence (for future reference)<a class="headerlink" href="#recovery-sequence-for-future-reference" title="Permanent link">&para;</a></h3>
+<p>If you find yourself with a bricked board (HardFault loop, MCUboot erased):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># 1. Freeze IWDG while halted so it doesn't reset the MCU mid-write</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>pyocd<span class="w"> </span>cmd<span class="w"> </span>--target<span class="w"> </span>stm32h743xx<span class="w"> </span>--connect<span class="w"> </span>attach<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>-c<span class="w"> </span><span class="s2">"write32 0x5C001054 0x00040000"</span><span class="w">   </span><span class="c1"># DBGMCU_APB4FZ1: bit 18 = DBG_IWDG1_STOP</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Note: 0xE0042054 does NOT work on H7 — writes don't stick.</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="c1"># 2. Flash MCUboot first (occupies 0x08000000..0x0800FFFF)</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>pyocd<span class="w"> </span>flash<span class="w"> </span>--target<span class="w"> </span>stm32h743xx<span class="w"> </span>--connect<span class="w"> </span>attach<span class="w"> </span>--erase<span class="w"> </span>sector<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">  </span>/home/baloo/zephyrproject/build/mcuboot/zephyr/zephyr.hex
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="c1"># 3. Flash the signed app (occupies 0x08040000 onward)</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>pyocd<span class="w"> </span>flash<span class="w"> </span>--target<span class="w"> </span>stm32h743xx<span class="w"> </span>--connect<span class="w"> </span>attach<span class="w"> </span>--erase<span class="w"> </span>sector<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">  </span>/home/baloo/zephyrproject/build/zephyr/zephyr/zephyr.signed.hex
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="c1"># 4. Reset</span>
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>pyocd<span class="w"> </span>reset<span class="w"> </span>--target<span class="w"> </span>stm32h743xx
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>
+<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="c1"># USB uninit error after step 3 is benign — the board resets and the USB</span>
+<a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a><span class="c1"># connection drops. The write has already completed successfully.</span>
+</code></pre></div>
+<h3 id="pyocd-target-note">Pyocd target note<a class="headerlink" href="#pyocd-target-note" title="Permanent link">&para;</a></h3>
+<p>pyocd identifies STM32H753ZI as <code>stm32h743xx</code> (not <code>stm32h753zitx</code>) even after installing
+the Keil pack. The pack is needed for full register map support but <code>stm32h743xx</code> works
+for basic flash operations.</p>
+<hr />
+<h2 id="3-dbgmcu-register-addresses-h7">3. DBGMCU Register Addresses (H7)<a class="headerlink" href="#3-dbgmcu-register-addresses-h7" title="Permanent link">&para;</a></h2>
+<p>The STM32H7 has three DBGMCU freeze registers, split across power domains:</p>
+<table>
+<thead>
+<tr>
+<th>Register</th>
+<th>Address</th>
+<th>Domain</th>
+<th>Bit 18</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DBGMCU_APB1LFZ1</code></td>
+<td>0x5C001054</td>
+<td>D3 (always-on)</td>
+<td><strong>DBG_IWDG1_STOP</strong></td>
+</tr>
+<tr>
+<td><code>DBGMCU_APB3FZ1</code></td>
+<td>0x5C001034</td>
+<td>D1</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>DBGMCU_APB4FZ1</code></td>
+<td>0x5C001054</td>
+<td>D3</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>The ARM CoreSight address <code>0xE0042054</code> that appears in generic Cortex-M docs is for
+<strong>D1 domain peripherals only</strong> and does not affect IWDG1 (which lives in D3). Writing
+to <code>0xE0042054</code> reads back as zero on H7 — it is a write-ignore register for IWDG1.</p>
+<p><strong>Use <code>0x5C001054</code>, bit 18 to freeze IWDG1.</strong></p>
+<hr />
+<h2 id="4-tls-handshake-failures-https-phase-3c">4. TLS Handshake Failures (HTTPS Phase 3c)<a class="headerlink" href="#4-tls-handshake-failures-https-phase-3c" title="Permanent link">&para;</a></h2>
+<p>After successful flash, the HTTPS server accepted TCP connections on port 443 but returned
+0 bytes in response to the TLS ClientHello. Two bugs caused this:</p>
+<h3 id="bug-a-mbedtls-heap-never-initialised">Bug A: mbedTLS heap never initialised<a class="headerlink" href="#bug-a-mbedtls-heap-never-initialised" title="Permanent link">&para;</a></h3>
+<p><code>config-tls-generic.h</code> (the mbedTLS config used by <code>CONFIG_MBEDTLS_BUILTIN=y</code>) defines
+<code>MBEDTLS_MEMORY_BUFFER_ALLOC_C</code>. This replaces the default <code>malloc</code>/<code>free</code> with an internal
+buffer allocator that must be explicitly initialised with <code>mbedtls_memory_buffer_alloc_init()</code>.</p>
+<p>Zephyr only calls that initialiser when <code>CONFIG_MBEDTLS_ENABLE_HEAP=y</code>. Without it,
+<code>init_heap()</code> expands to nothing (see <code>zephyr/modules/mbedtls/zephyr_init.c</code> lines 46-48):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="cp">#if defined(CONFIG_MBEDTLS_ENABLE_HEAP) &amp;&amp; defined(MBEDTLS_MEMORY_BUFFER_ALLOC_C)</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span><span class="n">mbedtls_memory_buffer_alloc_init</span><span class="p">(</span><span class="n">_mbedtls_heap</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">_mbedtls_heap</span><span class="p">));</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="cp">#else</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="cp">#define init_heap(...)   </span><span class="c1">// ← expands to nothing when ENABLE_HEAP=n</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="cp">#endif</span>
+</code></pre></div>
+<p>Every <code>mbedtls_malloc()</code> during the TLS handshake returns NULL. The handshake aborts
+before ServerHello; the server sends 0 bytes. The UART shows no error because the failure
+happens inside the TLS socket recv call, which returns an error that <code>read_request_line</code>
+silently swallows (closes the socket, no log).</p>
+<p>The fix:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>CONFIG_MBEDTLS_ENABLE_HEAP=y
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>CONFIG_MBEDTLS_HEAP_SIZE=65536    # 64 KB: I/O buffers + RSA-2048 bignum + X.509 ≈ 40 KB
+</code></pre></div></p>
+<p>This heap is separate from the system heap (<code>CONFIG_HEAP_MEM_POOL_SIZE</code>). Both must be sized.</p>
+<h3 id="bug-b-no-cipher-suite-enabled-in-prjconf">Bug B: No cipher suite enabled in prj.conf<a class="headerlink" href="#bug-b-no-cipher-suite-enabled-in-prjconf" title="Permanent link">&para;</a></h3>
+<p><code>CONFIG_MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED</code> has <strong>no <code>default y</code></strong> in Zephyr's
+mbedTLS Kconfig. Without it, mbedTLS has no cipher suite that can authenticate with an
+RSA-2048 certificate. The handshake fails before ServerHello.</p>
+<p>The same applies to all required primitives:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>CONFIG_MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED=y
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>CONFIG_MBEDTLS_ECDH_C=y
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>CONFIG_MBEDTLS_ECP_C=y
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>CONFIG_MBEDTLS_ECP_DP_SECP256R1_ENABLED=y
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>CONFIG_MBEDTLS_CIPHER_AES_ENABLED=y
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>CONFIG_MBEDTLS_GCM_ENABLED=y
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>CONFIG_MBEDTLS_SHA256_ENABLED=y
+</code></pre></div>
+<h3 id="bug-b-missing-pem-null-terminator-in-tls_credscpp">Bug B: Missing PEM null terminator in tls_creds.cpp<a class="headerlink" href="#bug-b-missing-pem-null-terminator-in-tls_credscpp" title="Permanent link">&para;</a></h3>
+<p>Zephyr's <code>generate_inc_file_for_target()</code> calls <code>file2hex.py</code>, which emits raw hex bytes
+from the source file with <strong>no null terminator</strong>. The PEM cert file ends with <code>0x0a</code>
+(newline), not <code>0x00</code>.</p>
+<p>mbedTLS's PEM parser (<code>mbedtls_x509_crt_parse</code>) checks:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">buflen</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="n">buflen</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="sc">'\0'</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">...)</span>
+</code></pre></div></p>
+<p>Without a null terminator, it falls through to DER parsing, which fails on PEM data.
+The fix is to add <code>'\0'</code> explicitly in the array initializer in <code>tls_creds.cpp</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">static</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">server_cert</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">"server_cert.inc"</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="p">,</span><span class="w"> </span><span class="sc">'\0'</span><span class="w">  </span><span class="c1">// required: mbedTLS PEM parser needs null-terminated string</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="p">};</span>
+</code></pre></div>
+<p><code>sizeof(server_cert)</code> automatically includes the <code>'\0'</code>, so the length passed to
+<code>tls_credential_add()</code> is correct.</p>
+<hr />
+<h2 id="quick-reference">Quick Reference<a class="headerlink" href="#quick-reference" title="Permanent link">&para;</a></h2>
+<h3 id="build-flash-normal-flow">Build &amp; Flash (normal flow)<a class="headerlink" href="#build-flash-normal-flow" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nb">cd</span><span class="w"> </span>/home/baloo/zephyrproject
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>.venv/bin/west<span class="w"> </span>build<span class="w"> </span>-b<span class="w"> </span>nucleo_h753zi<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span>/home/baloo/repos/vehicle-Dynamics-Sim-Can/zephyr<span class="w"> </span>--sysbuild
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="c1"># App only (MCUboot already in flash — faster)</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>pyocd<span class="w"> </span>flash<span class="w"> </span>--target<span class="w"> </span>stm32h743xx<span class="w"> </span>--connect<span class="w"> </span>attach<span class="w"> </span>--erase<span class="w"> </span>sector<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">  </span>build/zephyr/zephyr/zephyr.signed.hex
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="c1"># Both MCUboot + app (after full pristine rebuild or chip-erase recovery)</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>pyocd<span class="w"> </span>flash<span class="w"> </span>--target<span class="w"> </span>stm32h743xx<span class="w"> </span>--connect<span class="w"> </span>attach<span class="w"> </span>--erase<span class="w"> </span>sector<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a><span class="w">  </span>build/mcuboot/zephyr/zephyr.hex
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>pyocd<span class="w"> </span>flash<span class="w"> </span>--target<span class="w"> </span>stm32h743xx<span class="w"> </span>--connect<span class="w"> </span>attach<span class="w"> </span>--erase<span class="w"> </span>sector<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="w">  </span>build/zephyr/zephyr/zephyr.signed.hex
+</code></pre></div>
+<h3 id="verify-https">Verify HTTPS<a class="headerlink" href="#verify-https" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># Quick check — should print certificate details</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>openssl<span class="w"> </span>s_client<span class="w"> </span>-connect<span class="w"> </span><span class="m">192</span>.168.1.80:443<span class="w"> </span>-tls1_2<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-20
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="c1"># With cert verification</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>curl<span class="w"> </span>--cacert<span class="w"> </span>zephyr/certs/server.crt<span class="w"> </span>https://192.168.1.80/
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="c1"># Skip cert check (self-signed)</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>curl<span class="w"> </span>-k<span class="w"> </span>https://192.168.1.80/
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@11/dist/mermaid.min.js"></script>
+      
+        <script src="../js/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

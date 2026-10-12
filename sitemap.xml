@@ -2,46 +2,74 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/</loc>
-         <lastmod>2026-04-07</lastmod>
+         <lastmod>2026-10-12</lastmod>
     </url>
     <url>
          <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/ARCHITECTURE/</loc>
-         <lastmod>2026-04-07</lastmod>
+         <lastmod>2026-10-12</lastmod>
     </url>
     <url>
          <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/SENSOR_SYSTEM/</loc>
-         <lastmod>2026-04-07</lastmod>
+         <lastmod>2026-10-12</lastmod>
     </url>
     <url>
          <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/VEHICLE_DYNAMICS/</loc>
-         <lastmod>2026-04-07</lastmod>
+         <lastmod>2026-10-12</lastmod>
+    </url>
+    <url>
+         <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/https_tls_implementation/</loc>
+         <lastmod>2026-10-12</lastmod>
+    </url>
+    <url>
+         <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/mcuboot_signing_and_flash_recovery/</loc>
+         <lastmod>2026-10-12</lastmod>
     </url>
     <url>
          <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/models_overview/</loc>
-         <lastmod>2026-04-07</lastmod>
+         <lastmod>2026-10-12</lastmod>
     </url>
     <url>
          <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/sensor_public/</loc>
-         <lastmod>2026-04-07</lastmod>
-    </url>
-    <url>
-         <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr_overview/</loc>
-         <lastmod>2026-04-07</lastmod>
+         <lastmod>2026-10-12</lastmod>
     </url>
     <url>
          <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/pdfs/</loc>
-         <lastmod>2026-04-07</lastmod>
+         <lastmod>2026-10-12</lastmod>
+    </url>
+    <url>
+         <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr/BUILD_AND_OTA/</loc>
+         <lastmod>2026-10-12</lastmod>
+    </url>
+    <url>
+         <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr/IWDG_BOOT_LOOP_POSTMORTEM/</loc>
+         <lastmod>2026-10-12</lastmod>
+    </url>
+    <url>
+         <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr/MCUBOOT_OTA/</loc>
+         <lastmod>2026-10-12</lastmod>
+    </url>
+    <url>
+         <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr/MQTT/</loc>
+         <lastmod>2026-10-12</lastmod>
+    </url>
+    <url>
+         <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr/SECURITY_HARDENING/</loc>
+         <lastmod>2026-10-12</lastmod>
+    </url>
+    <url>
+         <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr/WEB_UI/</loc>
+         <lastmod>2026-10-12</lastmod>
     </url>
     <url>
          <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr/ZEPHYR_BUILD_FLASH_UART/</loc>
-         <lastmod>2026-04-07</lastmod>
+         <lastmod>2026-10-12</lastmod>
     </url>
     <url>
          <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr/ZEPHYR_PORT/</loc>
-         <lastmod>2026-04-07</lastmod>
+         <lastmod>2026-10-12</lastmod>
     </url>
     <url>
          <loc>https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/zephyr/ZEPHYR_RPI5_SETUP/</loc>
-         <lastmod>2026-04-07</lastmod>
+         <lastmod>2026-10-12</lastmod>
     </url>
 </urlset>

@@ -279,7 +279,7 @@ r_{\text{high}} & v \geq v_{\text{end}}
     \item $r_{\text{high}}$ -- reduction ratio at high speed (e.g., 0.35 = 35\% of max)
 \end{itemize}
 
-\textbf{Example for XCMG XDE320:}
+\textbf{Example for Heavy-Duty Electric Vehicle:}
 \begin{align}
 \delta_{\max,0} &= 35° \\
 v_{\text{start}} &= 8 \text{ m/s} \\
@@ -316,7 +316,7 @@ At maximum steering angle, the minimum turn radius is:
 R_{\min} = \frac{L}{\tan(\delta_{\max})}
 \end{equation}
 
-For XCMG XDE320 with $L = 6.3$ m and $\delta_{\max} = 35°$:
+For Heavy-Duty Electric Vehicle with $L = 6.3$ m and $\delta_{\max} = 35°$:
 \begin{equation}
 R_{\min} = \frac{6.3}{\tan(35°)} = \frac{6.3}{0.700} = 9.0 \text{ m}
 \end{equation}
@@ -458,7 +458,7 @@ F_{z,\text{rl}} &= \frac{1}{2}\left( F_{z,\text{rear}} - \Delta F_{z,\text{lat,r
 F_{z,\text{rr}} &= \frac{1}{2}\left( F_{z,\text{rear}} + \Delta F_{z,\text{lat,rear}} \right)
 \end{align}
 
-\subsection{Example: XCMG XDE320 Mining Truck}
+\subsection{Example: Heavy-Duty Electric Vehicle Mining Truck}
 
 \textbf{Parameters:}
 \begin{align}
@@ -732,7 +732,7 @@ I_w = I_{\text{tire}} + I_{\text{rim}} + I_{\text{brake}} + I_{\text{hub}}
 Typical values:
 \begin{itemize}
     \item Passenger car: $I_w \approx 1.5-3.0$ kg$\cdot$m$^2$
-    \item Mining haul truck (XCMG XDE320): $I_w \approx 800-1500$ kg$\cdot$m$^2$
+    \item Mining haul truck (Heavy-Duty Electric Vehicle): $I_w \approx 800-1500$ kg$\cdot$m$^2$
 \end{itemize}
 
 \subsection{Discrete-Time Integration}
@@ -758,7 +758,7 @@ The explicit integration is stable when:
 \Delta t < \frac{2 I_w}{C_x R^2}
 \end{equation}
 
-For XCMG XDE320 parameters ($I_w = 1000$ kg$\cdot$m$^2$, $C_x = 280{,}000$ N, $R = 1.93$ m):
+For Heavy-Duty Electric Vehicle parameters ($I_w = 1000$ kg$\cdot$m$^2$, $C_x = 280{,}000$ N, $R = 1.93$ m):
 \begin{equation}
 \Delta t_{\max} \approx \frac{2 \times 1000}{280{,}000 \times 1.93^2} \approx 1.9 \text{ ms}
 \end{equation}
@@ -1159,7 +1159,7 @@ The surface friction $\mu$ directly affects:
 \section{Implementation Parameters}
 %=============================================================================
 
-\subsection{XCMG XDE320 Mining Truck}
+\subsection{Heavy-Duty Electric Vehicle Mining Truck}
 
 \begin{table}[H]
 \centering
@@ -1224,7 +1224,7 @@ Brake bias (front) $\beta_{\text{front}}$ & 0.40 & - \\
 
 \textbf{Scenario 1: Acceleration on gravel ($\mu = 0.72$)}
 
-XCMG XDE320 empty (218 tons):
+Heavy-Duty Electric Vehicle empty (218 tons):
 \begin{align}
 F_{z,\text{rear}} &\approx 0.60 \times 218{,}000 \times 9.81 = 1{,}283{,}000 \text{ N} \\
 F_{x,\text{max}} &= 0.72 \times 1{,}283{,}000 = 924{,}000 \text{ N} \\

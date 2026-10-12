@@ -15,21 +15,25 @@
         <link rel="canonical" href="https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/VEHICLE_DYNAMICS/">
       
       
+        <link rel="prev" href="../ARCHITECTURE/">
+      
+      
+        <link rel="next" href="../SENSOR_SYSTEM/">
       
       
         
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>Vehicle Dynamics: Theoretical Foundation - XCMG XDE320 — Vehicle Dynamics Simulator</title>
+        <title>Vehicle Dynamics - Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -88,7 +92,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="XCMG XDE320 — Vehicle Dynamics Simulator" class="md-header__button md-logo" aria-label="XCMG XDE320 — Vehicle Dynamics Simulator" data-md-component="logo">
+    <a href=".." title="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" class="md-header__button md-logo" aria-label="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,13 +106,13 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            XCMG XDE320 — Vehicle Dynamics Simulator
+            Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Vehicle Dynamics: Theoretical Foundation
+              Vehicle Dynamics
             
           </span>
         </div>
@@ -198,10 +202,12 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
+      <li class="md-tabs__item md-tabs__item--active">
         <a href="../models_overview/" class="md-tabs__link">
           
   
@@ -222,7 +228,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../zephyr_overview/" class="md-tabs__link">
+        <a href="../zephyr/ZEPHYR_PORT/" class="md-tabs__link">
           
   
   
@@ -239,17 +245,38 @@
   
   
   
-    <li class="md-tabs__item">
-      <a href="../pdfs/" class="md-tabs__link">
+    
+    
+      <li class="md-tabs__item">
+        <a href="../zephyr/SECURITY_HARDENING/" class="md-tabs__link">
+          
+  
+  
+  Security & Boot
+
+        </a>
+      </li>
+    
+  
+
+      
         
   
   
-    
   
-  Reference PDFs
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../zephyr/ZEPHYR_BUILD_FLASH_UART/" class="md-tabs__link">
+          
+  
+  
+  Reference
 
-      </a>
-    </li>
+        </a>
+      </li>
+    
   
 
       
@@ -275,13 +302,13 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="XCMG XDE320 — Vehicle Dynamics Simulator" class="md-nav__button md-logo" aria-label="XCMG XDE320 — Vehicle Dynamics Simulator" data-md-component="logo">
+    <a href=".." title="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" class="md-nav__button md-logo" aria-label="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    XCMG XDE320 — Vehicle Dynamics Simulator
+    Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
@@ -317,26 +344,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
             
   
   
@@ -354,7 +386,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -380,6 +412,847 @@
     
   
     Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ARCHITECTURE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vehicle Dynamics
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vehicle Dynamics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-hierarchy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Hierarchy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-assumptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Assumptions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#coordinate-systems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coordinate Systems
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Coordinate Systems">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#global-frame-world" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Global Frame (World)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vehicle-frame-body" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vehicle Frame (Body)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#coordinate-transform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coordinate Transform
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bicycle-model-kinematics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bicycle Model Kinematics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bicycle Model Kinematics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Description
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kinematic-equations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kinematic Equations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#derivation-of-yaw-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Derivation of Yaw Rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#discrete-time-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Discrete-Time Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ackermann-steering-geometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ackermann Steering Geometry
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Ackermann Steering Geometry">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem Statement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#geometric-solution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Geometric Solution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#turn-direction-convention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Turn Direction Convention
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#longitudinal-dynamics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Longitudinal Dynamics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Longitudinal Dynamics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#force-balance-equation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Force Balance Equation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#motor-torque-to-force" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Motor Torque to Force
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#power-limiting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Power Limiting
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aerodynamic-drag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aerodynamic Drag
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rolling-resistance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rolling Resistance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#braking-force" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Braking Force
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#speed-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Speed Update
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lateral-dynamics-friction-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lateral Dynamics &amp; Friction Limits
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Lateral Dynamics &amp; Friction Limits">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#centripetal-acceleration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Centripetal Acceleration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#friction-circle-constraint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Friction Circle Constraint
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#understeer-implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Understeer Implementation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#battery-energy-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Battery &amp; Energy Model
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Battery &amp; Energy Model">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#state-of-charge-soc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State of Charge (SOC)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#power-flow-directions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Power Flow Directions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#voltage-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voltage Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#regenerative-braking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Regenerative Braking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#efficiency-budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Efficiency Budget
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation Details
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation Details">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#execution-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Execution Order
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timestep-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timestep Selection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#numerical-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Numerical Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parameter-tuning-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter Tuning Guide
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameter Tuning Guide">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#increasing-agility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Increasing Agility
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#increasing-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Increasing Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adjusting-friction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adjusting Friction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#battery-capacity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Battery Capacity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mining-truck-scaling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mining Truck Scaling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation &amp; Testing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Validation &amp; Testing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unit-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#physical-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Physical Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future-enhancements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Future Enhancements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Future Enhancements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#short-term" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Short-Term
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#medium-term" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Medium-Term
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#long-term" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Long-Term
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="References">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#textbooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Textbooks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#papers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Papers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#standards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Standards
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SENSOR_SYSTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor System
   
 
     
@@ -487,7 +1360,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../zephyr_overview/" class="md-nav__link">
+      <a href="../zephyr/ZEPHYR_PORT/" class="md-nav__link">
         
   
   
@@ -495,6 +1368,90 @@
     
   
     Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/BUILD_AND_OTA/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build, Flash & OTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/WEB_UI/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web UI & HTTP API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/MQTT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT(S) Control
   
 
     
@@ -521,6 +1478,313 @@
   
   
   
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security & Boot
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Security & Boot
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/SECURITY_HARDENING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security Hardening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/MCUBOOT_OTA/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCUboot & OTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcuboot_signing_and_flash_recovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Signing & Flash Recovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../https_tls_implementation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTPS / TLS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/IWDG_BOOT_LOOP_POSTMORTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Watchdog Boot-Loop Post-mortem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/ZEPHYR_BUILD_FLASH_UART/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build / Flash / UART (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/ZEPHYR_RPI5_SETUP/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raspberry Pi 5 Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../pdfs/" class="md-nav__link">
         
@@ -538,6 +1802,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1985,7 +3257,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@11/dist/mermaid.min.js"></script>
       

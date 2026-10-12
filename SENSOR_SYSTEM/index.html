@@ -15,21 +15,25 @@
         <link rel="canonical" href="https://mtilocca.github.io/vehicle-Dynamics-Sim-Can/SENSOR_SYSTEM/">
       
       
+        <link rel="prev" href="../VEHICLE_DYNAMICS/">
+      
+      
+        <link rel="next" href="../sensor_public/">
       
       
         
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>Sensor System Architecture & Machine Learning Integration - XCMG XDE320 — Vehicle Dynamics Simulator</title>
+        <title>Sensor System - Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -88,7 +92,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="XCMG XDE320 — Vehicle Dynamics Simulator" class="md-header__button md-logo" aria-label="XCMG XDE320 — Vehicle Dynamics Simulator" data-md-component="logo">
+    <a href=".." title="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" class="md-header__button md-logo" aria-label="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,13 +106,13 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            XCMG XDE320 — Vehicle Dynamics Simulator
+            Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Sensor System Architecture &amp; Machine Learning Integration
+              Sensor System
             
           </span>
         </div>
@@ -198,10 +202,12 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
+      <li class="md-tabs__item md-tabs__item--active">
         <a href="../models_overview/" class="md-tabs__link">
           
   
@@ -222,7 +228,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../zephyr_overview/" class="md-tabs__link">
+        <a href="../zephyr/ZEPHYR_PORT/" class="md-tabs__link">
           
   
   
@@ -239,17 +245,38 @@
   
   
   
-    <li class="md-tabs__item">
-      <a href="../pdfs/" class="md-tabs__link">
+    
+    
+      <li class="md-tabs__item">
+        <a href="../zephyr/SECURITY_HARDENING/" class="md-tabs__link">
+          
+  
+  
+  Security & Boot
+
+        </a>
+      </li>
+    
+  
+
+      
         
   
   
-    
   
-  Reference PDFs
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../zephyr/ZEPHYR_BUILD_FLASH_UART/" class="md-tabs__link">
+          
+  
+  
+  Reference
 
-      </a>
-    </li>
+        </a>
+      </li>
+    
   
 
       
@@ -275,13 +302,13 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="XCMG XDE320 — Vehicle Dynamics Simulator" class="md-nav__button md-logo" aria-label="XCMG XDE320 — Vehicle Dynamics Simulator" data-md-component="logo">
+    <a href=".." title="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" class="md-nav__button md-logo" aria-label="Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    XCMG XDE320 — Vehicle Dynamics Simulator
+    Heavy-Duty Electric Vehicle — Vehicle Dynamics Simulator
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
@@ -317,26 +344,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
             
   
   
@@ -354,7 +386,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -388,6 +420,754 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ARCHITECTURE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VEHICLE_DYNAMICS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vehicle Dynamics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor System
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#design-philosophy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Philosophy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sensor-suite-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensor Suite Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sensor Suite Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#system-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Overview
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensor-specifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensor Specifications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#noise-models-realism" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Noise Models &amp; Realism
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Noise Models &amp; Realism">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-battery-sensor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Battery Sensor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-wheel-speed-sensors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Wheel Speed Sensors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-imu-6-dof-inertial-measurement-unit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. IMU 6-DOF (Inertial Measurement Unit)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-gnss-receiver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. GNSS Receiver
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-automotive-radar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Automotive Radar
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#coordinate-transformations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coordinate Transformations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Coordinate Transformations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-vehicle-frame-ned-gnss-velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Vehicle Frame → NED (GNSS Velocity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-local-xy-wgs84-gnss-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Local XY → WGS84 (GNSS Position)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-imu-body-frame-alignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. IMU Body Frame Alignment
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#can-bus-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CAN Bus Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CAN Bus Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#frame-encoding-scheme" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frame Encoding Scheme
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-imu-accelerometer-frame-0x200" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: IMU Accelerometer Frame (0x200)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-rate-transmission" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-Rate Transmission
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#machine-learning-readiness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Machine Learning Readiness
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Machine Learning Readiness">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#csv-data-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CSV Data Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supervised-learning-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supervised Learning Setup
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Supervised Learning Setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-1-ekf-training-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 1: EKF Training Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-2-imu-bias-estimation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 2: IMU Bias Estimation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-3-gnss-outlier-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 3: GNSS Outlier Detection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#training-data-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training Data Generation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#algorithm-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Algorithm Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation Results
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Validation Results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#statistical-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Statistical Validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Statistical Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#noise-magnitude-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Noise Magnitude Verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bias-drift-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bias Drift Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensor-performance-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensor Performance Summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation Guide
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation Guide">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adding-a-new-sensor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding a New Sensor
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Adding a New Sensor">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-create-sensor-class" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Create Sensor Class
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-implement-sensor-logic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Implement Sensor Logic
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-register-in-sensorbank" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Register in SensorBank
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-add-to-sensorout-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Add to SensorOut Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-add-can-frame-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Add CAN Frame Definition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-6-register-in-sensorstatepacker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6: Register in SensorStatePacker
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future-enhancements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Future Enhancements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Future Enhancements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#short-term" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Short-Term
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#medium-term" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Medium-Term
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#long-term" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Long-Term
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="References">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sensor-specifications_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensor Specifications
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#noise-modeling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Noise Modeling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#machine-learning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Machine Learning
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -487,7 +1267,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../zephyr_overview/" class="md-nav__link">
+      <a href="../zephyr/ZEPHYR_PORT/" class="md-nav__link">
         
   
   
@@ -495,6 +1275,90 @@
     
   
     Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/BUILD_AND_OTA/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build, Flash & OTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/WEB_UI/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web UI & HTTP API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/MQTT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT(S) Control
   
 
     
@@ -521,6 +1385,313 @@
   
   
   
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security & Boot
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Security & Boot
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/SECURITY_HARDENING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security Hardening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/MCUBOOT_OTA/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCUboot & OTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcuboot_signing_and_flash_recovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Signing & Flash Recovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../https_tls_implementation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTPS / TLS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/IWDG_BOOT_LOOP_POSTMORTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Watchdog Boot-Loop Post-mortem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/ZEPHYR_BUILD_FLASH_UART/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build / Flash / UART (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zephyr/ZEPHYR_RPI5_SETUP/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raspberry Pi 5 Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../pdfs/" class="md-nav__link">
         
@@ -538,6 +1709,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1644,10 +2823,10 @@
 <h3 id="example-imu-accelerometer-frame-0x200">Example: IMU Accelerometer Frame (0x200)<a class="headerlink" href="#example-imu-accelerometer-frame-0x200" title="Permanent link">&para;</a></h3>
 <p><strong>DBC Definition:</strong>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>BO_ 512 IMU_ACC: 8 Vector__XXX
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a> SG_ imu_ax_mps2 : 0|16@1- (0.01,0) [-327.68|327.67] &quot;m/s^2&quot; Vector__XXX
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a> SG_ imu_ay_mps2 : 16|16@1- (0.01,0) [-327.68|327.67] &quot;m/s^2&quot; Vector__XXX
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a> SG_ imu_az_mps2 : 32|16@1- (0.01,0) [-327.68|327.67] &quot;m/s^2&quot; Vector__XXX
-<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a> SG_ imu_temp_c : 48|16@1- (0.01,0) [-327.68|327.67] &quot;degC&quot; Vector__XXX
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a> SG_ imu_ax_mps2 : 0|16@1- (0.01,0) [-327.68|327.67] "m/s^2" Vector__XXX
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a> SG_ imu_ay_mps2 : 16|16@1- (0.01,0) [-327.68|327.67] "m/s^2" Vector__XXX
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a> SG_ imu_az_mps2 : 32|16@1- (0.01,0) [-327.68|327.67] "m/s^2" Vector__XXX
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a> SG_ imu_temp_c : 48|16@1- (0.01,0) [-327.68|327.67] "degC" Vector__XXX
 </code></pre></div></p>
 <p><strong>Encoding Process:</strong>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kt">void</span><span class="w"> </span><span class="nf">pack_imu_acc</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">SensorOut</span><span class="o">&amp;</span><span class="w"> </span><span class="n">sens</span><span class="p">,</span><span class="w"> </span><span class="kt">uint8_t</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
@@ -1709,17 +2888,17 @@
 <a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>
 <a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="c1"># Load simulation data</span>
-<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;sim_out.csv&#39;</span><span class="p">)</span>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">'sim_out.csv'</span><span class="p">)</span>
 <a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>
 <a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="c1"># Ground truth labels</span>
-<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="n">y_velocity</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;v_mps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-<a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a><span class="n">y_yaw_rate</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;yaw_rate_radps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>  <span class="c1"># Derived: ψ̇ = diff(yaw) / dt</span>
+<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="n">y_velocity</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">'v_mps'</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+<a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a><span class="n">y_yaw_rate</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">'yaw_rate_radps'</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>  <span class="c1"># Derived: ψ̇ = diff(yaw) / dt</span>
 <a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a>
 <a id="__codelineno-22-11" name="__codelineno-22-11" href="#__codelineno-22-11"></a><span class="c1"># Sensor features</span>
-<a id="__codelineno-22-12" name="__codelineno-22-12" href="#__codelineno-22-12"></a><span class="n">X_imu_ax</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;imu_ax_mps2&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-<a id="__codelineno-22-13" name="__codelineno-22-13" href="#__codelineno-22-13"></a><span class="n">X_imu_gz</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;imu_gz_rps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-<a id="__codelineno-22-14" name="__codelineno-22-14" href="#__codelineno-22-14"></a><span class="n">X_gnss_vn</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;gnss_vn_mps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-<a id="__codelineno-22-15" name="__codelineno-22-15" href="#__codelineno-22-15"></a><span class="n">X_gnss_ve</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;gnss_ve_mps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+<a id="__codelineno-22-12" name="__codelineno-22-12" href="#__codelineno-22-12"></a><span class="n">X_imu_ax</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">'imu_ax_mps2'</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+<a id="__codelineno-22-13" name="__codelineno-22-13" href="#__codelineno-22-13"></a><span class="n">X_imu_gz</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">'imu_gz_rps'</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+<a id="__codelineno-22-14" name="__codelineno-22-14" href="#__codelineno-22-14"></a><span class="n">X_gnss_vn</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">'gnss_vn_mps'</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+<a id="__codelineno-22-15" name="__codelineno-22-15" href="#__codelineno-22-15"></a><span class="n">X_gnss_ve</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">'gnss_ve_mps'</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
 <a id="__codelineno-22-16" name="__codelineno-22-16" href="#__codelineno-22-16"></a>
 <a id="__codelineno-22-17" name="__codelineno-22-17" href="#__codelineno-22-17"></a><span class="c1"># Feature matrix</span>
 <a id="__codelineno-22-18" name="__codelineno-22-18" href="#__codelineno-22-18"></a><span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">X_imu_ax</span><span class="p">,</span> <span class="n">X_imu_gz</span><span class="p">,</span> <span class="n">X_gnss_vn</span><span class="p">,</span> <span class="n">X_gnss_ve</span><span class="p">])</span>
@@ -1733,12 +2912,12 @@
 <a id="__codelineno-22-26" name="__codelineno-22-26" href="#__codelineno-22-26"></a><span class="c1"># Evaluate</span>
 <a id="__codelineno-22-27" name="__codelineno-22-27" href="#__codelineno-22-27"></a><span class="n">y_pred</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
 <a id="__codelineno-22-28" name="__codelineno-22-28" href="#__codelineno-22-28"></a><span class="n">mse_velocity</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">((</span><span class="n">y_pred</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">y_velocity</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-<a id="__codelineno-22-29" name="__codelineno-22-29" href="#__codelineno-22-29"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Velocity MSE: </span><span class="si">{</span><span class="n">mse_velocity</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> m²/s²&quot;</span><span class="p">)</span>
+<a id="__codelineno-22-29" name="__codelineno-22-29" href="#__codelineno-22-29"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Velocity MSE: </span><span class="si">{</span><span class="n">mse_velocity</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> m²/s²"</span><span class="p">)</span>
 </code></pre></div>
 <h4 id="example-2-imu-bias-estimation">Example 2: IMU Bias Estimation<a class="headerlink" href="#example-2-imu-bias-estimation" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c1"># Extract IMU bias characteristics for Kalman filter tuning</span>
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="n">imu_gz_truth</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;yaw_rate_radps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>  <span class="c1"># Ground truth from kinematics</span>
-<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="n">imu_gz_meas</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;imu_gz_rps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="n">imu_gz_truth</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">'yaw_rate_radps'</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>  <span class="c1"># Ground truth from kinematics</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="n">imu_gz_meas</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">'imu_gz_rps'</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
 <a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>
 <a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="n">bias_error</span> <span class="o">=</span> <span class="n">imu_gz_meas</span> <span class="o">-</span> <span class="n">imu_gz_truth</span>
 <a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>
@@ -1748,11 +2927,11 @@
 <a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a><span class="k">def</span><span class="w"> </span><span class="nf">bias_model</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">sigma</span><span class="p">):</span>
 <a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a>    <span class="k">return</span> <span class="n">sigma</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">t</span> <span class="o">/</span> <span class="n">tau</span><span class="p">))</span>
 <a id="__codelineno-23-12" name="__codelineno-23-12" href="#__codelineno-23-12"></a>
-<a id="__codelineno-23-13" name="__codelineno-23-13" href="#__codelineno-23-13"></a><span class="n">popt</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">curve_fit</span><span class="p">(</span><span class="n">bias_model</span><span class="p">,</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;t_s&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">bias_error</span><span class="p">)</span>
+<a id="__codelineno-23-13" name="__codelineno-23-13" href="#__codelineno-23-13"></a><span class="n">popt</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">curve_fit</span><span class="p">(</span><span class="n">bias_model</span><span class="p">,</span> <span class="n">df</span><span class="p">[</span><span class="s1">'t_s'</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">bias_error</span><span class="p">)</span>
 <a id="__codelineno-23-14" name="__codelineno-23-14" href="#__codelineno-23-14"></a><span class="n">tau_estimated</span> <span class="o">=</span> <span class="n">popt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 <a id="__codelineno-23-15" name="__codelineno-23-15" href="#__codelineno-23-15"></a>
-<a id="__codelineno-23-16" name="__codelineno-23-16" href="#__codelineno-23-16"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Estimated bias time constant: </span><span class="si">{</span><span class="n">tau_estimated</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> seconds&quot;</span><span class="p">)</span>
-<a id="__codelineno-23-17" name="__codelineno-23-17" href="#__codelineno-23-17"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Configured value: 1800 seconds (30 min)&quot;</span><span class="p">)</span>
+<a id="__codelineno-23-16" name="__codelineno-23-16" href="#__codelineno-23-16"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Estimated bias time constant: </span><span class="si">{</span><span class="n">tau_estimated</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> seconds"</span><span class="p">)</span>
+<a id="__codelineno-23-17" name="__codelineno-23-17" href="#__codelineno-23-17"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Configured value: 1800 seconds (30 min)"</span><span class="p">)</span>
 <a id="__codelineno-23-18" name="__codelineno-23-18" href="#__codelineno-23-18"></a><span class="c1"># Verify model accuracy</span>
 </code></pre></div>
 <h4 id="example-3-gnss-outlier-detection">Example 3: GNSS Outlier Detection<a class="headerlink" href="#example-3-gnss-outlier-detection" title="Permanent link">&para;</a></h4>
@@ -1760,9 +2939,9 @@
 <a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.ensemble</span><span class="w"> </span><span class="kn">import</span> <span class="n">IsolationForest</span>
 <a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>
 <a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="c1"># Features</span>
-<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="n">gnss_sat_count</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;gnss_sat_count&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a><span class="n">gnss_fix_type</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;gnss_fix_type&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-<a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a><span class="n">position_jump</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;gnss_lat_deg&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">prepend</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="n">gnss_sat_count</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">'gnss_sat_count'</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a><span class="n">gnss_fix_type</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">'gnss_fix_type'</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+<a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a><span class="n">position_jump</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'gnss_lat_deg'</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">prepend</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 <a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a>
 <a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a><span class="n">X_gnss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">gnss_sat_count</span><span class="p">,</span> <span class="n">gnss_fix_type</span><span class="p">,</span> <span class="n">position_jump</span><span class="p">])</span>
 <a id="__codelineno-24-10" name="__codelineno-24-10" href="#__codelineno-24-10"></a>
@@ -1776,7 +2955,7 @@
 <a id="__codelineno-24-18" name="__codelineno-24-18" href="#__codelineno-24-18"></a><span class="c1"># Detect anomalies</span>
 <a id="__codelineno-24-19" name="__codelineno-24-19" href="#__codelineno-24-19"></a><span class="n">y_pred</span> <span class="o">=</span> <span class="n">clf</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_gnss</span><span class="p">)</span>
 <a id="__codelineno-24-20" name="__codelineno-24-20" href="#__codelineno-24-20"></a><span class="n">false_positive_rate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">((</span><span class="n">y_pred</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">y_outlier</span> <span class="o">==</span> <span class="mi">0</span><span class="p">))</span>
-<a id="__codelineno-24-21" name="__codelineno-24-21" href="#__codelineno-24-21"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;False positive rate: </span><span class="si">{</span><span class="n">false_positive_rate</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-24-21" name="__codelineno-24-21" href="#__codelineno-24-21"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"False positive rate: </span><span class="si">{</span><span class="n">false_positive_rate</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="training-data-generation">Training Data Generation<a class="headerlink" href="#training-data-generation" title="Permanent link">&para;</a></h3>
 <p><strong>Generate diverse scenarios:</strong></p>
@@ -1819,8 +2998,8 @@
 </code></pre></div>
 <p><strong>Cross-validation across scenarios:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="c1"># Train on slalom, test on brake_test</span>
-<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="n">df_train</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;slalom_out.csv&#39;</span><span class="p">)</span>
-<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="n">df_test</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;brake_test_out.csv&#39;</span><span class="p">)</span>
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="n">df_train</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">'slalom_out.csv'</span><span class="p">)</span>
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="n">df_test</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">'brake_test_out.csv'</span><span class="p">)</span>
 <a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a>
 <a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a><span class="c1"># Ensures model generalizes across maneuvers</span>
 </code></pre></div>
@@ -1831,22 +3010,22 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 <a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>
 <a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="c1"># Gyroscope Z-axis</span>
-<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="n">gyro_z_error</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;imu_gz_rps&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;yaw_rate_radps&#39;</span><span class="p">]</span>
+<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="n">gyro_z_error</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">'imu_gz_rps'</span><span class="p">]</span> <span class="o">-</span> <span class="n">df</span><span class="p">[</span><span class="s1">'yaw_rate_radps'</span><span class="p">]</span>
 <a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a><span class="n">measured_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">gyro_z_error</span><span class="p">)</span>
 <a id="__codelineno-29-6" name="__codelineno-29-6" href="#__codelineno-29-6"></a><span class="n">specified_std</span> <span class="o">=</span> <span class="mf">0.1</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span><span class="p">)</span>  <span class="c1"># 0.1 deg/s to rad/s</span>
 <a id="__codelineno-29-7" name="__codelineno-29-7" href="#__codelineno-29-7"></a>
-<a id="__codelineno-29-8" name="__codelineno-29-8" href="#__codelineno-29-8"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Gyro Z noise - Specified: </span><span class="si">{</span><span class="n">specified_std</span><span class="si">:</span><span class="s2">.5f</span><span class="si">}</span><span class="s2"> rad/s&quot;</span><span class="p">)</span>
-<a id="__codelineno-29-9" name="__codelineno-29-9" href="#__codelineno-29-9"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Gyro Z noise - Measured: </span><span class="si">{</span><span class="n">measured_std</span><span class="si">:</span><span class="s2">.5f</span><span class="si">}</span><span class="s2"> rad/s&quot;</span><span class="p">)</span>
+<a id="__codelineno-29-8" name="__codelineno-29-8" href="#__codelineno-29-8"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Gyro Z noise - Specified: </span><span class="si">{</span><span class="n">specified_std</span><span class="si">:</span><span class="s2">.5f</span><span class="si">}</span><span class="s2"> rad/s"</span><span class="p">)</span>
+<a id="__codelineno-29-9" name="__codelineno-29-9" href="#__codelineno-29-9"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Gyro Z noise - Measured: </span><span class="si">{</span><span class="n">measured_std</span><span class="si">:</span><span class="s2">.5f</span><span class="si">}</span><span class="s2"> rad/s"</span><span class="p">)</span>
 <a id="__codelineno-29-10" name="__codelineno-29-10" href="#__codelineno-29-10"></a><span class="c1"># Expected output: Both ≈ 0.00175 rad/s</span>
 <a id="__codelineno-29-11" name="__codelineno-29-11" href="#__codelineno-29-11"></a>
 <a id="__codelineno-29-12" name="__codelineno-29-12" href="#__codelineno-29-12"></a><span class="c1"># Plot distribution</span>
 <a id="__codelineno-29-13" name="__codelineno-29-13" href="#__codelineno-29-13"></a><span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">gyro_z_error</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">density</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
-<a id="__codelineno-29-14" name="__codelineno-29-14" href="#__codelineno-29-14"></a><span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;IMU Gyro Z Noise Distribution&#39;</span><span class="p">)</span>
-<a id="__codelineno-29-15" name="__codelineno-29-15" href="#__codelineno-29-15"></a><span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Error (rad/s)&#39;</span><span class="p">)</span>
-<a id="__codelineno-29-16" name="__codelineno-29-16" href="#__codelineno-29-16"></a><span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Probability Density&#39;</span><span class="p">)</span>
-<a id="__codelineno-29-17" name="__codelineno-29-17" href="#__codelineno-29-17"></a><span class="n">plt</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Zero error&#39;</span><span class="p">)</span>
+<a id="__codelineno-29-14" name="__codelineno-29-14" href="#__codelineno-29-14"></a><span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">'IMU Gyro Z Noise Distribution'</span><span class="p">)</span>
+<a id="__codelineno-29-15" name="__codelineno-29-15" href="#__codelineno-29-15"></a><span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">'Error (rad/s)'</span><span class="p">)</span>
+<a id="__codelineno-29-16" name="__codelineno-29-16" href="#__codelineno-29-16"></a><span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">'Probability Density'</span><span class="p">)</span>
+<a id="__codelineno-29-17" name="__codelineno-29-17" href="#__codelineno-29-17"></a><span class="n">plt</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">'r'</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">'--'</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">'Zero error'</span><span class="p">)</span>
 <a id="__codelineno-29-18" name="__codelineno-29-18" href="#__codelineno-29-18"></a><span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
-<a id="__codelineno-29-19" name="__codelineno-29-19" href="#__codelineno-29-19"></a><span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s1">&#39;gyro_z_noise_dist.png&#39;</span><span class="p">)</span>
+<a id="__codelineno-29-19" name="__codelineno-29-19" href="#__codelineno-29-19"></a><span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s1">'gyro_z_noise_dist.png'</span><span class="p">)</span>
 </code></pre></div>
 <h4 id="bias-drift-analysis">Bias Drift Analysis<a class="headerlink" href="#bias-drift-analysis" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="c1"># Extract long-term bias drift</span>
@@ -1854,13 +3033,13 @@
 <a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a><span class="n">bias_windowed</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">gyro_z_error</span><span class="p">)</span><span class="o">.</span><span class="n">rolling</span><span class="p">(</span><span class="n">window_size</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 <a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a>
 <a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
-<a id="__codelineno-30-6" name="__codelineno-30-6" href="#__codelineno-30-6"></a><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;t_s&#39;</span><span class="p">],</span> <span class="n">bias_windowed</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Windowed bias (1s)&#39;</span><span class="p">)</span>
-<a id="__codelineno-30-7" name="__codelineno-30-7" href="#__codelineno-30-7"></a><span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Time (s)&#39;</span><span class="p">)</span>
-<a id="__codelineno-30-8" name="__codelineno-30-8" href="#__codelineno-30-8"></a><span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Bias (rad/s)&#39;</span><span class="p">)</span>
-<a id="__codelineno-30-9" name="__codelineno-30-9" href="#__codelineno-30-9"></a><span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;IMU Gyro Z Bias Drift (Gauss-Markov τ=30min)&#39;</span><span class="p">)</span>
+<a id="__codelineno-30-6" name="__codelineno-30-6" href="#__codelineno-30-6"></a><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'t_s'</span><span class="p">],</span> <span class="n">bias_windowed</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">'Windowed bias (1s)'</span><span class="p">)</span>
+<a id="__codelineno-30-7" name="__codelineno-30-7" href="#__codelineno-30-7"></a><span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">'Time (s)'</span><span class="p">)</span>
+<a id="__codelineno-30-8" name="__codelineno-30-8" href="#__codelineno-30-8"></a><span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">'Bias (rad/s)'</span><span class="p">)</span>
+<a id="__codelineno-30-9" name="__codelineno-30-9" href="#__codelineno-30-9"></a><span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">'IMU Gyro Z Bias Drift (Gauss-Markov τ=30min)'</span><span class="p">)</span>
 <a id="__codelineno-30-10" name="__codelineno-30-10" href="#__codelineno-30-10"></a><span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
 <a id="__codelineno-30-11" name="__codelineno-30-11" href="#__codelineno-30-11"></a><span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
-<a id="__codelineno-30-12" name="__codelineno-30-12" href="#__codelineno-30-12"></a><span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s1">&#39;bias_drift_analysis.png&#39;</span><span class="p">)</span>
+<a id="__codelineno-30-12" name="__codelineno-30-12" href="#__codelineno-30-12"></a><span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s1">'bias_drift_analysis.png'</span><span class="p">)</span>
 <a id="__codelineno-30-13" name="__codelineno-30-13" href="#__codelineno-30-13"></a>
 <a id="__codelineno-30-14" name="__codelineno-30-14" href="#__codelineno-30-14"></a><span class="c1"># Verify time constant</span>
 <a id="__codelineno-30-15" name="__codelineno-30-15" href="#__codelineno-30-15"></a><span class="c1"># (Would require 30+ minute simulation for full verification)</span>
@@ -1992,7 +3171,7 @@
 <h4 id="step-1-create-sensor-class">Step 1: Create Sensor Class<a class="headerlink" href="#step-1-create-sensor-class" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="c1">// src/sensors/lidar_sensor.hpp</span>
 <a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a><span class="cp">#pragma once</span>
-<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;sensors/sensor_base.hpp&quot;</span>
+<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">"sensors/sensor_base.hpp"</span>
 <a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a>
 <a id="__codelineno-31-5" name="__codelineno-31-5" href="#__codelineno-31-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">LidarSensor</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">SensorBase</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-31-6" name="__codelineno-31-6" href="#__codelineno-31-6"></a><span class="k">public</span><span class="o">:</span>
@@ -2001,7 +3180,7 @@
 <a id="__codelineno-31-9" name="__codelineno-31-9" href="#__codelineno-31-9"></a><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">PlantState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">truth</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">dt</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
 <a id="__codelineno-31-10" name="__codelineno-31-10" href="#__codelineno-31-10"></a><span class="w">    </span><span class="n">SensorOut</span><span class="w"> </span><span class="nf">get_output</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
 <a id="__codelineno-31-11" name="__codelineno-31-11" href="#__codelineno-31-11"></a><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">reset</span><span class="p">()</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
-<a id="__codelineno-31-12" name="__codelineno-31-12" href="#__codelineno-31-12"></a><span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="nf">name</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;Lidar&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-31-12" name="__codelineno-31-12" href="#__codelineno-31-12"></a><span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="nf">name</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">"Lidar"</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
 <a id="__codelineno-31-13" name="__codelineno-31-13" href="#__codelineno-31-13"></a>
 <a id="__codelineno-31-14" name="__codelineno-31-14" href="#__codelineno-31-14"></a><span class="k">private</span><span class="o">:</span>
 <a id="__codelineno-31-15" name="__codelineno-31-15" href="#__codelineno-31-15"></a><span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">update_hz_</span><span class="p">;</span>
@@ -2055,8 +3234,8 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a><span class="c1">// src/can/sensor_state_packer.cpp</span>
 <a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a><span class="n">SignalMap</span><span class="w"> </span><span class="nf">pack_lidar_data</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">SensorOut</span><span class="o">&amp;</span><span class="w"> </span><span class="n">sens</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-36-3" name="__codelineno-36-3" href="#__codelineno-36-3"></a><span class="w">    </span><span class="n">SignalMap</span><span class="w"> </span><span class="n">signals</span><span class="p">;</span>
-<a id="__codelineno-36-4" name="__codelineno-36-4" href="#__codelineno-36-4"></a><span class="w">    </span><span class="n">signals</span><span class="p">[</span><span class="s">&quot;lidar_range_m&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sens</span><span class="p">.</span><span class="n">lidar_range_m</span><span class="p">;</span>
-<a id="__codelineno-36-5" name="__codelineno-36-5" href="#__codelineno-36-5"></a><span class="w">    </span><span class="n">signals</span><span class="p">[</span><span class="s">&quot;lidar_status&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">sens</span><span class="p">.</span><span class="n">lidar_status</span><span class="p">);</span>
+<a id="__codelineno-36-4" name="__codelineno-36-4" href="#__codelineno-36-4"></a><span class="w">    </span><span class="n">signals</span><span class="p">[</span><span class="s">"lidar_range_m"</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sens</span><span class="p">.</span><span class="n">lidar_range_m</span><span class="p">;</span>
+<a id="__codelineno-36-5" name="__codelineno-36-5" href="#__codelineno-36-5"></a><span class="w">    </span><span class="n">signals</span><span class="p">[</span><span class="s">"lidar_status"</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">sens</span><span class="p">.</span><span class="n">lidar_status</span><span class="p">);</span>
 <a id="__codelineno-36-6" name="__codelineno-36-6" href="#__codelineno-36-6"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">signals</span><span class="p">;</span>
 <a id="__codelineno-36-7" name="__codelineno-36-7" href="#__codelineno-36-7"></a><span class="p">}</span>
 </code></pre></div>
@@ -2162,7 +3341,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@11/dist/mermaid.min.js"></script>
       
