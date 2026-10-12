@@ -12,11 +12,13 @@
 //   GET  /            → login page
 //   GET  /login       → login page
 //   POST /login       → validate token → set session cookie → redirect /dash
-//   GET  /dash        → dashboard (requires session cookie or Bearer token)
-//   GET  /dash?...    → apply command + dashboard (requires auth)
+//   GET  /dash        → web UI shell (requires session cookie or Bearer token)
+//   GET  /dash?...    → apply command, 204 (requires auth)
 //   GET  /logout      → invalidate session + redirect /
-//   GET  /ota         → OTA upload page (requires auth)
-//   GET  /api/state   → JSON telemetry snapshot for JS polling (requires auth)
+//   GET  /ota         → web UI shell, OTA view (requires auth)
+//   GET  /api/state   → JSON telemetry snapshot (requires auth)
+//   GET  /api/system  → threads, memory map, MQTT broker config (requires auth)
+//   GET  /app.js, /app.css → embedded Vite UI assets (public)
 //   POST /api/firmware → stream firmware binary to slot1 (requires auth)
 //   POST /api/reboot  → cold-reboot into MCUboot swap (requires auth)
 //   other             → redirect /
@@ -172,6 +174,9 @@ static void http_server_thread(void*, void*, void*)
         bool is_logout       = (strcmp(path, "/logout")       == 0);
         bool is_ota          = (strcmp(path, "/ota")          == 0);
         bool is_api_state    = (strcmp(path, "/api/state")    == 0);
+        bool is_api_system   = (strcmp(path, "/api/system")   == 0);
+        bool is_app_js       = (strcmp(path, "/app.js")       == 0);
+        bool is_app_css      = (strcmp(path, "/app.css")      == 0);
         bool is_api_firmware = (strcmp(path, "/api/firmware") == 0);
         bool is_api_reboot   = (strcmp(path, "/api/reboot")   == 0);
 
@@ -223,20 +228,30 @@ if (verify_bearer(tok_clean)) {
         } else if (is_get && (is_root || is_login)) {
             send_login_page(client, false);
 
+        } else if (is_get && is_app_js) {
+            send_app_js(client);      // public: contains no secrets, UI gates on API 401
+
+        } else if (is_get && is_app_css) {
+            send_app_css(client);
+
         } else if (is_get && is_dash) {
             if (authed) {
-                if (query[0]) apply_web_cmd(query);
-                send_page(client);
+                if (query[0]) { apply_web_cmd(query); send_204(client); }
+                else          { send_shell(client); }
             } else {
                 send_redirect(client, "/");
             }
 
         } else if (is_get && is_ota) {
-            if (authed) { handle_ota_page(client); }
+            if (authed) { send_shell(client); }
             else        { send_redirect(client, "/"); }
 
         } else if (is_get && is_api_state) {
             if (authed) { send_api_state(client); }
+            else        { send_401(client); }
+
+        } else if (is_get && is_api_system) {
+            if (authed) { send_api_system(client); }
             else        { send_401(client); }
 
         } else if (is_post && is_api_firmware) {

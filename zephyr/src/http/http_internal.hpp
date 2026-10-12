@@ -26,7 +26,11 @@ bool session_check(const char* cookie_hdr);      // true if valid sid= cookie
 void session_invalidate(const char* cookie_hdr); // removes session on logout
 
 // ── Page builders (http_page.cpp) ────────────────────────────────────────────
-void send_page(int fd);
+void send_shell(int fd);      // GET /dash, /ota — Vite UI entry (index.html)
+void send_app_js(int fd);     // GET /app.js   (no auth)
+void send_app_css(int fd);    // GET /app.css  (no auth)
+void send_204(int fd);        // command applied, no body
+void send_api_system(int fd); // GET /api/system — threads, memory map, MQTT broker
 void send_login_page(int fd, bool bad_token);
 void send_api_state(int fd);  // GET /api/state — JSON telemetry for JS polling
 
@@ -34,6 +38,5 @@ void send_api_state(int fd);  // GET /api/state — JSON telemetry for JS pollin
 void send_401(int fd);
 
 // ── OTA firmware update (http_ota.cpp) ───────────────────────────────────────
-void handle_ota_page(int fd);
 void handle_ota_upload(int fd, int content_length);
 void handle_api_reboot(int fd);  // closes fd and reboots — never returns
